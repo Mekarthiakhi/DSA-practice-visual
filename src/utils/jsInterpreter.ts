@@ -363,7 +363,7 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
         if (fallback) activeArrayName = fallback.name
       }
 
-    const dsaState = buildDSAState(ev.vars, activeArrayName)
+    const dsaState = buildDSAState(ev.vars, activeArrayName, lineCode)
     const desc = buildDesc(lineCode, ev.vars)
 
     if (dsaState && dsaState.type === 'array') {
@@ -465,7 +465,7 @@ function detectDataType(code: string, vars: Record<string, unknown>): Interprete
 
 // ─── DSA state builder ────────────────────────────────────────────────────────
 
-function buildDSAState(vars: Record<string, unknown>, preferredName?: string): DSAState | undefined {
+function buildDSAState(vars: Record<string, unknown>, preferredName?: string, lineCode = ''): DSAState | undefined {
   // Find the largest numeric array
   const numArrays = Object.entries(vars)
     .filter(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && typeof (v as unknown[])[0] === 'number')
@@ -483,23 +483,44 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string): D
     const [name, arr] = target
     const values = (arr as number[]).slice(0, 24)
 
-    // Try to detect pointer variables (i, j, left, right, mid)
-    const pointerNames = ['i', 'j', 'left', 'l', 'mid', 'm']
-    const pointer2Names = ['j', 'right', 'r', 'mid']
+    // Prioritized pointer-resolution
+    const rangePointers = ['mid', 'm', 'left', 'l', 'right', 'r', 'low', 'high', 'start', 'end']
+    const activeRangePointers = rangePointers.filter(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
+
     let pointer: number | undefined
     let pointer2: number | undefined
 
-    for (const p of pointerNames) {
-      if (typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length) {
-        pointer = vars[p] as number
-        break
+    if (activeRangePointers.length > 0) {
+      pointer = vars[activeRangePointers[0]] as number
+      if (activeRangePointers.length > 1) {
+        pointer2 = vars[activeRangePointers[1]] as number
+      }
+    } else {
+      const hasJ = typeof vars['j'] === 'number' && (vars['j'] as number) >= 0 && (vars['j'] as number) < values.length
+      const hasI = typeof vars['i'] === 'number' && (vars['i'] as number) >= 0 && (vars['i'] as number) < values.length
+
+      if (hasJ) {
+        pointer = vars['j'] as number
+        
+        const selectionPointers = ['min_idx', 'minIndex', 'min', 'k']
+        const foundSel = selectionPointers.find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
+        
+        if (foundSel) {
+          pointer2 = vars[foundSel] as number
+        } else if (lineCode.includes('j - 1') || lineCode.includes('j-1') || lineCode.includes('j- 1')) {
+          pointer2 = pointer - 1
+        } else {
+          // Default to j + 1 for bubble sort / default inner loop comparisons
+          pointer2 = pointer + 1
+        }
+      } else if (hasI) {
+        pointer = vars['i'] as number
       }
     }
-    for (const p of pointer2Names) {
-      if (p !== 'i' && typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length && vars[p] !== pointer) {
-        pointer2 = vars[p] as number
-        break
-      }
+
+    // Ensure pointer2 is within array bounds
+    if (pointer2 !== undefined && (pointer2 < 0 || pointer2 >= values.length)) {
+      pointer2 = undefined
     }
 
     const nodes: DSANode[] = values.map((v, idx) => ({
