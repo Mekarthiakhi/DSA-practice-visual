@@ -311,9 +311,98 @@ export function interpretCode(code: string): InterpreterResult {
   return { steps, output: consoleLines, error: hasError || undefined, detectedType }
 }
 
+// ─── Filter intermediate swap states ──────────────────────────────────────────
+
+function filterSwapEvents(events: TraceEvent[], activeArrayName: string): TraceEvent[] {
+  if (!activeArrayName) return events
+  
+  const filtered: TraceEvent[] = []
+  
+  for (let i = 0; i < events.length; i++) {
+    const cur = events[i]
+    
+    // Check if we can look ahead
+    if (i > 0 && i < events.length - 1) {
+      const prev = filtered[filtered.length - 1]
+      const next = events[i + 1]
+      
+      if (cur.type === 'line' && prev?.type === 'line' && next?.type === 'line') {
+        const prevArr = prev.vars[activeArrayName]
+        const curArr = cur.vars[activeArrayName]
+        const nextArr = next.vars[activeArrayName]
+        
+        if (Array.isArray(prevArr) && Array.isArray(curArr) && Array.isArray(nextArr)) {
+          if (prevArr.length === curArr.length && curArr.length === nextArr.length) {
+            // Find positions where prev and next differ
+            const diffIndices: number[] = []
+            for (let k = 0; k < prevArr.length; k++) {
+              if (prevArr[k] !== nextArr[k]) {
+                diffIndices.push(k)
+              }
+            }
+            
+            if (diffIndices.length === 2) {
+              const [idx1, idx2] = diffIndices
+              // Check if they are swapped
+              const isSwapped = prevArr[idx1] === nextArr[idx2] && prevArr[idx2] === nextArr[idx1]
+              
+              if (isSwapped) {
+                // Check if curArr is an intermediate copy-over state
+                let isIntermediate = true
+                for (let k = 0; k < curArr.length; k++) {
+                  if (k !== idx1 && k !== idx2) {
+                    if (curArr[k] !== prevArr[k]) {
+                      isIntermediate = false
+                      break
+                    }
+                  }
+                }
+                
+                if (isIntermediate) {
+                  const val1 = curArr[idx1]
+                  const val2 = curArr[idx2]
+                  const expectedVal1 = prevArr[idx1]
+                  const expectedVal2 = prevArr[idx2]
+                  
+                  if (
+                    (val1 === expectedVal2 && val2 === expectedVal2) ||
+                    (val1 === expectedVal1 && val2 === expectedVal1)
+                  ) {
+                    // Skip the intermediate state where duplicates exist
+                    continue
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    filtered.push(cur)
+  }
+  
+  return filtered
+}
+
 // ─── Events → Steps ──────────────────────────────────────────────────────────
 
 function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
+  // 1. Detect active array name first to guide the filter
+  let activeArrayName = ''
+  for (const ev of events) {
+    if (ev.type === 'line') {
+      const fallback = Object.entries(ev.vars).find(v => (v[0] === 'arr' || v[0] === 'nums' || v[0] === 'array') && Array.isArray(v[1]))
+      if (fallback) {
+        activeArrayName = fallback[0]
+        break
+      }
+    }
+  }
+
+  // 2. Filter intermediate states
+  const filteredEvents = filterSwapEvents(events, activeArrayName)
+
   const codeLines = code.split('\n')
   const steps: ExecutionStep[] = []
   let pendingOutput: string[] = []
@@ -324,9 +413,8 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
   let comparisons = 0
   let prevArrState: number[] = []
   let prevPointers = ''
-  let activeArrayName = ''
 
-  for (const ev of events) {
+  for (const ev of filteredEvents) {
     if (ev.type === 'output' && ev.output) {
       pendingOutput.push(ev.output)
       continue
