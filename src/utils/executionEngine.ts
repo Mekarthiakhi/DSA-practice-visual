@@ -1,9 +1,10 @@
 import { ExecutionStep, Variable, StackFrame, DSAState, DSANode, DSAEdge } from '../store/ideStore'
+import { genHeapSort } from '../engines/sorting/heapSort'
 
 // ─── Algorithm Detection ────────────────────────────────────────────────────
 
 type AlgoType =
-  | 'bubbleSort' | 'selectionSort' | 'insertionSort' | 'mergeSort' | 'quickSort'
+  | 'bubbleSort' | 'selectionSort' | 'insertionSort' | 'mergeSort' | 'quickSort' | 'heapSort'
   | 'binarySearch' | 'linearSearch'
   | 'fibonacci' | 'factorial'
   | 'linkedList' | 'doublyLinkedList'
@@ -22,6 +23,7 @@ export function detectAlgorithm(code: string): AlgoType {
   if (lower.includes('insertionsort') || (lower.includes('insertion') && lower.includes('sort'))) return 'insertionSort'
   if (lower.includes('mergesort') || (lower.includes('merge') && lower.includes('sort'))) return 'mergeSort'
   if (lower.includes('quicksort') || (lower.includes('quick') && lower.includes('sort')) || lower.includes('partition')) return 'quickSort'
+  if (lower.includes('heapsort') || (lower.includes('heap') && lower.includes('sort')) || lower.includes('heapify')) return 'heapSort'
   if (lower.includes('binarysearch') || (lower.includes('binary') && lower.includes('search'))) return 'binarySearch'
   if (lower.includes('linearsearch') || (lower.includes('linear') && lower.includes('search'))) return 'linearSearch'
   if (lower.includes('fibonacci') || lower.includes('fib(')) return 'fibonacci'
@@ -1031,6 +1033,7 @@ export function generateExecutionSteps(code: string): ExecutionStep[] {
     case 'insertionSort': return genInsertionSort(arr)
     case 'mergeSort': return genMergeSort(arr)
     case 'quickSort': return genQuickSort(arr)
+    case 'heapSort': return genHeapSort(arr)
     case 'binarySearch': return genBinarySearch([2,5,8,12,16,23,38,56,72,91], extractTarget(code))
     case 'linearSearch': return genLinearSearch(arr, extractTarget(code))
     case 'fibonacci': return genFibonacci(extractNumber(code))
@@ -1482,3 +1485,6 @@ function main() {
 console.log(main());`
   }
 }
+
+// Import Heap Sort
+import { genHeapSort } from '../engines/sorting/heapSort'
