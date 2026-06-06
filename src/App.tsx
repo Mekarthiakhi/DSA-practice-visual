@@ -1,59 +1,28 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useRef } from 'react'
 import { TopBar } from './components/layout/TopBar'
 import { CodeEditor } from './components/editor/CodeEditor'
 import { VisualizationPanel } from './components/visualization/VisualizationPanel'
 import { AIPanel } from './components/ai-panel/AIPanel'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { useIDEStore } from './store/ideStore'
-
-// Expose the store globally so aiService can read the API key without circular deps
-;(window as typeof window & { __ideStore__: typeof useIDEStore })['__ideStore__'] = useIDEStore
+import { usePanelResize } from './hooks/usePanelResize'
 
 export default function App() {
   const { leftPanelWidth, rightPanelWidth, setLeftPanelWidth, setRightPanelWidth } = useIDEStore()
   const containerRef = useRef<HTMLDivElement>(null)
-  const isDraggingLeft = useRef(false)
-  const isDraggingRight = useRef(false)
 
-  // Use stable refs so document event listeners always get the latest version
-  const moveHandlerRef = useRef<(e: MouseEvent) => void>()
-  const upHandlerRef = useRef<(e: MouseEvent) => void>()
-
-  const cleanup = useCallback(() => {
-    isDraggingLeft.current = false
-    isDraggingRight.current = false
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
-    if (moveHandlerRef.current) document.removeEventListener('mousemove', moveHandlerRef.current)
-    if (upHandlerRef.current)   document.removeEventListener('mouseup',   upHandlerRef.current)
-  }, [])
-
-  const startDrag = (isLeft: boolean) => (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (isLeft) isDraggingLeft.current = true
-    else        isDraggingRight.current = true
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-
-    const moveHandler = (me: MouseEvent) => {
-      if (!containerRef.current) return
-      const rect = containerRef.current.getBoundingClientRect()
-      const x = me.clientX - rect.left
-      const total = rect.width
-      if (isDraggingLeft.current) {
-        setLeftPanelWidth(Math.min(Math.max((x / total) * 100, 20), 55))
-      }
-      if (isDraggingRight.current) {
-        setRightPanelWidth(Math.min(Math.max(((total - x) / total) * 100, 18), 45))
-      }
+  // Use custom hook for panel resizing - handles cleanup automatically
+  const { startDrag } = usePanelResize(
+    containerRef,
+    setLeftPanelWidth,
+    setRightPanelWidth,
+    {
+      minLeftWidth: 20,
+      maxLeftWidth: 55,
+      minRightWidth: 18,
+      maxRightWidth: 45,
     }
-
-    const upHandler = () => cleanup()
-
-    moveHandlerRef.current = moveHandler
-    upHandlerRef.current   = upHandler
-    document.addEventListener('mousemove', moveHandler)
-    document.addEventListener('mouseup',   upHandler, { once: true })
-  }
+  )
 
   const centerWidth = Math.max(100 - leftPanelWidth - rightPanelWidth, 20)
 
@@ -68,7 +37,9 @@ export default function App() {
       >
         {/* Left: Code Editor */}
         <div style={{ width: `${leftPanelWidth}%`, minWidth: 0 }} className="flex-shrink-0 flex flex-col">
-          <CodeEditor />
+          <ErrorBoundary componentName="Code Editor">
+            <CodeEditor />
+          </ErrorBoundary>
         </div>
 
         {/* Left resizer */}
@@ -83,7 +54,9 @@ export default function App() {
 
         {/* Center: Visualization */}
         <div style={{ width: `${centerWidth}%`, minWidth: 0 }} className="flex-shrink-0 flex flex-col">
-          <VisualizationPanel />
+          <ErrorBoundary componentName="Visualization Panel">
+            <VisualizationPanel />
+          </ErrorBoundary>
         </div>
 
         {/* Right resizer */}
@@ -98,7 +71,9 @@ export default function App() {
 
         {/* Right: AI Panel */}
         <div style={{ width: `${rightPanelWidth}%`, minWidth: 0 }} className="flex-shrink-0 flex flex-col">
-          <AIPanel />
+          <ErrorBoundary componentName="AI Panel">
+            <AIPanel />
+          </ErrorBoundary>
         </div>
       </div>
     </div>

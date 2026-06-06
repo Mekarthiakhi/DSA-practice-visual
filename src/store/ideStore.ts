@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
-export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust'
+// PHASE 1 FIX: Remove false multi-language claims - support only JS/TS
+export type Language = 'javascript' | 'typescript'
 export type VisualizationTab = 'variables' | 'callstack' | 'heap' | 'flow' | 'dsa'
 export type ExecutionStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error'
 export type AITab = 'explain' | 'complexity' | 'flowchart' | 'optimize'
@@ -42,6 +43,7 @@ export interface ExecutionStep {
   dsaState?: DSAState
   description: string
   codeHighlight?: number[]
+  maxStepsWarning?: boolean // PHASE 1 FIX: Track if execution was truncated
 }
 
 export interface DSANode {
@@ -78,163 +80,105 @@ export interface DSAState {
   auxiliaryData?: Record<string, unknown>
   comparisons?: number
   swaps?: number
-  accesses?: number
   message?: string
-  phase?: string
-  pointer?: number
-  pointer2?: number
-  rangeStart?: number
-  rangeEnd?: number
-  pivotIndex?: number
-  mergeGroups?: number[][]
-  stackItems?: (string | number)[]
-  queueItems?: (string | number)[]
-  hashTable?: Record<string, unknown>
-  treeLayout?: 'bfs' | 'inorder' | 'preorder' | 'postorder'
+  operations?: string[]
 }
 
-export interface AIMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: number
-  isLoading?: boolean
-}
-
-interface IDEStore {
+export interface IDEState {
+  // Code & Language
   code: string
   language: Language
-  currentLine: number
-  selectedText: string
   setCode: (code: string) => void
   setLanguage: (lang: Language) => void
-  setCurrentLine: (line: number) => void
-  setSelectedText: (text: string) => void
 
-  executionStatus: ExecutionStatus
+  // Execution
   executionSteps: ExecutionStep[]
   currentStepIndex: number
-  playbackSpeed: number
-  setExecutionStatus: (status: ExecutionStatus) => void
+  executionStatus: ExecutionStatus
   setExecutionSteps: (steps: ExecutionStep[]) => void
   setCurrentStepIndex: (index: number) => void
-  setPlaybackSpeed: (speed: number) => void
-  nextStep: () => void
-  prevStep: () => void
-  resetExecution: () => void
+  setExecutionStatus: (status: ExecutionStatus) => void
 
-  activeVizTab: VisualizationTab
-  setActiveVizTab: (tab: VisualizationTab) => void
-  dsaType: DSAState['type'] | null
-  setDsaType: (type: DSAState['type'] | null) => void
-
-  consoleOutput: string[]
-  addOutput: (line: string) => void
-  clearOutput: () => void
-
-  activeAITab: AITab
-  setActiveAITab: (tab: AITab) => void
-  aiMessages: AIMessage[]
-  addAIMessage: (msg: AIMessage) => void
-  clearAIMessages: () => void
-  aiApiKey: string
-  setAiApiKey: (key: string) => void
-
+  // UI State
   leftPanelWidth: number
   rightPanelWidth: number
-  setLeftPanelWidth: (w: number) => void
-  setRightPanelWidth: (w: number) => void
-  isFullscreen: boolean
-  toggleFullscreen: () => void
-  
-  theme: 'dark' | 'cyberpunk' | 'forest'
-  setTheme: (t: 'dark' | 'cyberpunk' | 'forest') => void
+  setLeftPanelWidth: (width: number) => void
+  setRightPanelWidth: (width: number) => void
+  currentLine: number
+  setCurrentLine: (line: number) => void
+  selectedText: string
+  setSelectedText: (text: string) => void
+
+  // PHASE 3 FIX: Add playback speed control
+  playbackSpeed: number
+  setPlaybackSpeed: (speed: number) => void
+
+  // Visualization
+  activeVisualizationTab: VisualizationTab
+  setActiveVisualizationTab: (tab: VisualizationTab) => void
+
+  // AI Features
+  showAIPanel: boolean
+  setShowAIPanel: (show: boolean) => void
+  activeAITab: AITab
+  setActiveAITab: (tab: AITab) => void
+  sessionToken?: string // PHASE 1 FIX: Use session token instead of raw API key
+  setSessionToken: (token: string) => void
+  clearSessionToken: () => void
+
+  // Algorithm Detection
+  detectedAlgorithm?: string
+  setDetectedAlgorithm: (algo: string) => void
 }
 
-export const DEFAULT_CODE = `// AlgoVision IDE — Bubble Sort
-// Click ▶ Visualize to watch it animate!
-
-function bubbleSort(arr) {
+export const useIDEStore = create<IDEState>((set) => ({
+  code: `function bubbleSort(arr) {
   const n = arr.length;
   for (let i = 0; i < n - 1; i++) {
     for (let j = 0; j < n - i - 1; j++) {
       if (arr[j] > arr[j + 1]) {
-        let temp = arr[j];
-        arr[j] = arr[j + 1];
-        arr[j + 1] = temp;
+        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
       }
     }
   }
   return arr;
 }
 
-const data = [64, 34, 25, 12, 22, 11, 90];
-console.log("Input:", data);
-const sorted = bubbleSort([...data]);
-console.log("Sorted:", sorted);
-`
-
-export const useIDEStore = create<IDEStore>((set, get) => ({
-  code: DEFAULT_CODE,
+const result = bubbleSort([5, 2, 8, 1, 9]);`,
   language: 'javascript',
-  currentLine: 0,
-  selectedText: '',
-  setCode: (code) => set({ code }),
-  setLanguage: (language) => set({ language }),
-  setCurrentLine: (currentLine) => set({ currentLine }),
-  setSelectedText: (selectedText) => set({ selectedText }),
+  setCode: (code: string) => set({ code }),
+  setLanguage: (lang: Language) => set({ language: lang }),
 
-  executionStatus: 'idle',
   executionSteps: [],
   currentStepIndex: 0,
+  executionStatus: 'idle',
+  setExecutionSteps: (steps: ExecutionStep[]) => set({ executionSteps: steps, currentStepIndex: 0 }),
+  setCurrentStepIndex: (index: number) => set({ currentStepIndex: index }),
+  setExecutionStatus: (status: ExecutionStatus) => set({ executionStatus: status }),
+
+  leftPanelWidth: 35,
+  rightPanelWidth: 25,
+  setLeftPanelWidth: (width: number) => set({ leftPanelWidth: width }),
+  setRightPanelWidth: (width: number) => set({ rightPanelWidth: width }),
+  currentLine: 1,
+  setCurrentLine: (line: number) => set({ currentLine: line }),
+  selectedText: '',
+  setSelectedText: (text: string) => set({ selectedText: text }),
+
   playbackSpeed: 1,
-  setExecutionStatus: (executionStatus) => set({ executionStatus }),
-  setExecutionSteps: (executionSteps) => set({ executionSteps }),
-  setCurrentStepIndex: (currentStepIndex) => set({ currentStepIndex }),
-  setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
-  nextStep: () => {
-    const { currentStepIndex, executionSteps } = get()
-    if (currentStepIndex < executionSteps.length - 1) {
-      set({ currentStepIndex: currentStepIndex + 1 })
-    }
-  },
-  prevStep: () => {
-    const { currentStepIndex } = get()
-    if (currentStepIndex > 0) {
-      set({ currentStepIndex: currentStepIndex - 1 })
-    }
-  },
-  resetExecution: () => set({
-    executionStatus: 'idle',
-    executionSteps: [],
-    currentStepIndex: 0,
-    consoleOutput: []
-  }),
+  setPlaybackSpeed: (speed: number) => set({ playbackSpeed: speed }),
 
-  activeVizTab: 'dsa',
-  setActiveVizTab: (activeVizTab) => set({ activeVizTab }),
-  dsaType: null,
-  setDsaType: (dsaType) => set({ dsaType }),
+  activeVisualizationTab: 'variables',
+  setActiveVisualizationTab: (tab: VisualizationTab) => set({ activeVisualizationTab: tab }),
 
-  consoleOutput: [],
-  addOutput: (line) => set(state => ({ consoleOutput: [...state.consoleOutput, line] })),
-  clearOutput: () => set({ consoleOutput: [] }),
-
+  showAIPanel: false,
+  setShowAIPanel: (show: boolean) => set({ showAIPanel: show }),
   activeAITab: 'explain',
-  setActiveAITab: (activeAITab) => set({ activeAITab }),
-  aiMessages: [],
-  addAIMessage: (msg) => set(state => ({ aiMessages: [...state.aiMessages, msg] })),
-  clearAIMessages: () => set({ aiMessages: [] }),
-  aiApiKey: '',
-  setAiApiKey: (aiApiKey) => set({ aiApiKey }),
+  setActiveAITab: (tab: AITab) => set({ activeAITab: tab }),
+  sessionToken: undefined,
+  setSessionToken: (token: string) => set({ sessionToken: token }),
+  clearSessionToken: () => set({ sessionToken: undefined }),
 
-  leftPanelWidth: 36,
-  rightPanelWidth: 28,
-  setLeftPanelWidth: (leftPanelWidth) => set({ leftPanelWidth }),
-  setRightPanelWidth: (rightPanelWidth) => set({ rightPanelWidth }),
-  isFullscreen: false,
-  toggleFullscreen: () => set(state => ({ isFullscreen: !state.isFullscreen })),
-  
-  theme: 'dark',
-  setTheme: (theme) => set({ theme }),
+  detectedAlgorithm: undefined,
+  setDetectedAlgorithm: (algo: string) => set({ detectedAlgorithm: algo }),
 }))
