@@ -1,6 +1,56 @@
 import { ExecutionStep, Variable, StackFrame, DSAState, DSANode, DSAEdge } from '../store/ideStore'
 import { genHeapSort } from '../engines/sorting/heapSort'
 
+// ─── INPUT VALIDATION ────────────────────────────────────────────────────────
+
+interface ValidationError {
+  valid: false
+  error: string
+}
+
+interface ValidationSuccess {
+  valid: true
+}
+
+type ValidationResult = ValidationError | ValidationSuccess
+
+export function validateNumberArray(arr: unknown, maxSize = 100000): ValidationResult {
+  if (!Array.isArray(arr)) {
+    return { valid: false, error: 'Input must be an array' }
+  }
+  if (arr.length === 0) {
+    return { valid: false, error: 'Array cannot be empty' }
+  }
+  if (arr.length > maxSize) {
+    return { valid: false, error: `Array too large (max ${maxSize} elements)` }
+  }
+  if (!arr.every(x => typeof x === 'number' && isFinite(x))) {
+    return { valid: false, error: 'All array elements must be finite numbers' }
+  }
+  return { valid: true }
+}
+
+export function validateBinarySearchInput(arr: unknown, target: unknown): ValidationResult {
+  const arrayValidation = validateNumberArray(arr)
+  if (!arrayValidation.valid) return arrayValidation
+  if (typeof target !== 'number' || !isFinite(target)) {
+    return { valid: false, error: 'Target must be a finite number' }
+  }
+  return { valid: true }
+}
+
+export function createErrorStep(message: string, line = 1): ExecutionStep {
+  return {
+    line,
+    variables: [],
+    callStack: [],
+    heap: [],
+    output: message,
+    description: `Error: ${message}`,
+    dsaState: { type: 'array', nodes: [], message: `Error: ${message}` },
+  }
+}
+
 // ─── Algorithm Detection ────────────────────────────────────────────────────
 
 export type AlgoType =
