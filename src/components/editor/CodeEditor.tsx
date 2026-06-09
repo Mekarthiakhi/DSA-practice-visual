@@ -16,7 +16,7 @@ const LANGUAGE_MAP: Record<string, string> = {
 }
 
 export const CodeEditor: React.FC = () => {
-  const { code, setCode, language, currentLine, executionSteps, currentStepIndex } = useIDEStore()
+  const { code, setCode, language, currentLine, executionSteps, currentStepIndex, fileName } = useIDEStore()
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const decorationsRef = useRef<string[]>([])
 
@@ -72,7 +72,7 @@ export const CodeEditor: React.FC = () => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `algorithm.${ext}`
+    a.download = `${fileName}.${ext}`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -83,7 +83,7 @@ export const CodeEditor: React.FC = () => {
       <div className="panel-header flex-shrink-0">
         <div className="flex items-center gap-2">
           <Code2 size={14} className="text-accent-cyan" />
-          <span className="text-text-secondary text-xs font-mono font-medium">algorithm.{language === 'python' ? 'py' : language === 'java' ? 'java' : language === 'cpp' ? 'cpp' : 'js'}</span>
+          <span className="text-text-secondary text-xs font-mono font-medium">{fileName}.{language === 'python' ? 'py' : language === 'java' ? 'java' : language === 'cpp' ? 'cpp' : 'js'}</span>
           {currentLine > 0 && (
             <span className="badge bg-bg-tertiary text-text-muted">
               Ln {currentLine}

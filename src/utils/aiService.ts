@@ -1,10 +1,9 @@
 /**
- * AI Service - Claude API Integration
- * FIXED: Proper error handling, retry logic, and custom code support
- * Supports both Claude API and custom code analysis
+ * AI Service - Backend Proxy + Local Fallback
+ * Routes AI requests through the secure backend proxy at /api/analyze
+ * Falls back to local analysis when the server is unavailable
  */
 
-import { useIDEStore } from '../store/ideStore'
 
 export interface AIRequest {
   code: string
@@ -19,9 +18,11 @@ export interface AIResponse {
   type: string
 }
 
-const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1'
-const MAX_RETRIES = 3
-const RETRY_DELAY = 1000
+// Backend proxy URL — in dev it's localhost:3001, in production set via env
+// @ts-ignore
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const MAX_RETRIES = 2
+const RETRY_DELAY = 800
 
 /**
  * Analyze code complexity without AI (Fallback)
@@ -79,24 +80,23 @@ function generateFlowchartLocal(code: string): string {
   let flowchart = '```mermaid\ngraph TD\n'
   flowchart += 'Start([Start])\n'
 
-  let stepNum = 1
-  let indent = '  '
+  let _stepNum = 1
 
   lines.forEach((line) => {
     const trimmed = line.trim()
 
     if (trimmed.includes('if')) {
-      flowchart += `Node${stepNum}{Decision: ${trimmed.substring(0, 30)}...}\n`
-      flowchart += `Start --> Node${stepNum}\n`
+      flowchart += `Node${_stepNum}{Decision: ${trimmed.substring(0, 30)}...}\n`
+      flowchart += `Start --> Node${_stepNum}\n`
     } else if (trimmed.includes('for') || trimmed.includes('while')) {
-      flowchart += `Loop${stepNum}[Loop: ${trimmed.substring(0, 30)}...]\n`
-      flowchart += `Start --> Loop${stepNum}\n`
+      flowchart += `Loop${_stepNum}[Loop: ${trimmed.substring(0, 30)}...]\n`
+      flowchart += `Start --> Loop${_stepNum}\n`
     } else if (trimmed.includes('return')) {
-      flowchart += `End${stepNum}([End: ${trimmed.substring(0, 30)}...])\n`
-      flowchart += `Loop${stepNum} --> End${stepNum}\n`
+      flowchart += `End${_stepNum}([End: ${trimmed.substring(0, 30)}...])\n`
+      flowchart += `Loop${_stepNum} --> End${_stepNum}\n`
     }
 
-    stepNum++
+    _stepNum++
   })
 
   flowchart += 'End([End])\n```'
@@ -171,71 +171,49 @@ function explainCodeLocal(code: string): string {
 }
 
 /**
- * Call Claude API with retry logic
+ * Call the backend proxy with retry logic
  */
-async function callClaudeAPI(prompt: string, sessionToken?: string): Promise<string> {
-  if (!sessionToken) {
-    throw new Error('Session token required for Claude API')
-  }
-
+async function callBackendProxy(type: string, code: string): Promise<string> {
   let lastError: Error | null = null
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const response = await fetch(`${ANTHROPIC_API_BASE}/messages`, {
+      const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionToken}`,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-3-sonnet-20240229',
-          max_tokens: 1024,
-          messages: [
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, type }),
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error?.message || `API Error: ${response.status}`)
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || `Server error: ${response.status}`)
       }
 
       const data = await response.json()
-      return data.content?.[0]?.text || 'No response'
+      return data.result || 'No response from AI.'
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
-
       if (attempt < MAX_RETRIES - 1) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY * (attempt + 1)))
       }
     }
   }
 
-  throw lastError || new Error('Claude API call failed')
+  throw lastError || new Error('Backend proxy call failed')
 }
 
 /**
- * Explain code using Claude or local analysis
+ * Explain code using backend proxy or local analysis
  */
-export async function explainCode(code: string, sessionToken?: string): Promise<AIResponse> {
+export async function explainCode(code: string, _lineNumber?: number, _sessionToken?: string): Promise<AIResponse> {
   try {
-    // Try Claude first if token available
-    if (sessionToken) {
-      try {
-        const content = await callClaudeAPI(`Explain this code concisely:\n\`\`\`\n${code}\n\`\`\``, sessionToken)
-        return { success: true, content, type: 'explain' }
-      } catch (error) {
-        console.warn('Claude API failed, using local analysis:', error)
-      }
+    try {
+      const content = await callBackendProxy('explain', code)
+      return { success: true, content, type: 'explain' }
+    } catch (error) {
+      console.warn('Backend proxy failed, using local analysis:', error)
     }
 
-    // Fallback to local analysis
     const content = explainCodeLocal(code)
     return { success: true, content, type: 'explain' }
   } catch (error) {
@@ -248,21 +226,17 @@ export async function explainCode(code: string, sessionToken?: string): Promise<
 }
 
 /**
- * Analyze complexity using Claude or local analysis
+ * Analyze complexity using backend proxy or local analysis
  */
-export async function analyzeComplexity(code: string, sessionToken?: string): Promise<AIResponse> {
+export async function analyzeComplexity(code: string, _sessionToken?: string): Promise<AIResponse> {
   try {
-    // Try Claude first if token available
-    if (sessionToken) {
-      try {
-        const content = await callClaudeAPI(`Analyze time and space complexity:\n\`\`\`\n${code}\n\`\`\``, sessionToken)
-        return { success: true, content, type: 'complexity' }
-      } catch (error) {
-        console.warn('Claude API failed, using local analysis:', error)
-      }
+    try {
+      const content = await callBackendProxy('complexity', code)
+      return { success: true, content, type: 'complexity' }
+    } catch (error) {
+      console.warn('Backend proxy failed, using local analysis:', error)
     }
 
-    // Fallback to local analysis
     const content = analyzeComplexityLocal(code)
     return { success: true, content, type: 'complexity' }
   } catch (error) {
@@ -277,7 +251,7 @@ export async function analyzeComplexity(code: string, sessionToken?: string): Pr
 /**
  * Generate flowchart description
  */
-export async function generateFlowchart(code: string, sessionToken?: string): Promise<AIResponse> {
+export async function generateFlowchart(code: string, _sessionToken?: string): Promise<AIResponse> {
   try {
     // Use local generation (fast and reliable)
     const content = generateFlowchartLocal(code)
@@ -294,19 +268,15 @@ export async function generateFlowchart(code: string, sessionToken?: string): Pr
 /**
  * Suggest code optimizations
  */
-export async function optimizeCode(code: string, sessionToken?: string): Promise<AIResponse> {
+export async function optimizeCode(code: string, _sessionToken?: string): Promise<AIResponse> {
   try {
-    // Try Claude first if token available
-    if (sessionToken) {
-      try {
-        const content = await callClaudeAPI(`Suggest optimizations for this code:\n\`\`\`\n${code}\n\`\`\``, sessionToken)
-        return { success: true, content, type: 'optimize' }
-      } catch (error) {
-        console.warn('Claude API failed, using local analysis:', error)
-      }
+    try {
+      const content = await callBackendProxy('optimize', code)
+      return { success: true, content, type: 'optimize' }
+    } catch (error) {
+      console.warn('Backend proxy failed, using local analysis:', error)
     }
 
-    // Fallback to local analysis
     const content = optimizeCodeLocal(code)
     return { success: true, content, type: 'optimize' }
   } catch (error) {
@@ -324,22 +294,16 @@ export async function optimizeCode(code: string, sessionToken?: string): Promise
 export async function analyzeCustomAlgorithm(
   code: string,
   algorithmName: string,
-  sessionToken?: string
+  _sessionToken?: string
 ): Promise<AIResponse> {
   try {
-    const prompt = `Analyze this custom algorithm named "${algorithmName}":\n\`\`\`\n${code}\n\`\`\`\n\nProvide:\n1. What it does\n2. Time complexity\n3. Space complexity\n4. Potential improvements`
-
-    // Try Claude first if token available
-    if (sessionToken) {
-      try {
-        const content = await callClaudeAPI(prompt, sessionToken)
-        return { success: true, content, type: 'custom' }
-      } catch (error) {
-        console.warn('Claude API failed, using basic analysis:', error)
-      }
+    try {
+      const content = await callBackendProxy('custom', code)
+      return { success: true, content, type: 'custom' }
+    } catch (error) {
+      console.warn('Backend proxy failed, using basic analysis:', error)
     }
 
-    // Fallback to basic analysis
     const content = `## Analysis: ${algorithmName}\n\n${explainCodeLocal(code)}\n\n${analyzeComplexityLocal(code)}`
     return { success: true, content, type: 'custom' }
   } catch (error) {
@@ -348,5 +312,75 @@ export async function analyzeCustomAlgorithm(
       error: error instanceof Error ? error.message : 'Analysis failed',
       type: 'custom',
     }
+  }
+}
+
+/**
+ * Suggest code optimizations (alias for optimizeCode, returns string)
+ */
+export async function suggestOptimizations(code: string, sessionToken?: string): Promise<string> {
+  const result = await optimizeCode(code, sessionToken)
+  return result.content || result.error || 'No suggestions available.'
+}
+
+/**
+ * Chat with AI about code — routes through backend proxy
+ */
+export async function chatWithAI(
+  history: Array<{ role: string; content: string }>,
+  code: string,
+  _sessionToken?: string
+): Promise<string> {
+  try {
+    const response = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history, code }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.error || `Chat error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.content || 'No response from AI.'
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error'
+    // If server is down, give helpful message
+    if (msg.includes('fetch') || msg.includes('network') || msg.includes('ECONNREFUSED')) {
+      return 'AI server is not running. Start it with: cd server && npm run dev'
+    }
+    throw new Error(`AI chat failed: ${msg}`)
+  }
+}
+
+/**
+ * Call AI - wrapper for backend proxy for multi-lang engine
+ */
+export async function callAI(
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt: string,
+  _apiKey: string
+): Promise<string> {
+  const userContent = messages.map(m => `${m.role}: ${m.content}`).join('\n')
+  const fullPrompt = `${systemPrompt}\n\n${userContent}`
+
+  try {
+    const response = await fetch(`${API_BASE}/api/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: fullPrompt, type: 'custom' }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.error || `Server error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.result || 'No response from AI.'
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }

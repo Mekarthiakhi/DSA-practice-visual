@@ -25,7 +25,7 @@ export function usePanelResize(
     maxLeftWidth = 55,
     minRightWidth = 18,
     maxRightWidth = 45,
-    minCenterWidth = 20,
+    minCenterWidth: _minCenterWidth = 20,
   } = options
 
   const isDraggingLeft = useRef(false)

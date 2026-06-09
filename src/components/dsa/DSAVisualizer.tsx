@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DSAState, DSANode, DSAEdge } from '../../store/ideStore'
 
@@ -17,6 +17,7 @@ const HL: Record<NonNullable<DSANode['highlight']>, { bg: string; border: string
   pivot:      { bg: '#2a1a00', border: '#f97316', text: '#f97316', glow: '0 0 16px rgba(249,115,22,0.7)' },
   sorted:     { bg: '#0a1a12', border: '#34d399', text: '#34d399' },
   processing: { bg: '#1a1640', border: '#818cf8', text: '#818cf8', glow: '0 0 12px rgba(129,140,248,0.5)' },
+  heapifying: { bg: '#101e40', border: '#6366f1', text: '#6366f1', glow: '0 0 12px rgba(99,102,241,0.5)' },
   none:       { bg: '#13151f', border: '#252836', text: '#6b7280' },
 }
 
@@ -254,7 +255,6 @@ const TreeView: React.FC<{ nodes: DSANode[]; edges?: DSAEdge[]; message?: string
             const from = nodes.find(n => n.id === edge.from)
             const to = nodes.find(n => n.id === edge.to)
             if (!from?.x || !from?.y || !to?.x || !to?.y) return null
-            const fc = HL[from.highlight || 'none']
             const tc = HL[to.highlight || 'none']
             return (
               <motion.line key={edge.id}
@@ -491,7 +491,7 @@ const QueueView: React.FC<{ nodes: DSANode[]; queueItems?: (string | number)[]; 
 }
 
 // ─── HASH MAP VIEW ────────────────────────────────────────────────────────────
-const HashMapView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unknown>; message?: string }> = ({ nodes, hashTable, message }) => {
+const HashMapView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unknown>; message?: string }> = ({ nodes: _nodes, hashTable, message }) => {
   const entries = hashTable ? Object.entries(hashTable) : []
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 p-4">
@@ -501,8 +501,7 @@ const HashMapView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unkno
       )}
       <div className="grid grid-cols-2 gap-2 max-w-sm w-full">
         <AnimatePresence mode="popLayout">
-          {entries.map(([key, val], i) => {
-            const c = HL.visited
+          {entries.map(([key, val]) => {
             return (
               <motion.div key={key}
                 layout

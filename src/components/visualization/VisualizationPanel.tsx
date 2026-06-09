@@ -16,7 +16,7 @@ const TABS: { id: VisualizationTab; label: string; icon: React.ReactNode }[] = [
 ]
 
 export const VisualizationPanel: React.FC = () => {
-  const { activeVizTab, setActiveVizTab, executionSteps, currentStepIndex, consoleOutput, executionStatus } = useIDEStore()
+  const { activeVizTab, setActiveVizTab, executionSteps, currentStepIndex, consoleOutput } = useIDEStore()
   const currentStep = executionSteps[currentStepIndex]
   const hasDSA = !!currentStep?.dsaState
   const isGenericMode = executionSteps.length > 0 && !hasDSA

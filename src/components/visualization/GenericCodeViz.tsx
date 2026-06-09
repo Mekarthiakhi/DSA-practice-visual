@@ -5,7 +5,7 @@
  */
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ExecutionStep, Variable } from '../../store/ideStore'
+import { ExecutionStep } from '../../store/ideStore'
 
 interface Props {
   steps: ExecutionStep[]

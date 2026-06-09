@@ -3,7 +3,7 @@
  * PHASE 3: Keyboard shortcuts help panel for better UX
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { X, Keyboard } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -30,6 +30,8 @@ interface Props {
 
 export const KeyboardShortcutsHelp: React.FC<Props> = ({ isOpen, onClose }) => {
   useEffect(() => {
+    if (!isOpen) return
+
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault()
@@ -40,10 +42,8 @@ export const KeyboardShortcutsHelp: React.FC<Props> = ({ isOpen, onClose }) => {
       }
     }
 
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyPress)
-      return () => window.removeEventListener('keydown', handleKeyPress)
-    }
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
   }, [isOpen, onClose])
 
   return (

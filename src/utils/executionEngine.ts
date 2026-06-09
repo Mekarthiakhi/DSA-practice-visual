@@ -3,7 +3,7 @@ import { genHeapSort } from '../engines/sorting/heapSort'
 
 // ─── Algorithm Detection ────────────────────────────────────────────────────
 
-type AlgoType =
+export type AlgoType =
   | 'bubbleSort' | 'selectionSort' | 'insertionSort' | 'mergeSort' | 'quickSort' | 'heapSort'
   | 'binarySearch' | 'linearSearch'
   | 'fibonacci' | 'factorial'
@@ -12,10 +12,10 @@ type AlgoType =
   | 'bfs' | 'dfs' | 'dijkstra'
   | 'stack' | 'queue'
   | 'hashMap'
-  | 'twoSum' | 'reverseString' | 'isPalindrome' | 'fizzBuzz'
+  | 'twoSum' | 'reverseString' | 'isPalindrome' | 'fizzBuzz' | 'climbStairs' | 'containsDuplicate' | 'reverseList' | 'maxArea' | 'searchInsert'
+  | 'validParentheses' | 'mergeTwoLists' | 'maxSubArray' | 'maxProfit'
   | 'matrixTraversal'
   | 'generic'
-
 export function detectAlgorithm(code: string): AlgoType {
   const lower = code.toLowerCase().replace(/\s+/g, ' ')
   if (lower.includes('bubblesort') || (lower.includes('bubble') && lower.includes('sort'))) return 'bubbleSort'
@@ -38,10 +38,19 @@ export function detectAlgorithm(code: string): AlgoType {
   if (lower.includes('stack') && (lower.includes('push') || lower.includes('pop'))) return 'stack'
   if (lower.includes('queue') && (lower.includes('enqueue') || lower.includes('dequeue'))) return 'queue'
   if (lower.includes('twosum') || lower.includes('two sum')) return 'twoSum'
+  if (lower.includes('isvalid') && lower.includes('stack')) return 'validParentheses'
+  if (lower.includes('mergetwolists') || lower.includes('merge two lists')) return 'mergeTwoLists'
+  if (lower.includes('maxsubarray') || lower.includes('maximum subarray')) return 'maxSubArray'
+  if (lower.includes('maxprofit') || lower.includes('best time to buy')) return 'maxProfit'
   if (lower.includes('reverse') && lower.includes('string')) return 'reverseString'
   if (lower.includes('palindrome')) return 'isPalindrome'
   if (lower.includes('fizzbuzz') || lower.includes('fizz buzz')) return 'fizzBuzz'
   if (lower.includes('matrix') || (lower.includes('[i][j]'))) return 'matrixTraversal'
+  if (lower.includes('climbstairs') || lower.includes('climbing stairs')) return 'climbStairs'
+  if (lower.includes('containsduplicate') || lower.includes('contains duplicate')) return 'containsDuplicate'
+  if (lower.includes('reverselist') || lower.includes('reverse linked list')) return 'reverseList'
+  if (lower.includes('maxarea') || lower.includes('most water')) return 'maxArea'
+  if (lower.includes('searchinsert') || lower.includes('search insert')) return 'searchInsert'
   return 'generic'
 }
 
@@ -555,7 +564,6 @@ export function genLinkedList(values: number[]): ExecutionStep[] {
     })
   }
 
-  const hAll: Record<number, DSANode['highlight']> = {}
   steps.push({
     line: 18, description: `✅ LinkedList complete: ${values.join(' → ')} → null`,
     variables: [{ name: 'size', value: values.length, type: 'number', scope: 'LinkedList' }],
@@ -576,17 +584,6 @@ export function genBST(values: number[]): ExecutionStep[] {
   const treeNodes: Map<number, { id: string; value: number; left?: string; right?: string; x: number; y: number }> = new Map()
   const edges: DSAEdge[] = []
 
-  function calcPositions(nodeVal: number, x: number, y: number, spread: number) {
-    const existing = treeNodes.get(nodeVal)
-    if (existing) { existing.x = x; existing.y = y }
-    const node = treeNodes.get(nodeVal)
-    if (!node) return
-    // find children
-    for (const [v, n] of treeNodes) {
-      if (n.id === node.left) calcPositions(v, x - spread, y + 80, spread / 2)
-      if (n.id === node.right) calcPositions(v, x + spread, y + 80, spread / 2)
-    }
-  }
 
   let rootVal: number | null = null
 
@@ -973,6 +970,117 @@ export function genFizzBuzz(n: number): ExecutionStep[] {
   return steps
 }
 
+export function genValidParentheses(s: string): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  const stack: string[] = []
+  const map: Record<string, string> = { '(': ')', '[': ']', '{': '}' }
+
+  steps.push({ line: 1, description: `isValid("${s}")`, variables: [], callStack: [makeFrame('isValid', 1, [])], heap: [], output: '', dsaState: { type: 'stack', nodes: [], message: 'Check valid parentheses' } })
+
+  for (let i = 0; i < s.length; i++) {
+    const char = s[i]
+    if (map[char]) {
+      stack.push(map[char])
+      steps.push({
+        line: 11, description: `Push expected closing '${map[char]}' for open '${char}'`,
+        variables: [{ name: 'char', value: char, type: 'string', scope: 'isValid' }],
+        callStack: [makeFrame('isValid', 11, [])], heap: [], output: '',
+        dsaState: { type: 'stack', nodes: stack.map((v, i) => ({ id: `s${i}`, value: v, highlight: i === stack.length - 1 ? 'active' : 'none' })), message: `Pushed '${map[char]}'` }
+      })
+    } else {
+      if (stack.length === 0 || stack.pop() !== char) {
+        steps.push({
+          line: 13, description: `❌ Invalid char '${char}'`,
+          variables: [{ name: 'char', value: char, type: 'string', scope: 'isValid' }],
+          callStack: [makeFrame('isValid', 13, [])], heap: [], output: 'false',
+          dsaState: { type: 'stack', nodes: stack.map((v, i) => ({ id: `s${i}`, value: v, highlight: 'swapping' })), message: `Mismatch at '${char}'` }
+        })
+        return steps
+      }
+      steps.push({
+        line: 13, description: `Matched closing '${char}'`,
+        variables: [{ name: 'char', value: char, type: 'string', scope: 'isValid' }],
+        callStack: [makeFrame('isValid', 13, [])], heap: [], output: '',
+        dsaState: { type: 'stack', nodes: stack.map((v, i) => ({ id: `s${i}`, value: v, highlight: 'none' })), message: `Popped '${char}'` }
+      })
+    }
+  }
+
+  const isValid = stack.length === 0
+  steps.push({
+    line: 17, description: isValid ? '✅ Valid string' : '❌ Leftover unclosed brackets',
+    variables: [], callStack: [makeFrame('isValid', 17, [])], heap: [], output: String(isValid),
+    dsaState: { type: 'stack', nodes: stack.map((v, i) => ({ id: `s${i}`, value: v, highlight: 'none' })), message: isValid ? 'Valid!' : 'Invalid!' }
+  })
+  return steps
+}
+
+export function genMergeTwoLists(list1: number[], list2: number[]): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  const merged: number[] = []
+  let i = 0, j = 0
+
+  steps.push({ line: 1, description: 'Merge two sorted lists', variables: [], callStack: [makeFrame('mergeTwoLists', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: [], message: 'Merging...' } })
+
+  while (i < list1.length && j < list2.length) {
+    if (list1[i] <= list2[j]) {
+      merged.push(list1[i])
+      steps.push({ line: 10, description: `Take ${list1[i]} from list1`, variables: [], callStack: [makeFrame('merge', 10, [])], heap: [], output: '', dsaState: { type: 'array', nodes: merged.map((v, k) => ({ id: `m${k}`, value: v, highlight: k === merged.length - 1 ? 'active' : 'none' })), message: `Added ${list1[i]}` } })
+      i++
+    } else {
+      merged.push(list2[j])
+      steps.push({ line: 12, description: `Take ${list2[j]} from list2`, variables: [], callStack: [makeFrame('merge', 12, [])], heap: [], output: '', dsaState: { type: 'array', nodes: merged.map((v, k) => ({ id: `m${k}`, value: v, highlight: k === merged.length - 1 ? 'active' : 'none' })), message: `Added ${list2[j]}` } })
+      j++
+    }
+  }
+  while (i < list1.length) { merged.push(list1[i++]) }
+  while (j < list2.length) { merged.push(list2[j++]) }
+  
+  steps.push({ line: 16, description: '✅ Merged remainder', variables: [], callStack: [makeFrame('merge', 16, [])], heap: [], output: `[${merged.join(',')}]`, dsaState: { type: 'array', nodes: merged.map((v, k) => ({ id: `m${k}`, value: v, highlight: 'found' })), message: 'Done' } })
+  return steps
+}
+
+export function genMaxSubArray(nums: number[]): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  let maxSum = nums[0], currentSum = nums[0]
+
+  steps.push({ line: 1, description: 'Initialize maxSubArray', variables: [], callStack: [makeFrame('maxSubArray', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v, i) => ({ id: `n${i}`, value: v, highlight: i === 0 ? 'found' : 'none' })), message: `maxSum=${maxSum}` } })
+
+  for (let i = 1; i < nums.length; i++) {
+    currentSum = Math.max(nums[i], currentSum + nums[i])
+    maxSum = Math.max(maxSum, currentSum)
+    steps.push({
+      line: 6, description: `i=${i}, currentSum=${currentSum}, maxSum=${maxSum}`,
+      variables: [{ name: 'currentSum', value: currentSum, type: 'number', scope: 'maxSubArray' }, { name: 'maxSum', value: maxSum, type: 'number', scope: 'maxSubArray' }],
+      callStack: [makeFrame('maxSubArray', 6, [])], heap: [], output: '',
+      dsaState: { type: 'array', nodes: nums.map((v, idx) => ({ id: `n${idx}`, value: v, highlight: idx === i ? 'active' : idx < i ? 'visited' : 'none' })), message: `Max so far: ${maxSum}` }
+    })
+  }
+
+  steps.push({ line: 10, description: `✅ Found Max Subarray Sum: ${maxSum}`, variables: [], callStack: [makeFrame('maxSubArray', 10, [])], heap: [], output: String(maxSum), dsaState: { type: 'array', nodes: nums.map((v, i) => ({ id: `n${i}`, value: v, highlight: 'found' })), message: `Max sum: ${maxSum}` } })
+  return steps
+}
+
+export function genMaxProfit(prices: number[]): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  let minPrice = Infinity, maxProfit = 0
+
+  steps.push({ line: 1, description: 'Find best time to buy and sell stock', variables: [], callStack: [makeFrame('maxProfit', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: prices.map((v, i) => ({ id: `p${i}`, value: v, highlight: 'none' })), message: 'Tracking minPrice and maxProfit' } })
+
+  for (let i = 0; i < prices.length; i++) {
+    if (prices[i] < minPrice) {
+      minPrice = prices[i]
+      steps.push({ line: 6, description: `New minPrice: ${minPrice}`, variables: [{ name: 'minPrice', value: minPrice, type: 'number', scope: 'maxProfit' }], callStack: [makeFrame('maxProfit', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: prices.map((v, idx) => ({ id: `p${idx}`, value: v, highlight: idx === i ? 'found' : 'none' })), message: `Min price: ${minPrice}` } })
+    } else if (prices[i] - minPrice > maxProfit) {
+      maxProfit = prices[i] - minPrice
+      steps.push({ line: 8, description: `New maxProfit: ${maxProfit} (Sell at ${prices[i]})`, variables: [{ name: 'maxProfit', value: maxProfit, type: 'number', scope: 'maxProfit' }], callStack: [makeFrame('maxProfit', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: prices.map((v, idx) => ({ id: `p${idx}`, value: v, highlight: idx === i ? 'active' : 'none' })), message: `Max profit: ${maxProfit}` } })
+    }
+  }
+
+  steps.push({ line: 12, description: `✅ Final Max Profit: ${maxProfit}`, variables: [], callStack: [makeFrame('maxProfit', 12, [])], heap: [], output: String(maxProfit), dsaState: { type: 'array', nodes: prices.map((v, i) => ({ id: `p${i}`, value: v, highlight: 'visited' })), message: `Max profit: ${maxProfit}` } })
+  return steps
+}
+
 // ─── MAIN DISPATCHER ─────────────────────────────────────────────────────────
 
 function extractArray(code: string): number[] {
@@ -1047,10 +1155,104 @@ export function generateExecutionSteps(code: string): ExecutionStep[] {
     case 'queue': return genQueue([{op:'enqueue',val:1},{op:'enqueue',val:2},{op:'enqueue',val:3},{op:'dequeue'},{op:'enqueue',val:4},{op:'dequeue'}])
     case 'hashMap': return genHashMap([['apple',5],['banana',3],['cherry',8],['date',2],['elderberry',7]])
     case 'twoSum': return genTwoSum([2,7,11,15], 9)
+    case 'validParentheses': return genValidParentheses('()[]{}')
+    case 'mergeTwoLists': return genMergeTwoLists([1,2,4], [1,3,4])
+    case 'maxSubArray': return genMaxSubArray(arr.length ? arr : [-2,1,-3,4,-1,2,1,-5,4])
+    case 'maxProfit': return genMaxProfit(arr.length ? arr : [7,1,5,3,6,4])
     case 'reverseString': return genReverseString('hello')
+    case 'climbStairs': return genClimbStairs(extractNumber(code) || 5)
+    case 'containsDuplicate': return genContainsDuplicate(arr.length ? arr : [1,2,3,1])
+    case 'reverseList': return genReverseList([1,2,3,4,5])
+    case 'maxArea': return genMaxArea(arr.length ? arr : [1,8,6,2,5,4,8,3,7])
+    case 'searchInsert': return genSearchInsert(arr.length ? arr : [1,3,5,6], extractTarget(code) || 2)
     case 'fizzBuzz': return genFizzBuzz(15)
-    default: return genBubbleSort(arr)
+    default: throw new Error(`No DSA visualizer for algorithm: ${algo}`)
   }
+}
+
+// ─── NEW GENERATORS ──────────────────────────────────────────────────────────
+
+export function genClimbStairs(n: number): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  if (n > 20) n = 20
+  steps.push({ line: 1, description: 'climbStairs(' + n + ')', variables: [], callStack: [makeFrame('climbStairs', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: [], message: 'Initialize' } })
+  if (n <= 2) {
+    steps.push({ line: 2, description: 'Return ' + n, variables: [], callStack: [makeFrame('climbStairs', 2, [])], heap: [], output: String(n), dsaState: { type: 'array', nodes: [{id:'1', value:n, highlight:'found'}], message: 'Base case' } })
+    return steps
+  }
+  let a = 1, b = 2
+  steps.push({ line: 3, description: 'a=1, b=2', variables: [{name:'a',value:1,type:'number',scope:'climbStairs'}, {name:'b',value:2,type:'number',scope:'climbStairs'}], callStack: [makeFrame('climbStairs', 3, [])], heap: [], output: '', dsaState: { type: 'array', nodes: [{id:'a',value:1,highlight:'visited'}, {id:'b',value:2,highlight:'active'}], message: 'Initial steps' } })
+  for (let i = 3; i <= n; i++) {
+    let temp = a + b
+    steps.push({ line: 5, description: `Step ${i}: a+b = ${temp}`, variables: [{name:'i',value:i,type:'number',scope:'climbStairs'}, {name:'temp',value:temp,type:'number',scope:'climbStairs'}], callStack: [makeFrame('climbStairs', 5, [])], heap: [], output: '', dsaState: { type: 'array', nodes: [{id:'a',value:a,highlight:'visited'}, {id:'b',value:b,highlight:'visited'}, {id:'t',value:temp,highlight:'active'}], message: `Fibonacci sum: ${temp}` } })
+    a = b
+    b = temp
+  }
+  steps.push({ line: 9, description: `Return ${b}`, variables: [], callStack: [makeFrame('climbStairs', 9, [])], heap: [], output: String(b), dsaState: { type: 'array', nodes: [{id:'ans',value:b,highlight:'found'}], message: 'Done' } })
+  return steps
+}
+
+export function genContainsDuplicate(nums: number[]): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  const set = new Set<number>()
+  steps.push({ line: 1, description: 'containsDuplicate', variables: [{name:'nums',value:nums,type:'Array',scope:'fn'}], callStack: [makeFrame('fn', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,i) => ({id:`n${i}`,value:v,highlight:'none'})), message: 'Start' } })
+  for (let i = 0; i < nums.length; i++) {
+    const num = nums[i]
+    steps.push({ line: 4, description: `Check ${num}`, variables: [{name:'num',value:num,type:'number',scope:'fn'}], callStack: [makeFrame('fn', 4, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:`n${k}`,value:v,highlight:k===i?'active':set.has(v)?'visited':'none'})), message: `Check if set has ${num}` } })
+    if (set.has(num)) {
+      steps.push({ line: 5, description: `Found duplicate: ${num}!`, variables: [], callStack: [makeFrame('fn', 5, [])], heap: [], output: 'true', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:`n${k}`,value:v,highlight:v===num?'found':'none'})), message: `Duplicate ${num}` } })
+      return steps
+    }
+    set.add(num)
+    steps.push({ line: 6, description: `Add ${num} to set`, variables: [], callStack: [makeFrame('fn', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:`n${k}`,value:v,highlight:k<=i?'visited':'none'})), message: `Set added ${num}` } })
+  }
+  steps.push({ line: 8, description: 'No duplicates', variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: 'false', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:`n${k}`,value:v,highlight:'visited'})), message: 'All unique' } })
+  return steps
+}
+
+export function genReverseList(values: number[]): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  steps.push({ line: 8, description: 'reverseList', variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: values.map((v,i) => ({id:`n${i}`,value:v,highlight:'none'})), message: 'Start' } })
+  for (let i = 0; i < values.length; i++) {
+    steps.push({ line: 11, description: `curr = ${values[i]}`, variables: [{name:'curr',value:values[i],type:'number',scope:'fn'}], callStack: [makeFrame('fn', 11, [])], heap: [], output: '', dsaState: { type: 'array', nodes: values.map((v,k) => ({id:`n${k}`,value:v,highlight:k===i?'active':k<i?'visited':'none'})), message: `Reverse ${values[i]}` } })
+  }
+  steps.push({ line: 17, description: 'Return reversed', variables: [], callStack: [makeFrame('fn', 17, [])], heap: [], output: `[${[...values].reverse().join(',')}]`, dsaState: { type: 'array', nodes: [...values].reverse().map((v,i) => ({id:`r${i}`,value:v,highlight:'found'})), message: 'Done' } })
+  return steps
+}
+
+export function genMaxArea(height: number[]): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  steps.push({ line: 1, description: 'maxArea', variables: [], callStack: [makeFrame('fn', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,i) => ({id:`h${i}`,value:v,highlight:'none'})), message: 'Start' } })
+  let left = 0, right = height.length - 1, maxArea = 0
+  while (left < right) {
+    let w = right - left
+    let h = Math.min(height[left], height[right])
+    let area = w * h
+    if (area > maxArea) maxArea = area
+    steps.push({ line: 8, description: `Area = ${w}*${h} = ${area}`, variables: [{name:'left',value:left,type:'number',scope:'fn'}, {name:'right',value:right,type:'number',scope:'fn'}, {name:'maxArea',value:maxArea,type:'number',scope:'fn'}], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:`h${k}`,value:v,highlight:k===left||k===right?'active':'none'})), message: `Max area: ${maxArea}` } })
+    if (height[left] < height[right]) left++
+    else right--
+  }
+  steps.push({ line: 17, description: 'Return ' + maxArea, variables: [], callStack: [makeFrame('fn', 17, [])], heap: [], output: String(maxArea), dsaState: { type: 'array', nodes: height.map((v,i) => ({id:`h${i}`,value:v,highlight:'visited'})), message: 'Done' } })
+  return steps
+}
+
+export function genSearchInsert(nums: number[], target: number): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  steps.push({ line: 1, description: 'searchInsert', variables: [], callStack: [makeFrame('fn', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,i) => ({id:`n${i}`,value:v,highlight:'none'})), message: `Find ${target}` } })
+  let left = 0, right = nums.length - 1
+  while (left <= right) {
+    let mid = Math.floor((left + right) / 2)
+    steps.push({ line: 6, description: `mid = ${mid}, nums[mid] = ${nums[mid]}`, variables: [{name:'mid',value:mid,type:'number',scope:'fn'}], callStack: [makeFrame('fn', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:`n${k}`,value:v,highlight:k===mid?'active':k>=left&&k<=right?'visited':'none'})), message: `Check ${nums[mid]}` } })
+    if (nums[mid] === target) {
+      steps.push({ line: 7, description: `Found target at ${mid}`, variables: [], callStack: [makeFrame('fn', 7, [])], heap: [], output: String(mid), dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:`n${k}`,value:v,highlight:k===mid?'found':'none'})), message: 'Found' } })
+      return steps
+    }
+    if (nums[mid] < target) left = mid + 1
+    else right = mid - 1
+  }
+  steps.push({ line: 11, description: `Not found, insert at ${left}`, variables: [], callStack: [makeFrame('fn', 11, [])], heap: [], output: String(left), dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:`n${k}`,value:v,highlight:k===left?'found':'none'})), message: 'Insert position' } })
+  return steps
 }
 
 // ─── SAMPLE CODE LIBRARY ─────────────────────────────────────────────────────
@@ -1486,5 +1688,3 @@ console.log(main());`
   }
 }
 
-// Import Heap Sort
-import { genHeapSort } from '../engines/sorting/heapSort'

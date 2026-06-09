@@ -4,31 +4,12 @@
  * UPDATED: Support for Heap Sort and custom algorithms
  */
 
-import { ExecutionStep, DSAState, DSANode } from '../store/ideStore'
+import { ExecutionStep } from '../store/ideStore'
 import {
   detectAlgorithm,
   generateExecutionSteps as genDSA,
-  genBubbleSort,
-  genSelectionSort,
-  genInsertionSort,
-  genMergeSort,
-  genQuickSort,
-  genBinarySearch,
-  genLinearSearch,
-  genFibonacci,
-  genFactorial,
-  genLinkedList,
-  genBST,
-  genBFS,
-  genDFS,
-  genStack,
-  genQueue,
-  genHashMap,
-  genTwoSum,
-  genReverseString,
-  genFizzBuzz,
+  SAMPLE_CODES,
 } from './executionEngine'
-import { genHeapSort } from '../engines/sorting/heapSort'
 import { interpretCode } from './jsInterpreter'
 import { executeCustomAlgorithm, validateCustomCode, CustomAlgorithmConfig } from './customCodeSupport'
 
@@ -46,33 +27,6 @@ export interface RunResult {
   }
 }
 
-// DSA algorithms that have rich hand-crafted visualizations
-const DSA_ALGOS = new Set([
-  'bubbleSort',
-  'selectionSort',
-  'insertionSort',
-  'mergeSort',
-  'quickSort',
-  'heapSort', // NEW: Heap Sort
-  'binarySearch',
-  'linearSearch',
-  'fibonacci',
-  'factorial',
-  'linkedList',
-  'doublyLinkedList',
-  'bst',
-  'avl',
-  'bfs',
-  'dfs',
-  'dijkstra',
-  'stack',
-  'queue',
-  'hashMap',
-  'twoSum',
-  'reverseString',
-  'isPalindrome',
-  'fizzBuzz',
-])
 
 /**
  * Run code with appropriate execution engine
@@ -84,7 +38,6 @@ export function runCode(
   customConfig?: CustomAlgorithmConfig
 ): RunResult {
   const algo = detectAlgorithm(code)
-  const isDSA = DSA_ALGOS.has(algo)
 
   // ============================================
   // CUSTOM ALGORITHM MODE
@@ -108,7 +61,7 @@ export function runCode(
     }
 
     // Execute custom algorithm
-    const result = executeCustomAlgorithm(config)
+    const result = executeCustomAlgorithm(config as CustomAlgorithmConfig)
     return {
       steps: result.steps,
       output: [],
@@ -146,9 +99,8 @@ export function runCode(
   }
 
   // ============================================
-  // JAVASCRIPT INTERPRETER MODE
+  // JAVASCRIPT INTERPRETER MODE (Fallback for all modes)
   // ============================================
-  if (mode === 'interpreter' || mode === 'auto') {
     try {
       const result = interpretCode(code)
 
@@ -172,7 +124,6 @@ export function runCode(
         output: [`❌ ${msg}`],
         mode: 'interpreter',
         error: msg,
-      }
     }
   }
 
@@ -229,3 +180,36 @@ function generateFallbackSteps(code: string, output: string[]): ExecutionStep[] 
     },
   ]
 }
+
+// ─── General Samples & Categories (used by TopBar) ─────────────────────────
+
+export const GENERAL_SAMPLES: Record<string, { code: string; label: string; category: string; language: string; description?: string }> = {
+  'custom_counter': {
+    label: 'Simple Counter',
+    category: 'Basics',
+    language: 'javascript',
+    description: 'Basic counting loop',
+    code: `// Simple counter\nlet count = 0;\nfor (let i = 0; i < 10; i++) {\n  count += i;\n  console.log('count:', count);\n}\nconsole.log('Final:', count);`,
+  },
+  'custom_fizzbuzz': {
+    label: 'FizzBuzz',
+    category: 'Basics',
+    language: 'javascript',
+    description: 'Classic FizzBuzz',
+    code: `for (let i = 1; i <= 20; i++) {\n  if (i % 15 === 0) console.log('FizzBuzz');\n  else if (i % 3 === 0) console.log('Fizz');\n  else if (i % 5 === 0) console.log('Buzz');\n  else console.log(i);\n}`,
+  },
+  'custom_twosum': {
+    label: 'Two Sum',
+    category: 'Hash Map',
+    language: 'javascript',
+    description: 'Find two numbers that add to target',
+    code: `function twoSum(nums, target) {\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const complement = target - nums[i];\n    if (map.has(complement)) {\n      return [map.get(complement), i];\n    }\n    map.set(nums[i], i);\n  }\n  return [];\n}\n\nconst result = twoSum([2, 7, 11, 15], 9);\nconsole.log('Result:', result);`,
+  },
+}
+
+const SAMPLE_CATEGORIES = Object.values(SAMPLE_CODES).map(s => s.category)
+const GENERAL_CATEGORIES = Object.values(GENERAL_SAMPLES).map(s => s.category)
+
+export const ALL_CATEGORIES: string[] = [
+  ...new Set([...SAMPLE_CATEGORIES, ...GENERAL_CATEGORIES]),
+]

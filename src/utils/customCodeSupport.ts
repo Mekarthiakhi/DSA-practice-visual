@@ -4,11 +4,11 @@
  * Support for: custom sorting, searching, DSA patterns
  */
 
-import { ExecutionStep, DSAState, DSANode } from '../store/ideStore'
+import { ExecutionStep } from '../store/ideStore'
 
 export interface CustomAlgorithmConfig {
   name: string
-  description: string
+  description?: string
   inputArray?: number[]
   customCode: string
   isRecursive?: boolean
@@ -33,9 +33,6 @@ export function executeCustomAlgorithm(
   try {
     const steps: ExecutionStep[] = []
     const output: string[] = []
-    let stepCount = 0
-    const MAX_STEPS = 5000
-
     // Create instrumented version of user code
     const instrumentedCode = instrumentUserCode(config.customCode, config.name)
 
@@ -47,8 +44,6 @@ export function executeCustomAlgorithm(
     }
 
     try {
-      // Create execution context with helper functions
-      const executionContext = createExecutionContext(inputData, config.name)
 
       // Execute the instrumented code
       const fn = new Function('arr', 'steps', 'console', 'Math', instrumentedCode)
@@ -152,26 +147,7 @@ function instrumentUserCode(code: string, algoName: string): string {
   `
 }
 
-/**
- * Create execution context with helper functions
- */
-function createExecutionContext(arr: number[], algoName: string) {
-  return {
-    arr,
-    algoName,
-    swap: (i: number, j: number) => {
-      ;[arr[i], arr[j]] = [arr[j], arr[i]]
-    },
-    compare: (a: number, b: number): number => {
-      if (a < b) return -1
-      if (a > b) return 1
-      return 0
-    },
-    log: (msg: string) => {
-      console.log(`[${algoName}] ${msg}`)
-    },
-  }
-}
+
 
 /**
  * Validate custom code for security and syntax

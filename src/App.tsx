@@ -1,8 +1,9 @@
-import React, { useRef } from 'react'
+import { useRef } from 'react'
 import { TopBar } from './components/layout/TopBar'
 import { CodeEditor } from './components/editor/CodeEditor'
 import { VisualizationPanel } from './components/visualization/VisualizationPanel'
 import { AIPanel } from './components/ai-panel/AIPanel'
+import { LeetCodePanel } from './components/leetcode/LeetCodePanel'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useIDEStore } from './store/ideStore'
 import { usePanelResize } from './hooks/usePanelResize'
@@ -29,6 +30,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen" style={{ background: '#09090e' }}>
       <TopBar />
+      <LeetCodePanel />
 
       <div
         ref={containerRef}

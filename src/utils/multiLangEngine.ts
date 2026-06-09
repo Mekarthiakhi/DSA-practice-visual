@@ -24,15 +24,6 @@ export interface LangRunResult {
 // Languages that run natively in-browser
 const BROWSER_LANGS: SupportedLang[] = ['javascript', 'typescript']
 
-// DSA algos with rich step generators
-const DSA_ALGO_SET = new Set([
-  'bubbleSort','selectionSort','insertionSort','mergeSort','quickSort',
-  'binarySearch','linearSearch','fibonacci','factorial',
-  'linkedList','doublyLinkedList','bst','avl',
-  'bfs','dfs','dijkstra','stack','queue','hashMap',
-  'twoSum','reverseString','fizzBuzz',
-])
-
 // ─── Main dispatcher ──────────────────────────────────────────────────────────
 
 export async function runMultiLang(

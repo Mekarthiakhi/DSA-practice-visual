@@ -42,40 +42,6 @@ const MarkdownText: React.FC<{ content: string }> = ({ content }) => {
   return <div className="text-gray-400 text-xs leading-relaxed space-y-0.5" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
-// ─── API Key Setup Panel ──────────────────────────────────────────────────────
-const ApiKeySetup: React.FC<{ onSave: (key: string) => void }> = ({ onSave }) => {
-  const [val, setVal] = useState('')
-  return (
-    <div className="p-4 flex flex-col gap-3">
-      <div className="flex items-center gap-2 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl">
-        <Key size={14} className="text-amber-400 flex-shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-amber-300">API Key Required</p>
-          <p className="text-[10px] text-amber-600 mt-0.5">Needed for non-JS language tracing & AI analysis</p>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <input
-          value={val} onChange={e => setVal(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && val.startsWith('sk-ant') && onSave(val)}
-          type="password" placeholder="sk-ant-api03-..."
-          className="w-full bg-[#0a0c14] border border-[#1e2130] focus:border-cyan-500/50 rounded-lg px-3 py-2 text-xs font-mono text-gray-300 placeholder-gray-700 outline-none transition-colors"
-        />
-        <button onClick={() => val.startsWith('sk-') && onSave(val)}
-          disabled={!val.startsWith('sk-')}
-          className="py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ background: val.startsWith('sk-') ? 'linear-gradient(135deg,#00b4d8,#0077b6)' : '#1e2130', color: val.startsWith('sk-') ? 'white' : '#4b5563' }}>
-          Save API Key
-        </button>
-      </div>
-      <p className="text-[10px] text-gray-700 leading-relaxed">
-        Key is stored in memory only (not persisted).<br/>
-        Get yours at <span className="text-cyan-700">console.anthropic.com</span>
-      </p>
-    </div>
-  )
-}
-
 // ─── Main AIPanel ─────────────────────────────────────────────────────────────
 export const AIPanel: React.FC = () => {
   const {
@@ -103,10 +69,20 @@ export const AIPanel: React.FC = () => {
     try {
       let res = ''
       switch (type) {
-        case 'explain':    res = await explainCode(code, currentLine > 0 ? currentLine : undefined, aiApiKey || undefined); break
-        case 'complexity': res = await analyzeComplexity(code, aiApiKey || undefined); break
-        case 'flowchart':  res = await generateFlowchart(code, aiApiKey || undefined); break
-        case 'optimize':   res = await suggestOptimizations(code, aiApiKey || undefined); break
+        case 'explain': {
+          const r = await explainCode(code, currentLine > 0 ? currentLine : undefined, aiApiKey || undefined)
+          res = r.content || r.error || ''; break
+        }
+        case 'complexity': {
+          const r = await analyzeComplexity(code, aiApiKey || undefined)
+          res = r.content || r.error || ''; break
+        }
+        case 'flowchart': {
+          const r = await generateFlowchart(code, aiApiKey || undefined)
+          res = r.content || r.error || ''; break
+        }
+        case 'optimize':
+          res = await suggestOptimizations(code, aiApiKey || undefined); break
       }
       setResult(res)
     } catch (e) {
@@ -187,7 +163,7 @@ export const AIPanel: React.FC = () => {
             <div className="px-3 pt-2 pb-1 flex gap-2">
               <input value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && apiKeyInput.startsWith('sk-') && (setAiApiKey(apiKeyInput), setShowKeyInput(false))}
-                type="password" placeholder="sk-ant-api03-..."
+                type="password" placeholder="sk-ant-... or sk-or-..."
                 className="flex-1 bg-[#0a0c14] border border-[#1e2130] focus:border-purple-500/50 rounded-lg px-2 py-1.5 text-xs font-mono text-gray-300 placeholder-gray-700 outline-none" />
               <button onClick={() => { setAiApiKey(apiKeyInput); setShowKeyInput(false) }}
                 disabled={!apiKeyInput.startsWith('sk-')}

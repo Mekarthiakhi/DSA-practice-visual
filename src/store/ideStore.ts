@@ -1,10 +1,13 @@
 import { create } from 'zustand'
 
-// PHASE 1 FIX: Remove false multi-language claims - support only JS/TS
-export type Language = 'javascript' | 'typescript'
+// Support all languages — JS/TS run in-browser, others use AI simulation
+export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust'
 export type VisualizationTab = 'variables' | 'callstack' | 'heap' | 'flow' | 'dsa'
 export type ExecutionStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error'
 export type AITab = 'explain' | 'complexity' | 'flowchart' | 'optimize'
+
+import { LeetCodeProblem } from '../data/leetcodeProblems'
+
 
 export interface Variable {
   name: string
@@ -55,7 +58,7 @@ export interface DSANode {
   right?: string
   next?: string
   prev?: string
-  highlight?: 'active' | 'visited' | 'comparing' | 'swapping' | 'found' | 'none' | 'current' | 'pivot' | 'sorted' | 'processing'
+  highlight?: 'active' | 'visited' | 'comparing' | 'swapping' | 'found' | 'none' | 'current' | 'pivot' | 'sorted' | 'processing' | 'heapifying'
   color?: string
   depth?: number
   parent?: string
@@ -82,14 +85,37 @@ export interface DSAState {
   swaps?: number
   message?: string
   operations?: string[]
+  // Pointers & range (used by search / two-pointer / quickSort visualizations)
+  pointer?: number
+  pointer2?: number
+  rangeStart?: number
+  rangeEnd?: number
+  pivotIndex?: number
+  // Stack / Queue items
+  stackItems?: (string | number)[]
+  queueItems?: (string | number)[]
+  // Hash map table
+  hashTable?: Record<string, unknown>
+  // Merge sort groups
+  mergeGroups?: number[][]
+}
+
+export interface AIMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: number
+  isLoading?: boolean
 }
 
 export interface IDEState {
   // Code & Language
   code: string
   language: Language
+  fileName: string
   setCode: (code: string) => void
   setLanguage: (lang: Language) => void
+  setFileName: (name: string) => void
 
   // Execution
   executionSteps: ExecutionStep[]
@@ -98,6 +124,9 @@ export interface IDEState {
   setExecutionSteps: (steps: ExecutionStep[]) => void
   setCurrentStepIndex: (index: number) => void
   setExecutionStatus: (status: ExecutionStatus) => void
+  nextStep: () => void
+  prevStep: () => void
+  resetExecution: () => void
 
   // UI State
   leftPanelWidth: number
@@ -109,29 +138,52 @@ export interface IDEState {
   selectedText: string
   setSelectedText: (text: string) => void
 
-  // PHASE 3 FIX: Add playback speed control
+  // Playback speed control
   playbackSpeed: number
   setPlaybackSpeed: (speed: number) => void
+
+  // Console output
+  consoleOutput: string[]
+  addOutput: (line: string) => void
+  clearOutput: () => void
 
   // Visualization
   activeVisualizationTab: VisualizationTab
   setActiveVisualizationTab: (tab: VisualizationTab) => void
+  // Aliases used by components
+  activeVizTab: VisualizationTab
+  setActiveVizTab: (tab: VisualizationTab) => void
 
   // AI Features
   showAIPanel: boolean
   setShowAIPanel: (show: boolean) => void
   activeAITab: AITab
   setActiveAITab: (tab: AITab) => void
-  sessionToken?: string // PHASE 1 FIX: Use session token instead of raw API key
+  sessionToken?: string
   setSessionToken: (token: string) => void
   clearSessionToken: () => void
+  // AI Chat
+  aiMessages: AIMessage[]
+  addAIMessage: (msg: AIMessage) => void
+  clearAIMessages: () => void
+  aiApiKey: string
+  setAiApiKey: (key: string) => void
 
   // Algorithm Detection
   detectedAlgorithm?: string
   setDetectedAlgorithm: (algo: string) => void
+
+  // LeetCode Integration
+  showLeetCodePanel: boolean
+  setShowLeetCodePanel: (show: boolean) => void
+  activeLeetCodeProblem?: LeetCodeProblem
+  setActiveLeetCodeProblem: (problem?: LeetCodeProblem) => void
+
+  execMode: 'auto' | 'dsa' | 'trace'
+  setExecMode: (mode: 'auto' | 'dsa' | 'trace') => void
 }
 
-export const useIDEStore = create<IDEState>((set) => ({
+export const useIDEStore = create<IDEState>((set, get) => ({
   code: `function bubbleSort(arr) {
   const n = arr.length;
   for (let i = 0; i < n - 1; i++) {
@@ -146,8 +198,10 @@ export const useIDEStore = create<IDEState>((set) => ({
 
 const result = bubbleSort([5, 2, 8, 1, 9]);`,
   language: 'javascript',
+  fileName: 'algorithm',
   setCode: (code: string) => set({ code }),
   setLanguage: (lang: Language) => set({ language: lang }),
+  setFileName: (name: string) => set({ fileName: name }),
 
   executionSteps: [],
   currentStepIndex: 0,
@@ -155,6 +209,9 @@ const result = bubbleSort([5, 2, 8, 1, 9]);`,
   setExecutionSteps: (steps: ExecutionStep[]) => set({ executionSteps: steps, currentStepIndex: 0 }),
   setCurrentStepIndex: (index: number) => set({ currentStepIndex: index }),
   setExecutionStatus: (status: ExecutionStatus) => set({ executionStatus: status }),
+  nextStep: () => set((s) => ({ currentStepIndex: Math.min(s.currentStepIndex + 1, s.executionSteps.length - 1) })),
+  prevStep: () => set((s) => ({ currentStepIndex: Math.max(s.currentStepIndex - 1, 0) })),
+  resetExecution: () => set({ executionSteps: [], currentStepIndex: 0, executionStatus: 'idle', consoleOutput: [] }),
 
   leftPanelWidth: 35,
   rightPanelWidth: 25,
@@ -168,8 +225,14 @@ const result = bubbleSort([5, 2, 8, 1, 9]);`,
   playbackSpeed: 1,
   setPlaybackSpeed: (speed: number) => set({ playbackSpeed: speed }),
 
-  activeVisualizationTab: 'variables',
+  consoleOutput: [],
+  addOutput: (line: string) => set((s) => ({ consoleOutput: [...s.consoleOutput, line] })),
+  clearOutput: () => set({ consoleOutput: [] }),
+
+  activeVisualizationTab: 'dsa',
   setActiveVisualizationTab: (tab: VisualizationTab) => set({ activeVisualizationTab: tab }),
+  get activeVizTab() { return get().activeVisualizationTab },
+  setActiveVizTab: (tab: VisualizationTab) => set({ activeVisualizationTab: tab }),
 
   showAIPanel: false,
   setShowAIPanel: (show: boolean) => set({ showAIPanel: show }),
@@ -179,6 +242,20 @@ const result = bubbleSort([5, 2, 8, 1, 9]);`,
   setSessionToken: (token: string) => set({ sessionToken: token }),
   clearSessionToken: () => set({ sessionToken: undefined }),
 
+  aiMessages: [],
+  addAIMessage: (msg: AIMessage) => set((s) => ({ aiMessages: [...s.aiMessages, msg] })),
+  clearAIMessages: () => set({ aiMessages: [] }),
+  aiApiKey: '',
+  setAiApiKey: (key: string) => set({ aiApiKey: key }),
+
   detectedAlgorithm: undefined,
   setDetectedAlgorithm: (algo: string) => set({ detectedAlgorithm: algo }),
+
+  showLeetCodePanel: false,
+  setShowLeetCodePanel: (show: boolean) => set({ showLeetCodePanel: show }),
+  activeLeetCodeProblem: undefined,
+  setActiveLeetCodeProblem: (problem?: LeetCodeProblem) => set({ activeLeetCodeProblem: problem }),
+
+  execMode: 'auto',
+  setExecMode: (mode: 'auto' | 'dsa' | 'trace') => set({ execMode: mode }),
 }))

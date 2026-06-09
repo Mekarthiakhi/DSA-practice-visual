@@ -3,7 +3,7 @@
  * PHASE 2: Performance optimization with React.memo and useMemo
  */
 
-import React, { useMemo, memo } from 'react'
+import { useMemo, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ExecutionStep, Variable } from '../../store/ideStore'
 
@@ -52,7 +52,7 @@ const TYPE_COLOR: Record<string, string> = {
  * Only re-renders if the variable value actually changed
  */
 const VariableCard = memo(
-  ({ variable, index }: { variable: Variable; index: number }) => {
+  ({ variable, index: _index }: { variable: Variable; index: number }) => {
     const { text, color } = formatVal(variable.value)
     const typeColor = TYPE_COLOR[variable.type] || '#6b7280'
 
@@ -100,11 +100,11 @@ VariableCard.displayName = 'VariableCard'
  * Timeline Component (Memoized)
  * Shows variable changes over execution steps
  */
-const VariableTimeline = memo(({ steps, currentIndex }: { steps: ExecutionStep[]; currentIndex: number }) => {
+const VariableTimeline = memo(({ steps, currentIndex: _currentIndex }: { steps: ExecutionStep[]; currentIndex: number }) => {
   const timelineData = useMemo(() => {
     const varChanges: Record<string, number[]> = {}
 
-    steps.forEach((step, idx) => {
+    steps.forEach((step) => {
       step.variables?.forEach(v => {
         if (!v.name.startsWith('__')) {
           if (!varChanges[v.name]) varChanges[v.name] = []
@@ -166,15 +166,6 @@ export const GenericCodeViz = memo(
     )
 
     // Memoize all variable names seen
-    const allVarNames = useMemo(() => {
-      const names = new Set<string>()
-      for (let i = 0; i <= currentIndex; i++) {
-        steps[i]?.variables?.forEach(v => {
-          if (!v.name.startsWith('__')) names.add(v.name)
-        })
-      }
-      return names
-    }, [steps, currentIndex])
 
     return (
       <div className="flex flex-col h-full overflow-hidden">

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Play, Pause, SkipBack, SkipForward, Eye, RotateCcw, ChevronDown, Zap, Key } from 'lucide-react'
+import { Play, Pause, SkipBack, SkipForward, Eye, RotateCcw, ChevronDown, Zap, Key, BookOpen } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useIDEStore, Language } from '../../store/ideStore'
 import { runCode } from '../../utils/universalEngine'
@@ -31,7 +31,7 @@ const LANGS: { value: Language; label: string; color: string; monacoId: string; 
 
 export const TopBar: React.FC = () => {
   const {
-    language, setLanguage, code, setCode,
+    language, setLanguage, code, setCode, setFileName,
     executionStatus, setExecutionStatus,
     executionSteps, setExecutionSteps,
     currentStepIndex, nextStep, prevStep, resetExecution,
@@ -39,6 +39,8 @@ export const TopBar: React.FC = () => {
     playbackSpeed, setPlaybackSpeed,
     clearOutput, addOutput,
     aiApiKey,
+    showLeetCodePanel, setShowLeetCodePanel,
+    execMode, setExecMode,
   } = useIDEStore()
 
   const [showLangPicker, setShowLangPicker]     = useState(false)
@@ -46,7 +48,6 @@ export const TopBar: React.FC = () => {
   const [activeCat, setActiveCat]               = useState('Sorting')
   const [isPlaying, setIsPlaying]               = useState(false)
   const [isRunning, setIsRunning]               = useState(false)
-  const [execMode, setExecMode]                 = useState<'auto'|'dsa'|'trace'>('auto')
   const playRef = useRef<ReturnType<typeof setInterval>|null>(null)
 
   useEffect(() => {
@@ -200,6 +201,17 @@ export const TopBar: React.FC = () => {
         </AnimatePresence>
       </div>
 
+      {/* LeetCode Picker */}
+      <div className="flex-shrink-0">
+        <button
+          onClick={() => { setShowLeetCodePanel(!showLeetCodePanel); setShowExamples(false); setShowLangPicker(false); }}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all text-xs ${showLeetCodePanel ? 'bg-[#1e2130] border-cyan-500/50 text-white' : 'bg-[#13151f] border-[#1e2130] hover:border-[#2a2d3e] text-gray-400 hover:text-white'}`}
+        >
+          <BookOpen size={11} className={showLeetCodePanel ? 'text-cyan-400' : ''} />
+          <span>LeetCode</span>
+        </button>
+      </div>
+
       {/* Examples Picker */}
       <div className="relative flex-shrink-0" data-dropdown>
         <button
@@ -237,6 +249,8 @@ export const TopBar: React.FC = () => {
                       onClick={() => {
                         setCode(sample.code)
                         setLanguage(sample.language as Language)
+                        setFileName(key)
+                        setExecMode('dsa')
                         setShowExamples(false)
                         handleReset()
                       }}
@@ -340,7 +354,7 @@ export const TopBar: React.FC = () => {
   )
 }
 
-const StatusPill: React.FC<{ status: string; lang: string }> = ({ status, lang }) => {
+const StatusPill: React.FC<{ status: string; lang: string }> = ({ status, lang: _lang }) => {
   const cfg: Record<string, { color: string; label: string; pulse: boolean }> = {
     idle:      { color: '#4b5563', label: 'Idle',     pulse: false },
     running:   { color: '#10b981', label: 'Running',  pulse: true  },

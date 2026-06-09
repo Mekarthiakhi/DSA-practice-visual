@@ -5,8 +5,10 @@
  */
 
 export { genBubbleSort } from './bubbleSort'
-export { genSelectionSort } from './selectionSort'
-export { genInsertionSort } from './insertionSort'
-export { genMergeSort } from './mergeSort'
-export { genQuickSort } from './quickSort'
 export { genHeapSort } from './heapSort'
+export {
+  genSelectionSort,
+  genInsertionSort,
+  genMergeSort,
+  genQuickSort
+} from '../../utils/executionEngine'

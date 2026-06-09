@@ -3,7 +3,7 @@
  * PHASE 3: Speed control slider and playback management
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react'
 import { useIDEStore } from '../store/ideStore'
 

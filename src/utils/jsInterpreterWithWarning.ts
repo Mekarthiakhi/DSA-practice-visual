@@ -3,17 +3,10 @@
  * PHASE 1 FIX: Added maxStepsWarning to alert users of truncated execution
  */
 
-import { ExecutionStep, Variable, StackFrame, DSAState, DSANode } from '../store/ideStore'
+import { ExecutionStep } from '../store/ideStore'
 
 const MAX_STEPS = 3000
 
-interface TraceEvent {
-  type: 'line' | 'output'
-  line: number
-  vars: Record<string, unknown>
-  callStack: string[]
-  output?: string
-}
 
 function safeSerialize(val: unknown, depth = 0): unknown {
   if (depth > 3) return '[deep]'
@@ -53,13 +46,12 @@ export function interpretCode(code: string): InterpretResult {
     }
 
     const lines = code.split('\n')
-    let stepCount = 0
     const steps: ExecutionStep[] = []
     const output: string[] = []
 
+    const _savedLog = console.log
     try {
       // Simple execution - capture console output
-      const originalLog = console.log
       console.log = (...args: unknown[]) => {
         const message = args.map(arg => 
           typeof arg === 'string' ? arg : JSON.stringify(safeSerialize(arg))
@@ -101,9 +93,9 @@ export function interpretCode(code: string): InterpretResult {
         description: '✅ Execution completed successfully',
       })
 
-      console.log = originalLog
+      console.log = _savedLog
     } catch (err) {
-      console.log = originalLog
+      console.log = _savedLog
       const errMsg = err instanceof Error ? err.message : String(err)
       result.error = errMsg
       return result
@@ -131,7 +123,6 @@ export function interpretCodeAdvanced(code: string): InterpretResult {
     maxStepsWarning: false,
   }
 
-  let stepCount = 0
   let maxStepsReached = false
 
   try {
@@ -149,14 +140,7 @@ export function interpretCodeAdvanced(code: string): InterpretResult {
     }
 
     // Execute code with step limit
-    const executeStep = () => {
-      stepCount++
-      if (stepCount >= MAX_STEPS) {
-        maxStepsReached = true
-        return false
-      }
-      return true
-    }
+    // executeStep helper injected directly into instrumented code below
 
     // Inject step counter into code
     const instrumentedCode = `
