@@ -65,11 +65,11 @@ async function callOpenRouter(prompt: string, maxTokens = 1024): Promise<string>
   })
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
+    const err = (await response.json().catch(() => ({}))) as any
     throw new Error(err.error?.message || `OpenRouter error: ${response.status}`)
   }
 
-  const data = await response.json()
+  const data = (await response.json()) as any
   return data.choices?.[0]?.message?.content || 'No response from AI.'
 }
 
