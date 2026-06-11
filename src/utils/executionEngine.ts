@@ -113,6 +113,12 @@ function makeFrame(name: string, line: number, vars: Variable[], isActive = true
 // ─── SORTING ALGORITHMS ─────────────────────────────────────────────────────
 
 export function genBubbleSort(arr: number[]): ExecutionStep[] {
+  // ✅ ADD VALIDATION
+  const validation = validateNumberArray(arr)
+  if (!validation.valid) {
+    return [createErrorStep(validation.error)]
+  }
+
   const steps: ExecutionStep[] = []
   const a = [...arr]
   const n = a.length
@@ -161,6 +167,12 @@ export function genBubbleSort(arr: number[]): ExecutionStep[] {
 }
 
 export function genSelectionSort(arr: number[]): ExecutionStep[] {
+  // ✅ ADD VALIDATION
+  const validation = validateNumberArray(arr)
+  if (!validation.valid) {
+    return [createErrorStep(validation.error)]
+  }
+
   const steps: ExecutionStep[] = []
   const a = [...arr]
   const n = a.length
