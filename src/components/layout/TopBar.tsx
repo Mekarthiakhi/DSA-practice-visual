@@ -148,7 +148,7 @@ export const TopBar: React.FC = () => {
   const nonBrowser = !curLang.canBrowser
 
   return (
-    <header className="h-12 bg-[#0c0e14] border-b border-[#1e2130] flex items-center gap-2 px-3 flex-shrink-0 relative z-[100] select-none">
+    <header className="h-12 bg-bg-secondary border-b border-border-subtle flex items-center gap-2 px-3 flex-shrink-0 relative z-[100] select-none">
 
       {/* Logo */}
       <div className="flex items-center gap-2 mr-1 flex-shrink-0">
@@ -159,13 +159,13 @@ export const TopBar: React.FC = () => {
         <span className="font-bold text-white text-sm tracking-tight hidden sm:block">AlgoVision</span>
       </div>
 
-      <div className="w-px h-5 bg-[#1e2130] flex-shrink-0" />
+      <div className="w-px h-5 bg-bg-hover flex-shrink-0" />
 
       {/* Language Picker */}
       <div className="relative flex-shrink-0" data-dropdown>
         <button
           onClick={() => { setShowLangPicker(!showLangPicker); setShowExamples(false) }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#13151f] border border-[#1e2130] hover:border-[#2a2d3e] transition-all text-xs font-mono text-gray-400 hover:text-white"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-subtle hover:border-border-bright transition-all text-xs font-mono text-gray-400 hover:text-white"
         >
           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: curLang.color }} />
           <span>{curLang.label}</span>
@@ -175,7 +175,7 @@ export const TopBar: React.FC = () => {
         <AnimatePresence>
           {showLangPicker && (
             <motion.div initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.97 }} transition={{ duration: 0.12 }}
-              className="absolute top-full left-0 mt-1 bg-[#0f1117] border border-[#1e2130] rounded-xl shadow-2xl z-[9999] p-1.5 min-w-[200px]">
+              className="absolute top-full left-0 mt-1 bg-bg-panel border border-border-subtle rounded-xl shadow-2xl z-[9999] p-1.5 min-w-[200px]">
               <div className="text-[9px] font-mono text-gray-600 uppercase tracking-wider px-2 py-1 mb-0.5">Select Language</div>
               {LANGS.map(lang => (
                 <button key={lang.value}
@@ -190,7 +190,7 @@ export const TopBar: React.FC = () => {
                   }
                 </button>
               ))}
-              <div className="mt-1 pt-1 border-t border-[#1e2130] px-2 py-1">
+              <div className="mt-1 pt-1 border-t border-border-subtle px-2 py-1">
                 <p className="text-[9px] text-gray-700 font-mono leading-relaxed">
                   🟢 browser = runs instantly<br/>
                   🟡 AI sim = uses Anthropic API
@@ -205,7 +205,7 @@ export const TopBar: React.FC = () => {
       <div className="flex-shrink-0">
         <button
           onClick={() => { setShowLeetCodePanel(!showLeetCodePanel); setShowExamples(false); setShowLangPicker(false); }}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all text-xs ${showLeetCodePanel ? 'bg-[#1e2130] border-cyan-500/50 text-white' : 'bg-[#13151f] border-[#1e2130] hover:border-[#2a2d3e] text-gray-400 hover:text-white'}`}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all text-xs ${showLeetCodePanel ? 'bg-bg-hover border-cyan-500/50 text-white' : 'bg-bg-tertiary border-border-subtle hover:border-border-bright text-gray-400 hover:text-white'}`}
         >
           <BookOpen size={11} className={showLeetCodePanel ? 'text-cyan-400' : ''} />
           <span>LeetCode</span>
@@ -216,7 +216,7 @@ export const TopBar: React.FC = () => {
       <div className="relative flex-shrink-0" data-dropdown>
         <button
           onClick={() => { setShowExamples(!showExamples); setShowLangPicker(false) }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#13151f] border border-[#1e2130] hover:border-[#2a2d3e] transition-all text-xs text-gray-400 hover:text-white"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-subtle hover:border-border-bright transition-all text-xs text-gray-400 hover:text-white"
         >
           <Zap size={11} />
           <span>Examples</span>
@@ -226,10 +226,10 @@ export const TopBar: React.FC = () => {
         <AnimatePresence>
           {showExamples && (
             <motion.div initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.97 }} transition={{ duration: 0.12 }}
-              className="absolute top-full left-0 mt-1 bg-[#0f1117] border border-[#1e2130] rounded-xl shadow-2xl z-[9999] w-[440px] overflow-hidden">
+              className="absolute top-full left-0 mt-1 bg-bg-panel border border-border-subtle rounded-xl shadow-2xl z-[9999] w-[440px] overflow-hidden">
 
               {/* Category tabs — scrollable */}
-              <div className="flex border-b border-[#1e2130] overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              <div className="flex border-b border-border-subtle overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                 {ALL_CATS.map(cat => (
                   <button key={cat} onClick={() => setActiveCat(cat)}
                     className={`px-2.5 py-2 text-[10px] font-mono whitespace-nowrap transition-colors flex-shrink-0 ${
@@ -254,7 +254,7 @@ export const TopBar: React.FC = () => {
                         setShowExamples(false)
                         handleReset()
                       }}
-                      className="text-left px-3 py-2 rounded-lg hover:bg-[#13151f] border border-transparent hover:border-[#252836] transition-all group"
+                      className="text-left px-3 py-2 rounded-lg hover:bg-bg-tertiary border border-transparent hover:border-border-DEFAULT transition-all group"
                     >
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: lang?.color || '#6b7280' }} />
@@ -273,10 +273,10 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* Execution mode toggle */}
-      <div className="flex items-center bg-[#13151f] border border-[#1e2130] rounded-lg overflow-hidden flex-shrink-0">
+      <div className="flex items-center bg-bg-tertiary border border-border-subtle rounded-lg overflow-hidden flex-shrink-0">
         {(['auto', 'dsa', 'trace'] as const).map(m => (
           <button key={m} onClick={() => setExecMode(m)}
-            className={`px-2 py-1.5 text-[10px] font-mono transition-all border-r border-[#1e2130] last:border-0 ${
+            className={`px-2 py-1.5 text-[10px] font-mono transition-all border-r border-border-subtle last:border-0 ${
               execMode === m ? 'bg-cyan-500/15 text-cyan-400' : 'text-gray-600 hover:text-gray-400'
             }`}
           >
@@ -285,7 +285,7 @@ export const TopBar: React.FC = () => {
         ))}
       </div>
 
-      <div className="w-px h-5 bg-[#1e2130] flex-shrink-0" />
+      <div className="w-px h-5 bg-bg-hover flex-shrink-0" />
 
       {/* Non-browser language notice */}
       {nonBrowser && !aiApiKey && (
@@ -309,7 +309,7 @@ export const TopBar: React.FC = () => {
       {/* Playback controls */}
       {executionSteps.length > 0 && (
         <>
-          <div className="w-px h-5 bg-[#1e2130] flex-shrink-0" />
+          <div className="w-px h-5 bg-bg-hover flex-shrink-0" />
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <button onClick={() => setCurrentStepIndex(0)}           className="p-1.5 rounded text-gray-600 hover:text-gray-300 hover:bg-white/4 transition-all" title="First"><SkipBack size={11} /></button>
             <button onClick={prevStep}                                className="p-1.5 rounded text-gray-600 hover:text-gray-300 hover:bg-white/4 transition-all" title="Prev"><SkipBack size={11} /></button>
@@ -324,7 +324,7 @@ export const TopBar: React.FC = () => {
 
           {/* Progress bar */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-16 h-1.5 bg-[#1e2130] rounded-full overflow-hidden">
+            <div className="w-16 h-1.5 bg-bg-hover rounded-full overflow-hidden">
               <motion.div className="h-full rounded-full"
                 style={{ background: 'linear-gradient(90deg,#00b4d8,#a855f7)' }}
                 animate={{ width: `${progress}%` }} transition={{ duration: 0.15 }} />
@@ -336,10 +336,11 @@ export const TopBar: React.FC = () => {
 
           {/* Speed */}
           <div className="flex items-center gap-0.5 flex-shrink-0">
-            {[0.5, 1, 2, 4].map(s => (
+            <span className="text-[9px] text-gray-700 font-mono mr-1">speed:</span>
+            {([0.25, 0.5, 1, 2] as const).map(s => (
               <button key={s} onClick={() => setPlaybackSpeed(s)}
                 className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-all ${playbackSpeed === s ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-gray-600 hover:text-gray-400'}`}>
-                {s}×
+                {s === 0.25 ? '¼×' : s === 0.5 ? '½×' : s === 1 ? '1×' : '2×'}
               </button>
             ))}
           </div>
@@ -364,7 +365,7 @@ const StatusPill: React.FC<{ status: string; lang: string }> = ({ status, lang: 
   }
   const c = cfg[status] || cfg.idle
   return (
-    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#13151f] border border-[#1e2130] text-[10px] font-mono" style={{ color: c.color }}>
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-bg-tertiary border border-border-subtle text-[10px] font-mono" style={{ color: c.color }}>
       <div className={`w-1.5 h-1.5 rounded-full ${c.pulse ? 'animate-pulse' : ''}`} style={{ background: c.color }} />
       {c.label}
     </div>

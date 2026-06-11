@@ -524,6 +524,111 @@ const HashMapView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unkno
   )
 }
 
+// ─── TWO SUM VIEW ──────────────────────────────────────────────────
+const TwoSumView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unknown>; message?: string; comparisons?: number }> = ({
+  nodes, hashTable, message, comparisons
+}) => {
+  const entries = hashTable ? Object.entries(hashTable) : []
+  const maxVal = Math.max(...nodes.map(n => Math.abs(Number(n.value) || 0)), 1)
+
+  return (
+    <div className="flex flex-col h-full gap-3 p-4 select-none overflow-auto">
+      {/* Message banner */}
+      {message && (
+        <motion.div key={message} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="px-4 py-2 bg-[#13151f] border border-[#252836] rounded-lg text-sm text-center text-gray-300 font-mono flex-shrink-0">
+          {message}
+        </motion.div>
+      )}
+
+      <div className="flex gap-4 flex-1 min-h-0">
+        {/* Array visualization */}
+        <div className="flex-1 flex flex-col items-center justify-end gap-2 min-h-0">
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider self-start">nums array</div>
+          <div className="flex items-end gap-1.5 flex-wrap justify-center" style={{ minHeight: 120 }}>
+            <AnimatePresence mode="popLayout">
+              {nodes.map((node, idx) => {
+                const c = HL[node.highlight || 'none']
+                const val = Math.max(Math.abs(Number(node.value) || 1), 1)
+                const h = Math.max(20, (val / maxVal) * 120)
+                return (
+                  <motion.div key={node.id} layout
+                    initial={{ opacity: 0, scaleY: 0 }}
+                    animate={{ opacity: 1, scaleY: 1, boxShadow: c.glow || 'none' }}
+                    exit={{ opacity: 0, scaleY: 0 }}
+                    transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                    className="flex flex-col items-center gap-1 origin-bottom"
+                  >
+                    <motion.span className="text-[11px] font-mono font-bold transition-colors duration-200"
+                      animate={{ color: c.text }} style={{ minWidth: 28, textAlign: 'center' }}>
+                      {node.value}
+                    </motion.span>
+                    <motion.div
+                      className="w-10 rounded-t relative overflow-hidden"
+                      style={{ height: h }}
+                      animate={{ backgroundColor: c.bg, borderColor: c.border }}
+                      transition={{ duration: 0.25 }}
+                      initial={false}
+                    >
+                      <div className="absolute inset-0 border rounded-t" style={{ borderColor: c.border }} />
+                      {(node.highlight === 'comparing' || node.highlight === 'active' || node.highlight === 'found') && (
+                        <motion.div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/10"
+                          animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.8, repeat: Infinity }} />
+                      )}
+                    </motion.div>
+                    <span className="text-[10px] text-gray-600 font-mono">[{idx}]</span>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+          <Legend items={[
+            { label: 'Current', hl: 'active' },
+            { label: 'Checking', hl: 'comparing' },
+            { label: 'Found!', hl: 'found' },
+            { label: 'Scanned', hl: 'visited' },
+          ]} />
+        </div>
+
+        {/* HashMap panel */}
+        <div className="w-44 flex-shrink-0 flex flex-col gap-2">
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">hash map</div>
+          <div className="text-[9px] text-gray-700 font-mono">value → index</div>
+          <div className="flex flex-col gap-1.5 overflow-auto" style={{ maxHeight: 220 }}>
+            <AnimatePresence mode="popLayout">
+              {entries.length === 0 ? (
+                <div className="text-gray-700 text-xs font-mono px-2 py-3 text-center border border-dashed border-gray-700 rounded-lg">
+                  empty
+                </div>
+              ) : entries.map(([key, val]) => (
+                <motion.div key={key}
+                  layout
+                  initial={{ opacity: 0, x: 20, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -10, scale: 0.8 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                  className="flex items-center justify-between gap-2 bg-[#0d1b2a] border border-cyan-500/30 rounded-lg px-3 py-2"
+                  style={{ boxShadow: '0 0 8px rgba(0,212,255,0.08)' }}
+                >
+                  <span className="text-cyan-400 text-xs font-mono font-bold">{key}</span>
+                  <span className="text-gray-600 text-[10px] font-mono">→ idx</span>
+                  <span className="text-amber-400 text-xs font-mono font-bold">{String(val)}</span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+          {comparisons !== undefined && (
+            <div className="text-[10px] font-mono text-gray-600 mt-auto">
+              steps: <span className="text-amber-400">{comparisons}</span>
+            </div>
+          )}
+          <div className="text-[9px] text-gray-700 font-mono">O(1) lookup</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── MAIN DISPATCHER ─────────────────────────────────────────────────────────
 export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
   if (!dsaState) {
@@ -552,7 +657,9 @@ export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
 
   return (
     <div className="h-full w-full">
-      {dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
+      {dsaState.type === 'array' && dsaState.hashTable !== undefined
+        ? <TwoSumView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} comparisons={dsaState.comparisons} />
+        : dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
       {dsaState.type === 'string' && <StringView nodes={dsaState.nodes} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} />}
       {dsaState.type === 'linkedlist' && <LinkedListView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />}
       {dsaState.type === 'tree' && <TreeView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />}

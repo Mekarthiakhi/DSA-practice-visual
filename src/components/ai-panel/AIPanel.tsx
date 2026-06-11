@@ -162,11 +162,11 @@ export const AIPanel: React.FC = () => {
             className="overflow-hidden flex-shrink-0">
             <div className="px-3 pt-2 pb-1 flex gap-2">
               <input value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && apiKeyInput.startsWith('sk-') && (setAiApiKey(apiKeyInput), setShowKeyInput(false))}
-                type="password" placeholder="sk-ant-... or sk-or-..."
+                onKeyDown={e => e.key === 'Enter' && apiKeyInput.trim().length > 8 && (setAiApiKey(apiKeyInput.trim()), setShowKeyInput(false))}
+                type="password" placeholder="sk-ant-... or gemini key or openai key"
                 className="flex-1 bg-[#0a0c14] border border-[#1e2130] focus:border-purple-500/50 rounded-lg px-2 py-1.5 text-xs font-mono text-gray-300 placeholder-gray-700 outline-none" />
-              <button onClick={() => { setAiApiKey(apiKeyInput); setShowKeyInput(false) }}
-                disabled={!apiKeyInput.startsWith('sk-')}
+              <button onClick={() => { setAiApiKey(apiKeyInput.trim()); setShowKeyInput(false) }}
+                disabled={apiKeyInput.trim().length < 8}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 transition-all"
                 style={{ background: 'rgba(168,85,247,.2)', color: '#a855f7', border: '1px solid rgba(168,85,247,.3)' }}>
                 Save

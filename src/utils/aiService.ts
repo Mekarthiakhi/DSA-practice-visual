@@ -21,8 +21,15 @@ export interface AIResponse {
 // Backend proxy URL — in dev it's localhost:3001, in production set via env
 // @ts-ignore
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// @ts-ignore
+const DEFAULT_GEMINI_KEY: string = import.meta.env.VITE_GEMINI_API_KEY || ''
 const MAX_RETRIES = 2
 const RETRY_DELAY = 800
+
+/** Resolve the key to use: explicit arg > env default */
+function resolveKey(apiKey?: string): string {
+  return (apiKey && apiKey.length > 8) ? apiKey : DEFAULT_GEMINI_KEY
+}
 
 /**
  * Analyze code complexity without AI (Fallback)
@@ -171,16 +178,27 @@ function explainCodeLocal(code: string): string {
 }
 
 /**
- * Call the backend proxy with retry logic
+ * Call the backend proxy with retry logic, or directly with API key
  */
-async function callBackendProxy(type: string, code: string): Promise<string> {
+async function callBackendProxy(type: string, code: string, apiKey?: string): Promise<string> {
   let lastError: Error | null = null
+
+  // If we have an API key, try calling Gemini directly first
+  if (apiKey && apiKey.length > 8) {
+    try {
+      return await callGeminiDirect(type, code, apiKey)
+    } catch (err) {
+      console.warn('Direct Gemini call failed, trying backend proxy:', err)
+    }
+  }
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (apiKey) headers['x-api-key'] = apiKey
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ code, type }),
       })
 
@@ -203,12 +221,41 @@ async function callBackendProxy(type: string, code: string): Promise<string> {
 }
 
 /**
+ * Call Gemini API directly with user's key
+ */
+async function callGeminiDirect(type: string, code: string, apiKey: string): Promise<string> {
+  const prompts: Record<string, string> = {
+    explain: `You are an expert programming teacher. Explain the following code clearly and concisely:\n\n${code}\n\nProvide: 1) What it does, 2) How it works step by step, 3) Time & space complexity`,
+    complexity: `Analyze the time and space complexity of this code:\n\n${code}\n\nProvide Big-O analysis with clear reasoning for both time and space complexity.`,
+    flowchart: `Describe the logical flow of this algorithm as a step-by-step flowchart description:\n\n${code}\n\nList each decision point and process step.`,
+    optimize: `Suggest optimizations for this code:\n\n${code}\n\nFocus on: time complexity improvements, space efficiency, and code clarity.`,
+    custom: `Analyze this code:\n\n${code}`,
+  }
+  const prompt = prompts[type] || prompts.custom
+
+  // Try Gemini API
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+  const resp = await fetch(geminiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+  })
+  if (!resp.ok) {
+    const e = await resp.json().catch(() => ({}))
+    throw new Error(e?.error?.message || `Gemini error: ${resp.status}`)
+  }
+  const data = await resp.json()
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini.'
+}
+
+/**
  * Explain code using backend proxy or local analysis
  */
-export async function explainCode(code: string, _lineNumber?: number, _sessionToken?: string): Promise<AIResponse> {
+export async function explainCode(code: string, _lineNumber?: number, sessionToken?: string): Promise<AIResponse> {
+  sessionToken = resolveKey(sessionToken)
   try {
     try {
-      const content = await callBackendProxy('explain', code)
+      const content = await callBackendProxy('explain', code, sessionToken)
       return { success: true, content, type: 'explain' }
     } catch (error) {
       console.warn('Backend proxy failed, using local analysis:', error)
@@ -228,10 +275,11 @@ export async function explainCode(code: string, _lineNumber?: number, _sessionTo
 /**
  * Analyze complexity using backend proxy or local analysis
  */
-export async function analyzeComplexity(code: string, _sessionToken?: string): Promise<AIResponse> {
+export async function analyzeComplexity(code: string, sessionToken?: string): Promise<AIResponse> {
+  sessionToken = resolveKey(sessionToken)
   try {
     try {
-      const content = await callBackendProxy('complexity', code)
+      const content = await callBackendProxy('complexity', code, sessionToken)
       return { success: true, content, type: 'complexity' }
     } catch (error) {
       console.warn('Backend proxy failed, using local analysis:', error)
@@ -268,10 +316,11 @@ export async function generateFlowchart(code: string, _sessionToken?: string): P
 /**
  * Suggest code optimizations
  */
-export async function optimizeCode(code: string, _sessionToken?: string): Promise<AIResponse> {
+export async function optimizeCode(code: string, sessionToken?: string): Promise<AIResponse> {
+  sessionToken = resolveKey(sessionToken)
   try {
     try {
-      const content = await callBackendProxy('optimize', code)
+      const content = await callBackendProxy('optimize', code, sessionToken)
       return { success: true, content, type: 'optimize' }
     } catch (error) {
       console.warn('Backend proxy failed, using local analysis:', error)
@@ -329,12 +378,38 @@ export async function suggestOptimizations(code: string, sessionToken?: string):
 export async function chatWithAI(
   history: Array<{ role: string; content: string }>,
   code: string,
-  _sessionToken?: string
+  apiKey?: string
 ): Promise<string> {
+  apiKey = resolveKey(apiKey)
+  // If we have a Gemini API key, use it directly
+  if (apiKey && apiKey.length > 8) {
+    try {
+      const systemMsg = `You are an expert programming assistant helping with code analysis and DSA problems. Current code context:\n\n${code}\n\nAnswer concisely and helpfully.`
+      const lastUserMsg = history.filter(m => m.role === 'user').slice(-1)[0]?.content || ''
+      const fullPrompt = `${systemMsg}\n\nUser: ${lastUserMsg}`
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+      const resp = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        if (text) return text
+      }
+    } catch (err) {
+      console.warn('Direct Gemini chat failed, trying backend proxy:', err)
+    }
+  }
+
   try {
     const response = await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {})
+      },
       body: JSON.stringify({ messages: history, code }),
     })
 
@@ -348,8 +423,8 @@ export async function chatWithAI(
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error'
     // If server is down, give helpful message
-    if (msg.includes('fetch') || msg.includes('network') || msg.includes('ECONNREFUSED')) {
-      return 'AI server is not running. Start it with: cd server && npm run dev'
+    if (msg.includes('fetch') || msg.includes('network') || msg.includes('ECONNREFUSED') || msg.includes('Failed to fetch')) {
+      return `## AI Not Available\n\nTo enable AI chat, either:\n1. **Add an API key** (click the 🔑 icon) — supports Gemini, OpenAI, or Anthropic keys\n2. **Start the backend server**: \`cd server && npm run dev\`\n\nThe visualizer and code tracing work without an API key! ⚡`
     }
     throw new Error(`AI chat failed: ${msg}`)
   }

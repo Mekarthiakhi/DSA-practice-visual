@@ -75,12 +75,12 @@ export function runCode(
   }
 
   // ============================================
-  // DSA VISUALIZER MODE
+  // DSA VISUALIZER MODE — also tried in 'auto' when a known algo is detected
   // ============================================
-  if (mode === 'dsa') {
+  if (mode === 'dsa' || (mode === 'auto' && algo !== 'generic')) {
     try {
       const steps = genDSA(code)
-      if (steps.length > 3) {
+      if (steps.length > 1 && steps[0]?.dsaState) {
         const output = extractOutputFromSteps(steps)
         return {
           steps,

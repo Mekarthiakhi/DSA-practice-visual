@@ -1,5 +1,6 @@
 import { ExecutionStep, Variable, StackFrame, DSAState, DSANode, DSAEdge } from '../store/ideStore'
 import { genHeapSort } from '../engines/sorting/heapSort'
+import { interpretCode } from './jsInterpreter'
 
 // ─── INPUT VALIDATION ────────────────────────────────────────────────────────
 
@@ -84,10 +85,15 @@ export function detectAlgorithm(code: string): AlgoType {
   if (lower.includes('dijkstra') || lower.includes('shortest path')) return 'dijkstra'
   if (lower.includes('breadth') || lower.includes('bfs(') || (lower.includes('queue') && lower.includes('graph'))) return 'bfs'
   if (lower.includes('depth') || lower.includes('dfs(') || (lower.includes('stack') && lower.includes('graph'))) return 'dfs'
-  if (lower.includes('hashmap') || lower.includes('hash map') || lower.includes('map') && lower.includes('set')) return 'hashMap'
+  // ⚠️ twoSum MUST come before hashMap — Two Sum uses new Map() + target which would falsely match hashMap
+  if (lower.includes('twosum') || lower.includes('two sum') || lower.includes('two_sum') ||
+      (lower.includes('complement') && lower.includes('map')) ||
+      (lower.includes('target') && lower.includes('nums') && lower.includes('map'))) return 'twoSum'
+  // hashMap: require explicit hashmap keyword or key/value pair patterns — NOT just any use of Map()
+  if (lower.includes('hashmap') || lower.includes('hash map') ||
+      (lower.includes('map') && lower.includes('get') && !lower.includes('target') && !lower.includes('twosum'))) return 'hashMap'
   if (lower.includes('stack') && (lower.includes('push') || lower.includes('pop'))) return 'stack'
   if (lower.includes('queue') && (lower.includes('enqueue') || lower.includes('dequeue'))) return 'queue'
-  if (lower.includes('twosum') || lower.includes('two sum')) return 'twoSum'
   if (lower.includes('isvalid') && lower.includes('stack')) return 'validParentheses'
   if (lower.includes('mergetwolists') || lower.includes('merge two lists')) return 'mergeTwoLists'
   if (lower.includes('maxsubarray') || lower.includes('maximum subarray')) return 'maxSubArray'
@@ -966,44 +972,226 @@ export function genHashMap(entries: Array<[string, number]>): ExecutionStep[] {
 
 export function genTwoSum(nums: number[], target: number): ExecutionStep[] {
   const steps: ExecutionStep[] = []
-  const map: Record<number, number> = {}
+  const map = new Map<number, number>()
 
-  steps.push({
-    line: 1, description: `Two Sum: find indices where nums[i] + nums[j] = ${target}`,
-    variables: [{ name: 'nums', value: nums, type: 'Array', scope: 'twoSum' }, { name: 'target', value: target, type: 'number', scope: 'twoSum' }],
-    callStack: [makeFrame('twoSum', 1, [], true)], heap: [], output: '',
-    dsaState: { type: 'array', nodes: nums.map((v, i) => ({ id: `n${i}`, value: v, highlight: 'none' })), message: `Find pair summing to ${target}`, hashTable: {} }
+  // Helper: build one step
+  const step = (
+    line: number,
+    desc: string,
+    hlMap: Record<number, DSANode['highlight']>,
+    vars: Variable[],
+    out = '',
+    ht?: Record<string, unknown>
+  ): ExecutionStep => ({
+    line,
+    description: desc,
+    variables: vars,
+    callStack: [makeFrame('main', 13, [], false), makeFrame('twoSum', line, [], true)],
+    heap: [],
+    output: out,
+    dsaState: {
+      type: 'array',
+      nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: hlMap[j] ?? 'none' } as DSANode)),
+      message: desc,
+      hashTable: ht ?? Object.fromEntries(map),
+    },
   })
 
-  for (let i = 0; i < nums.length; i++) {
-    const complement = target - nums[i]
-    const h: Record<number, DSANode['highlight']> = { [i]: 'active' }
-    steps.push({
-      line: 4, description: `i=${i}: nums[i]=${nums[i]}, complement=${target}-${nums[i]}=${complement}`,
-      variables: [{ name: 'i', value: i, type: 'number', scope: 'twoSum', changed: true }, { name: 'complement', value: complement, type: 'number', scope: 'twoSum', changed: true }, { name: 'map', value: {...map}, type: 'object', scope: 'twoSum' }],
-      callStack: [makeFrame('twoSum', 4, [], true)], heap: [], output: '',
-      dsaState: { type: 'array', nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: j === i ? 'active' : map[v] !== undefined ? 'visited' : 'none' })), message: `Looking for ${complement} in map`, hashTable: {...map} }
-    })
+  const baseVars = (): Variable[] => [
+    { name: 'nums',   value: [...nums], type: 'number[]', scope: 'twoSum' },
+    { name: 'target', value: target,    type: 'number',   scope: 'twoSum' },
+  ]
+  const allNone = (): Record<number, DSANode['highlight']> =>
+    Object.fromEntries(nums.map((_, j) => [j, 'none' as DSANode['highlight']]))
+  const allVisited = (): Record<number, DSANode['highlight']> =>
+    Object.fromEntries(nums.map((_, j) => [j, 'visited' as DSANode['highlight']]))
 
-    if (map[complement] !== undefined) {
-      h[map[complement]] = 'found'; h[i] = 'found'
+  // LINE 13 — call site
+  steps.push({
+    line: 13, description: `Calling  twoSum([${nums.join(', ')}], ${target})`,
+    variables: [
+      { name: 'nums',   value: [...nums], type: 'number[]', scope: 'global' },
+      { name: 'target', value: target,    type: 'number',   scope: 'global' },
+    ],
+    callStack: [makeFrame('main', 13, [], true)], heap: [], output: '',
+    dsaState: {
+      type: 'array', nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: 'none' } as DSANode)),
+      message: `Goal: find two indices where nums[i] + nums[j] = ${target}`, hashTable: {},
+    },
+  })
+
+  // LINE 1 — function entry
+  steps.push(step(1,
+    `function twoSum entered  —  nums=[${nums.join(',')}]  target=${target}`,
+    allNone(), [...baseVars()], '', {}))
+
+  // LINE 2 — const map = new Map()
+  steps.push(step(2, 'const map = new Map()  →  empty HashMap created (will store: value → index)',
+    allNone(),
+    [...baseVars(), { name: 'map', value: {}, type: 'Map', scope: 'twoSum', changed: true }], '', {}))
+
+  // LINE 3 — for init: let i = 0
+  steps.push(step(3, `for loop initialised  →  let i = 0  (${nums.length} elements to check)`,
+    { 0: 'active' },
+    [...baseVars(),
+      { name: 'map', value: {}, type: 'Map', scope: 'twoSum' },
+      { name: 'i', value: 0, type: 'number', scope: 'twoSum', changed: true },
+    ], '', {}))
+
+  for (let i = 0; i < nums.length; i++) {
+
+    // LINE 3 — loop condition i < nums.length
+    steps.push(step(3,
+      `Loop condition:  i(${i}) < nums.length(${nums.length})  →  ` + (i < nums.length ? '✅ true → enter loop body' : ''),
+      { [i]: 'active' },
+      [...baseVars(),
+        { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum' },
+        { name: 'i', value: i, type: 'number', scope: 'twoSum', changed: true },
+      ]))
+
+    const complement = target - nums[i]
+
+    // LINE 4 — const complement = target - nums[i]
+    steps.push(step(4,
+      `const complement = target − nums[${i}]  →  ${target} − ${nums[i]} = ${complement}`,
+      { [i]: 'active' },
+      [...baseVars(),
+        { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum' },
+        { name: 'i', value: i, type: 'number', scope: 'twoSum' },
+        { name: 'complement', value: complement, type: 'number', scope: 'twoSum', changed: true },
+      ]))
+
+    const found = map.has(complement)
+
+    // LINE 5 — if (map.has(complement))
+    steps.push(step(5,
+      `if (map.has(${complement}))  →  ${found ? `✅ YES! index ${map.get(complement)} has value ${complement}` : `❌ no — ${complement} is not in map yet`}`,
+      found ? { [i]: 'comparing', [map.get(complement)!]: 'comparing' } : { [i]: 'active' },
+      [...baseVars(),
+        { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum' },
+        { name: 'i', value: i, type: 'number', scope: 'twoSum' },
+        { name: 'complement', value: complement, type: 'number', scope: 'twoSum' },
+        { name: 'map.has(complement)', value: found, type: 'boolean', scope: 'twoSum', changed: true },
+      ]))
+
+    if (found) {
+      const foundIdx = map.get(complement)!
+
+      // LINE 6 — return [map.get(complement), i]
+      steps.push(step(6,
+        `return [map.get(${complement}), ${i}]  →  return [${foundIdx}, ${i}]  ✅ FOUND!`,
+        { [foundIdx]: 'found', [i]: 'found' },
+        [...baseVars(),
+          { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum' },
+          { name: 'i', value: i, type: 'number', scope: 'twoSum' },
+          { name: 'complement', value: complement, type: 'number', scope: 'twoSum' },
+          { name: 'foundAt', value: foundIdx, type: 'number', scope: 'twoSum', changed: true },
+          { name: 'result', value: [foundIdx, i], type: 'number[]', scope: 'twoSum', changed: true },
+        ],
+        `[${foundIdx}, ${i}]`))
+
+      // LINE 13 — result = twoSum(...)
       steps.push({
-        line: 6, description: `✅ Found! nums[${map[complement]}]=${complement} + nums[${i}]=${nums[i]} = ${target}. Return [${map[complement]}, ${i}]`,
-        variables: [{ name: 'result', value: [map[complement], i], type: 'Array', scope: 'twoSum', changed: true }],
-        callStack: [makeFrame('twoSum', 6, [], true)], heap: [], output: `[${map[complement]}, ${i}]`,
-        dsaState: { type: 'array', nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: j === i || j === map[complement] ? 'found' : 'visited' })), message: `Answer: [${map[complement]}, ${i}]`, hashTable: {...map} }
+        line: 13, description: `const result = [${foundIdx}, ${i}]  ← returned from twoSum()`,
+        variables: [{ name: 'result', value: [foundIdx, i], type: 'number[]', scope: 'global', changed: true }],
+        callStack: [makeFrame('main', 13, [], true)], heap: [], output: `[${foundIdx}, ${i}]`,
+        dsaState: {
+          type: 'array',
+          nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: j === foundIdx || j === i ? 'found' : 'visited' } as DSANode)),
+          message: `🎉  nums[${foundIdx}](${nums[foundIdx]}) + nums[${i}](${nums[i]}) = ${target}`,
+          hashTable: Object.fromEntries(map),
+        },
+      })
+
+      // LINE 14 — console.log
+      steps.push({
+        line: 14, description: `console.log('Result:', [${foundIdx}, ${i}])  →  printed to console`,
+        variables: [{ name: 'result', value: [foundIdx, i], type: 'number[]', scope: 'global' }],
+        callStack: [makeFrame('main', 14, [], true)], heap: [],
+        output: `Result: [${foundIdx}, ${i}]`,
+        dsaState: {
+          type: 'array',
+          nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: j === foundIdx || j === i ? 'found' : 'visited' } as DSANode)),
+          message: `✅ Final answer: indices [${foundIdx}, ${i}]  (${nums[foundIdx]} + ${nums[i]} = ${target})`,
+          hashTable: Object.fromEntries(map),
+        },
       })
       return steps
     }
-    map[nums[i]] = i
-    steps.push({
-      line: 8, description: `Store map[${nums[i]}] = ${i}`,
-      variables: [{ name: 'map', value: {...map}, type: 'object', scope: 'twoSum', changed: true }],
-      callStack: [makeFrame('twoSum', 8, [], true)], heap: [], output: '',
-      dsaState: { type: 'array', nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: j <= i ? 'visited' : 'none' })), message: `map = {${Object.entries(map).map(([k, v]) => `${k}:${v}`).join(', ')}}`, hashTable: {...map} }
-    })
+
+    // LINE 8 — map.set(nums[i], i)  — before storing
+    steps.push(step(8,
+      `map.set(${nums[i]}, ${i})  →  store: "value ${nums[i]} is at index ${i}"`,
+      { [i]: 'visited' },
+      [...baseVars(),
+        { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum' },
+        { name: 'i', value: i, type: 'number', scope: 'twoSum' },
+        { name: `map[${nums[i]}]`, value: `→ index ${i}`, type: 'string', scope: 'twoSum', changed: true },
+      ]))
+
+    map.set(nums[i], i)
+
+    // LINE 8 continued — show map after update
+    steps.push(step(8,
+      `map updated  →  { ${[...map.entries()].map(([k, v]) => `${k} → index${v}`).join(',  ')} }`,
+      { [i]: 'visited' },
+      [...baseVars(),
+        { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum', changed: true },
+        { name: 'i', value: i, type: 'number', scope: 'twoSum' },
+      ]))
+
+    // LINE 3 — i++  (loop increment)
+    steps.push(step(3,
+      `i++  →  i = ${i + 1}  (advance to next element)`,
+      Object.fromEntries(nums.map((_, j) => [j, j <= i ? 'visited' : 'none'] as [number, DSANode['highlight']])),
+      [...baseVars(),
+        { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum' },
+        { name: 'i', value: i + 1, type: 'number', scope: 'twoSum', changed: true },
+      ]))
   }
-  steps.push({ line: 10, description: '❌ No solution found', variables: [], callStack: [makeFrame('twoSum', 10, [], true)], heap: [], output: '-1', dsaState: { type: 'array', nodes: nums.map((v, i) => ({ id: `n${i}`, value: v, highlight: 'visited' })), message: 'No pair found' } })
+
+  // LINE 3 — loop exits
+  steps.push(step(3,
+    `Loop condition:  i(${nums.length}) < nums.length(${nums.length})  →  ❌ false → exit loop`,
+    allVisited(),
+    [...baseVars(),
+      { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum' },
+      { name: 'i', value: nums.length, type: 'number', scope: 'twoSum' },
+    ]))
+
+  // LINE 10 — return []
+  steps.push(step(10,
+    `return []  →  no two numbers sum to ${target}  ❌`,
+    allVisited(),
+    [...baseVars(),
+      { name: 'map', value: Object.fromEntries(map), type: 'Map', scope: 'twoSum' },
+      { name: 'result', value: [], type: 'number[]', scope: 'twoSum', changed: true },
+    ], '[]'))
+
+  // LINE 13 — result = []
+  steps.push({
+    line: 13, description: `const result = []  ← no solution returned`,
+    variables: [{ name: 'result', value: [], type: 'number[]', scope: 'global', changed: true }],
+    callStack: [makeFrame('main', 13, [], true)], heap: [], output: '[]',
+    dsaState: {
+      type: 'array', nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: 'visited' } as DSANode)),
+      message: `❌ No pair sums to ${target} in [${nums.join(', ')}]`,
+      hashTable: Object.fromEntries(map),
+    },
+  })
+
+  // LINE 14 — console.log
+  steps.push({
+    line: 14, description: `console.log('Result:', [])  →  prints empty result`,
+    variables: [{ name: 'result', value: [], type: 'number[]', scope: 'global' }],
+    callStack: [makeFrame('main', 14, [], true)], heap: [], output: 'Result: []',
+    dsaState: {
+      type: 'array', nodes: nums.map((v, j) => ({ id: `n${j}`, value: v, highlight: 'visited' } as DSANode)),
+      message: `No answer found — target ${target} cannot be reached`,
+      hashTable: Object.fromEntries(map),
+    },
+  })
+
   return steps
 }
 
@@ -1208,6 +1396,37 @@ function extractTarget(code: string): number {
   return 23
 }
 
+// Extract Two Sum params: returns [nums, target]
+function extractTwoSumParams(code: string): { nums: number[]; target: number } {
+  // Try to find twoSum([...], target) call
+  const callMatch = code.match(/twoSum\s*\(\s*(\[[\d,\s\-]+\])\s*,\s*(-?\d+)\s*\)/)
+  if (callMatch) {
+    try {
+      const nums = JSON.parse(callMatch[1]) as number[]
+      const target = parseInt(callMatch[2])
+      if (Array.isArray(nums) && nums.length >= 2 && !isNaN(target)) {
+        return { nums, target }
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Try to find nums = [...] and target = N separately
+  const numsMatch = code.match(/(?:const|let|var)\s+nums\s*=\s*(\[[\d,\s\-]+\])/)
+  const targetMatch = code.match(/(?:const|let|var)\s+target\s*=\s*(-?\d+)/)
+  if (numsMatch && targetMatch) {
+    try {
+      const nums = JSON.parse(numsMatch[1]) as number[]
+      const target = parseInt(targetMatch[1])
+      if (Array.isArray(nums) && nums.length >= 2 && !isNaN(target)) {
+        return { nums, target }
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Default example from LeetCode #1
+  return { nums: [2, 7, 11, 15], target: 9 }
+}
+
 function extractNumber(code: string): number {
   // Patterns for fibonacci(n) or factorial(n) calls
   const patterns = [
@@ -1224,6 +1443,15 @@ function extractNumber(code: string): number {
 }
 
 export function generateExecutionSteps(code: string): ExecutionStep[] {
+  try {
+    const result = interpretCode(code)
+    if (result.steps && result.steps.length > 1) {
+      return result.steps
+    }
+  } catch (err) {
+    console.warn('Interpreter tracing failed, falling back to static generators:', err)
+  }
+
   const algo = detectAlgorithm(code)
   const arr = extractArray(code)
 
@@ -1246,7 +1474,10 @@ export function generateExecutionSteps(code: string): ExecutionStep[] {
     case 'stack': return genStack([{op:'push',val:10},{op:'push',val:20},{op:'push',val:30},{op:'pop'},{op:'push',val:40},{op:'pop'},{op:'pop'}])
     case 'queue': return genQueue([{op:'enqueue',val:1},{op:'enqueue',val:2},{op:'enqueue',val:3},{op:'dequeue'},{op:'enqueue',val:4},{op:'dequeue'}])
     case 'hashMap': return genHashMap([['apple',5],['banana',3],['cherry',8],['date',2],['elderberry',7]])
-    case 'twoSum': return genTwoSum([2,7,11,15], 9)
+    case 'twoSum': {
+      const tsParams = extractTwoSumParams(code)
+      return genTwoSum(tsParams.nums, tsParams.target)
+    }
     case 'validParentheses': return genValidParentheses('()[]{}')
     case 'mergeTwoLists': return genMergeTwoLists([1,2,4], [1,3,4])
     case 'maxSubArray': return genMaxSubArray(arr.length ? arr : [-2,1,-3,4,-1,2,1,-5,4])
@@ -1258,7 +1489,7 @@ export function generateExecutionSteps(code: string): ExecutionStep[] {
     case 'maxArea': return genMaxArea(arr.length ? arr : [1,8,6,2,5,4,8,3,7])
     case 'searchInsert': return genSearchInsert(arr.length ? arr : [1,3,5,6], extractTarget(code) || 2)
     case 'fizzBuzz': return genFizzBuzz(15)
-    default: throw new Error(`No DSA visualizer for algorithm: ${algo}`)
+    default: return [createErrorStep(`Algorithm not yet supported for DSA visualization. Try switching to 'Trace' mode.`)]
   }
 }
 

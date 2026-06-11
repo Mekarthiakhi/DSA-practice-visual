@@ -5,35 +5,35 @@ export default {
     extend: {
       fontFamily: {
         mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
-        display: ['"Space Grotesk"', 'sans-serif'],
-        body: ['"DM Sans"', 'sans-serif'],
+        display: ['"IBM Plex Sans"', 'sans-serif'],
+        body: ['"IBM Plex Sans"', 'sans-serif'],
       },
       colors: {
         bg: {
-          primary: '#0a0b0f',
-          secondary: '#0f1117',
-          tertiary: '#141720',
-          panel: '#12141a',
-          hover: '#1a1d26',
+          primary: '#0f172a',
+          secondary: '#1e293b',
+          tertiary: '#334155',
+          panel: '#1e293b',
+          hover: '#334155',
         },
         accent: {
-          cyan: '#00d4ff',
+          cyan: '#0ea5e9',
           purple: '#a855f7',
-          green: '#10b981',
+          green: '#22c55e',
           orange: '#f59e0b',
           red: '#ef4444',
           pink: '#ec4899',
         },
         border: {
-          subtle: '#1e2130',
-          DEFAULT: '#252836',
-          bright: '#3a3f55',
+          subtle: '#1e293b',
+          DEFAULT: '#334155',
+          bright: '#475569',
         },
         text: {
-          primary: '#e8eaf0',
-          secondary: '#8b92a8',
-          muted: '#555a70',
-          accent: '#00d4ff',
+          primary: '#f8fafc',
+          secondary: '#94a3b8',
+          muted: '#64748b',
+          accent: '#0ea5e9',
         }
       },
       animation: {

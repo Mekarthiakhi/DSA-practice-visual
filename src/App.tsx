@@ -28,7 +28,7 @@ export default function App() {
   const centerWidth = Math.max(100 - leftPanelWidth - rightPanelWidth, 20)
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: '#09090e' }}>
+    <div className="flex flex-col h-screen bg-bg-primary text-text-primary font-body">
       <TopBar />
       <LeetCodePanel />
 
@@ -46,12 +46,12 @@ export default function App() {
 
         {/* Left resizer */}
         <div
-          className="flex-shrink-0 flex items-center justify-center cursor-col-resize group relative"
-          style={{ width: 5, background: '#0c0e14', borderLeft: '1px solid #1a1d2a', borderRight: '1px solid #1a1d2a' }}
+          className="flex-shrink-0 flex items-center justify-center cursor-col-resize group relative bg-bg-secondary border-l border-r border-border-subtle"
+          style={{ width: 5 }}
           onMouseDown={startDrag(true)}
         >
-          <div className="absolute inset-y-0 left-0 right-0 group-hover:bg-cyan-500/10 transition-colors" />
-          <div className="w-0.5 h-12 rounded-full bg-[#252836] group-hover:bg-cyan-500/50 transition-colors" />
+          <div className="absolute inset-y-0 left-0 right-0 group-hover:bg-accent-cyan/10 transition-colors" />
+          <div className="w-0.5 h-12 rounded-full bg-border group-hover:bg-accent-cyan/50 transition-colors" />
         </div>
 
         {/* Center: Visualization */}
@@ -63,12 +63,12 @@ export default function App() {
 
         {/* Right resizer */}
         <div
-          className="flex-shrink-0 flex items-center justify-center cursor-col-resize group relative"
-          style={{ width: 5, background: '#0c0e14', borderLeft: '1px solid #1a1d2a', borderRight: '1px solid #1a1d2a' }}
+          className="flex-shrink-0 flex items-center justify-center cursor-col-resize group relative bg-bg-secondary border-l border-r border-border-subtle"
+          style={{ width: 5 }}
           onMouseDown={startDrag(false)}
         >
-          <div className="absolute inset-y-0 left-0 right-0 group-hover:bg-purple-500/10 transition-colors" />
-          <div className="w-0.5 h-12 rounded-full bg-[#252836] group-hover:bg-purple-500/50 transition-colors" />
+          <div className="absolute inset-y-0 left-0 right-0 group-hover:bg-accent-purple/10 transition-colors" />
+          <div className="w-0.5 h-12 rounded-full bg-border group-hover:bg-accent-purple/50 transition-colors" />
         </div>
 
         {/* Right: AI Panel */}
