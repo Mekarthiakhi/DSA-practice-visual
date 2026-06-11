@@ -9,15 +9,19 @@ dotenv.config()
 const app = express()
 const httpServer = createServer(app)
 
+const allowedOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',') 
+  : ['http://localhost:5173', 'http://localhost:3000']
+
 const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: allowedOrigins,
     methods: ['GET', 'POST']
   }
 })
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000']
+  origin: allowedOrigins
 }))
 app.use(express.json({ limit: '10mb' }))
 
@@ -61,11 +65,11 @@ async function callOpenRouter(prompt: string, maxTokens = 1024): Promise<string>
   })
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
+    const err = (await response.json().catch(() => ({}))) as any
     throw new Error(err.error?.message || `OpenRouter error: ${response.status}`)
   }
 
-  const data = await response.json()
+  const data = (await response.json()) as any
   return data.choices?.[0]?.message?.content || 'No response from AI.'
 }
 

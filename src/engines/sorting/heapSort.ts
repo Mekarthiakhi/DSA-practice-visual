@@ -41,7 +41,7 @@ function getRightChild(i: number): number {
 /**
  * Helper function to swap elements
  */
-function swap(arr: number[], i: number, j: number): void {
+function swap<T>(arr: T[], i: number, j: number): void {
   ;[arr[i], arr[j]] = [arr[j], arr[i]]
 }
 
@@ -55,6 +55,7 @@ function swap(arr: number[], i: number, j: number): void {
 export function genHeapSort(arr: number[]): ExecutionStep[] {
   const steps: ExecutionStep[] = []
   const a = [...arr]
+  const nodesArr = arr.map((v, i) => ({ id: `n${i}-${v}`, value: v }))
   const n = a.length
   let comparisons = 0
   let swaps = 0
@@ -85,18 +86,18 @@ export function genHeapSort(arr: number[]): ExecutionStep[] {
     output: '',
     dsaState: {
       type: 'array',
-      nodes: a.map((v, i) => {
+      nodes: nodesArr.map((item, i) => {
         // Visual state based on algorithm phase
         let highlight: DSANode['highlight'] = highlights[i] || 'none'
 
         // Add visual tree structure info for heap phase
         return {
-          id: `n${i}`,
-          value: v,
+          id: item.id,
+          value: item.value,
           highlight,
-          left: getLeftChild(i) < n ? `n${getLeftChild(i)}` : undefined,
-          right: getRightChild(i) < n ? `n${getRightChild(i)}` : undefined,
-          parent: i > 0 ? `n${getParent(i)}` : undefined,
+          left: getLeftChild(i) < n ? nodesArr[getLeftChild(i)].id : undefined,
+          right: getRightChild(i) < n ? nodesArr[getRightChild(i)].id : undefined,
+          parent: i > 0 ? nodesArr[getParent(i)].id : undefined,
           depth: Math.floor(Math.log2(i + 1)),
         }
       }),
@@ -173,6 +174,7 @@ export function genHeapSort(arr: number[]): ExecutionStep[] {
       highlights[largest] = 'swapping'
       steps.push(snap(9, `Swap arr[${current}]=${a[current]} ↔ arr[${largest}]=${a[largest]}`, highlights, 'swaps'))
       swap(a, current, largest)
+      swap(nodesArr, current, largest)
       steps.push(snap(10, `After swap: arr = [${a.join(', ')}]`, highlights, 'arr'))
       
       current = largest
@@ -205,6 +207,7 @@ export function genHeapSort(arr: number[]): ExecutionStep[] {
     highlights[i] = 'swapping'
     steps.push(snap(15, `Swap arr[0]=${a[0]} ↔ arr[${i}]=${a[i]}`, highlights, 'swaps'))
     swap(a, 0, i)
+    swap(nodesArr, 0, i)
     steps.push(snap(16, `After swap: [${a.slice(0, i + 1).join(', ')}] | sorted: [${a.slice(i + 1).join(', ')}]`, highlights, 'arr'))
 
     // Heapify reduced heap
@@ -246,6 +249,7 @@ export function genHeapSort(arr: number[]): ExecutionStep[] {
       highlights[largest] = 'swapping'
       steps.push(snap(19, `Swap arr[${current}]=${a[current]} ↔ arr[${largest}]=${a[largest]}`, highlights, 'swaps'))
       swap(a, current, largest)
+      swap(nodesArr, current, largest)
       steps.push(snap(20, `After swap: [${a.slice(0, i + 1).join(', ')}] | sorted: [${a.slice(i + 1).join(', ')}]`, highlights, 'arr'))
 
       current = largest

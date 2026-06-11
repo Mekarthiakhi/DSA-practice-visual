@@ -17,7 +17,8 @@ function makeFrame(name: string, line: number) {
 
 export function genBubbleSort(arr: number[]): ExecutionStep[] {
   const steps: ExecutionStep[] = []
-  const a = [...arr]
+  // Track original IDs to allow Framer Motion to animate physical swaps
+  const a = arr.map((v, i) => ({ id: `n${i}-${v}`, value: v }))
   const n = a.length
   let comps = 0,
     swaps = 0
@@ -31,7 +32,7 @@ export function genBubbleSort(arr: number[]): ExecutionStep[] {
     line,
     description: desc,
     variables: [
-      { name: 'arr', value: [...a], type: 'Array', scope: 'bubbleSort', changed: changed === 'arr' },
+      { name: 'arr', value: a.map(item => item.value), type: 'Array', scope: 'bubbleSort', changed: changed === 'arr' },
       { name: 'n', value: n, type: 'number', scope: 'bubbleSort' },
       { name: 'comparisons', value: comps, type: 'number', scope: 'bubbleSort', changed: changed === 'comps' },
       { name: 'swaps', value: swaps, type: 'number', scope: 'bubbleSort', changed: changed === 'swaps' },
@@ -41,7 +42,7 @@ export function genBubbleSort(arr: number[]): ExecutionStep[] {
     output: '',
     dsaState: {
       type: 'array',
-      nodes: a.map((v, i) => ({ id: `n${i}`, value: v, highlight: hl[i] || 'none' })),
+      nodes: a.map((item, i) => ({ id: item.id, value: item.value, highlight: hl[i] || 'none' })),
       comparisons: comps,
       swaps,
       message: desc,
@@ -57,14 +58,14 @@ export function genBubbleSort(arr: number[]): ExecutionStep[] {
       for (let k = n - i; k < n; k++) h1[k] = 'sorted'
       h1[j] = 'comparing'
       h1[j + 1] = 'comparing'
-      steps.push(snap(4, `Compare arr[${j}]=${a[j]} vs arr[${j + 1}]=${a[j + 1]}`, h1, 'comps'))
+      steps.push(snap(4, `Compare arr[${j}]=${a[j].value} vs arr[${j + 1}]=${a[j + 1].value}`, h1, 'comps'))
 
-      if (a[j] > a[j + 1]) {
+      if (a[j].value > a[j + 1].value) {
         swaps++
         const h2: Record<number, DSANode['highlight']> = { ...h1, [j]: 'swapping', [j + 1]: 'swapping' }
-        steps.push(snap(5, `Swap ${a[j]} ↔ ${a[j + 1]}`, h2, 'swaps'))
+        steps.push(snap(5, `Swap ${a[j].value} ↔ ${a[j + 1].value}`, h2, 'swaps'))
         ;[a[j], a[j + 1]] = [a[j + 1], a[j]]
-        steps.push(snap(5, `After swap: ${a[j]} ↔ ${a[j + 1]}`, h2, 'arr'))
+        steps.push(snap(5, `After swap: ${a[j].value} ↔ ${a[j + 1].value}`, h2, 'arr'))
       }
     }
 
@@ -77,7 +78,7 @@ export function genBubbleSort(arr: number[]): ExecutionStep[] {
   a.forEach((_, i) => {
     hAll[i] = 'found'
   })
-  steps.push(snap(8, `✅ Sorted! [${a.join(', ')}] | ${comps} comparisons, ${swaps} swaps`, hAll, 'arr'))
+  steps.push(snap(8, `✅ Sorted! [${a.map(item => item.value).join(', ')}] | ${comps} comparisons, ${swaps} swaps`, hAll, 'arr'))
 
   return steps
 }

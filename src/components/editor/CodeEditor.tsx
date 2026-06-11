@@ -18,10 +18,12 @@ const LANGUAGE_MAP: Record<string, string> = {
 export const CodeEditor: React.FC = () => {
   const { code, setCode, language, currentLine, executionSteps, currentStepIndex, fileName } = useIDEStore()
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
+  const monacoRef = useRef<typeof import('monaco-editor') | null>(null)
   const decorationsRef = useRef<string[]>([])
 
-  const handleMount: OnMount = (editor) => {
+  const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor
+    monacoRef.current = monaco
 
     editor.onDidChangeCursorPosition((e) => {
       useIDEStore.getState().setCurrentLine(e.position.lineNumber)
@@ -36,7 +38,7 @@ export const CodeEditor: React.FC = () => {
   // Highlight current execution line
   React.useEffect(() => {
     if (!editorRef.current) return
-    const monaco = (window as typeof window & { monaco?: typeof import('monaco-editor') }).monaco
+    const monaco = monacoRef.current || (window as typeof window & { monaco?: typeof import('monaco-editor') }).monaco
     if (!monaco) return
 
     const step = executionSteps[currentStepIndex]
