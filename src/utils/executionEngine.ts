@@ -222,6 +222,12 @@ export function genSelectionSort(arr: number[]): ExecutionStep[] {
 }
 
 export function genInsertionSort(arr: number[]): ExecutionStep[] {
+  // ✅ VALIDATION: Check input array
+  const validation = validateNumberArray(arr)
+  if (!validation.valid) {
+    return [createErrorStep(validation.error)]
+  }
+
   const steps: ExecutionStep[] = []
   const a = [...arr]
   const n = a.length
@@ -264,6 +270,12 @@ export function genInsertionSort(arr: number[]): ExecutionStep[] {
 }
 
 export function genMergeSort(arr: number[]): ExecutionStep[] {
+  // ✅ VALIDATION: Check input array
+  const validation = validateNumberArray(arr)
+  if (!validation.valid) {
+    return [createErrorStep(validation.error)]
+  }
+
   const steps: ExecutionStep[] = []
   const a = [...arr]
   let comps = 0
@@ -321,6 +333,12 @@ export function genMergeSort(arr: number[]): ExecutionStep[] {
 }
 
 export function genQuickSort(arr: number[]): ExecutionStep[] {
+  // ✅ VALIDATION: Check input array
+  const validation = validateNumberArray(arr)
+  if (!validation.valid) {
+    return [createErrorStep(validation.error)]
+  }
+
   const steps: ExecutionStep[] = []
   const a = [...arr]
   let comps = 0
@@ -388,6 +406,12 @@ export function genQuickSort(arr: number[]): ExecutionStep[] {
 // ─── SEARCHING ──────────────────────────────────────────────────────────────
 
 export function genBinarySearch(arr: number[], target: number): ExecutionStep[] {
+  // ✅ VALIDATION: Check input array and target
+  const validation = validateBinarySearchInput(arr, target)
+  if (!validation.valid) {
+    return [createErrorStep(validation.error)]
+  }
+
   const steps: ExecutionStep[] = []
   let left = 0, right = arr.length - 1, comps = 0
 
@@ -432,6 +456,12 @@ export function genBinarySearch(arr: number[], target: number): ExecutionStep[] 
 }
 
 export function genLinearSearch(arr: number[], target: number): ExecutionStep[] {
+  // ✅ VALIDATION: Check input array and target
+  const validation = validateBinarySearchInput(arr, target)
+  if (!validation.valid) {
+    return [createErrorStep(validation.error)]
+  }
+
   const steps: ExecutionStep[] = []
   let comps = 0
 
