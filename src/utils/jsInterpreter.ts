@@ -119,6 +119,22 @@ export interface InterpreterResult {
   detectedType: 'array' | 'linkedlist' | 'tree' | 'graph' | 'stack' | 'queue' | 'hashmap' | 'string' | 'generic'
 }
 
+function collectFunctionNames(code: string): Set<string> {
+  const names = new Set<string>()
+  for (const m of code.matchAll(/function\s+([a-zA-Z0-9_$]+)/g)) {
+    names.add(m[1])
+  }
+  for (const m of code.matchAll(/(?:const|let|var)\s+([a-zA-Z0-9_$]+)\s*=\s*(?:function|\([^)]*\)\s*=>)/g)) {
+    names.add(m[1])
+  }
+  for (const m of code.matchAll(/([a-zA-Z0-9_$]+)\s*\([^)]*\)\s*\{/g)) {
+    if (!['if', 'for', 'while', 'switch', 'catch', 'function'].includes(m[1])) {
+      names.add(m[1])
+    }
+  }
+  return names;
+}
+
 // ─── Pre-scan variable names ──────────────────────────────────────────────────
 
 function collectVarNames(code: string): Set<string> {
@@ -644,11 +660,43 @@ export function interpretCode(code: string): InterpreterResult {
   // Execution state
   let stepCount = 0
   const MAX_STEPS = 3000
-  const callStackNames: string[] = ['main']
+  const functionNames = collectFunctionNames(code)
+
+  function getCallStack(): string[] {
+    const stack = new Error().stack || ''
+    const frames: string[] = []
+    const lines = stack.split('\n')
+    for (const l of lines) {
+      const trimmed = l.trim()
+      if (!trimmed) continue
+      
+      const v8Match = trimmed.match(/^at\s+([a-zA-Z0-9_$.]+)/)
+      if (v8Match) {
+        const fullName = v8Match[1]
+        const parts = fullName.split('.')
+        const hasMatch = parts.some(p => functionNames.has(p))
+        if (hasMatch) {
+          frames.push(parts[parts.length - 1])
+        }
+        continue
+      }
+      
+      const ffMatch = trimmed.match(/^([a-zA-Z0-9_$]+)@/)
+      if (ffMatch) {
+        const name = ffMatch[1]
+        if (functionNames.has(name)) {
+          frames.push(name)
+        }
+      }
+    }
+    return ['main', ...frames.reverse()]
+  }
 
   function __trace__(line: number) {
     if (stepCount++ > MAX_STEPS) throw new Error('__MAX_STEPS__')
     
+    const callStack = getCallStack()
+
     // Deep clone each captured variable to avoid reference mutations
     const varsCopy: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(__v__)) {
@@ -659,7 +707,7 @@ export function interpretCode(code: string): InterpreterResult {
       type: 'line',
       line,
       vars: varsCopy,
-      callStack: [...callStackNames],
+      callStack,
     })
   }
 
@@ -679,7 +727,7 @@ export function interpretCode(code: string): InterpreterResult {
         varsCopy[k] = deepClone(v)
       }
 
-      events.push({ type: 'output', line: 0, vars: varsCopy, callStack: [...callStackNames], output: str })
+      events.push({ type: 'output', line: 0, vars: varsCopy, callStack: getCallStack(), output: str })
     },
     error: (...a: unknown[]) => safeConsole.log('[ERROR]', ...a),
     warn:  (...a: unknown[]) => safeConsole.log('[WARN]',  ...a),
@@ -1159,28 +1207,41 @@ function detectDataType(code: string, vars: Record<string, unknown>): Interprete
 
 // ─── DSA state builder ────────────────────────────────────────────────────────
 
-function detectHashTable(vars: Record<string, unknown>, excludeName: string): Record<string, unknown> | undefined {
+function detectHashTableInfo(vars: Record<string, unknown>, excludeName: string): { table: Record<string, unknown>; name: string; label: string } | undefined {
   const mapEntry = Object.entries(vars).find(([k, v]) => !k.startsWith('__') && v instanceof Map)
   if (mapEntry) {
-    const [, mapObj] = mapEntry
+    const [name, mapObj] = mapEntry
     const table: Record<string, unknown> = {}
     ;(mapObj as Map<unknown, unknown>).forEach((v, k) => { table[String(k)] = v })
-    return table
+    // If keys are numbers (common in twoSum), label is "value → index"
+    const keysAreNumbers = Array.from((mapObj as Map<unknown, unknown>).keys()).every(k => typeof k === 'number' || !isNaN(Number(k)))
+    const label = keysAreNumbers ? 'value → index' : 'key → value'
+    return { table, name, label }
+  }
+
+  const setEntry = Object.entries(vars).find(([k, v]) => !k.startsWith('__') && v instanceof Set)
+  if (setEntry) {
+    const [name, setObj] = setEntry
+    const table: Record<string, unknown> = {}
+    ;(setObj as Set<unknown>).forEach((v) => { table[String(v)] = '✓' })
+    return { table, name, label: 'presence' }
   }
 
   const objEntry = Object.entries(vars).find(([k, v]) =>
     !k.startsWith('__') && k !== excludeName && k !== 'variables' && typeof v === 'object' && v !== null && !Array.isArray(v) &&
     !(v instanceof Map) && !(v instanceof Set) &&
-    Object.values(v as object).some(val => typeof val === 'number' || typeof val === 'string')
+    Object.values(v as object).some(val => typeof val === 'number' || typeof val === 'string' || typeof val === 'boolean')
   )
   if (objEntry) {
-    const [, obj] = objEntry
+    const [name, obj] = objEntry
     const table: Record<string, unknown> = {}
     Object.entries(obj as Record<string, unknown>)
-      .filter(([, v]) => typeof v === 'number' || typeof v === 'string')
+      .filter(([, v]) => typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean')
       .slice(0, 20)
       .forEach(([k, v]) => { table[k] = v })
-    return table
+    const keysAreNumbers = Object.keys(table).every(k => !isNaN(Number(k)))
+    const label = keysAreNumbers ? 'value → index' : 'key → value'
+    return { table, name, label }
   }
   return undefined
 }
@@ -1309,7 +1370,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       v && typeof v === 'object' && 'next' in v
     )
     if (candidates.length === 0) return null
-    const preferred = candidates.find(([k]) => k === 'head' || k === 'list' || k === 'curr')
+    const preferred = candidates.find(([k]) => ['head', 'list', 'curr', 'current', 'list1', 'list2', 'l1', 'l2', 'head1', 'head2'].includes(k))
     return preferred ? preferred[1] : candidates[0][1]
   }
   const head = findLinkedListHead(vars)
@@ -1334,9 +1395,18 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       const id = `ll-${idx}`
       
       let highlight: DSANode['highlight'] = 'none'
-      if (pointers[String(val)] === 'curr') highlight = 'active'
-      else if (pointers[String(val)] === 'prev') highlight = 'visited'
-      else if (pointers[String(val)] === 'nextTemp') highlight = 'comparing'
+      const ptrName = pointers[String(val)]
+      if (ptrName) {
+        if (['curr', 'current', 'list1', 'list2', 'l1', 'l2'].includes(ptrName)) {
+          highlight = 'active'
+        } else if (['prev', 'p'].includes(ptrName)) {
+          highlight = 'visited'
+        } else if (['next', 'nextTemp', 'q', 'temp'].includes(ptrName)) {
+          highlight = 'comparing'
+        } else {
+          highlight = 'processing'
+        }
+      }
 
       nodes.push({
         id,
@@ -1455,37 +1525,56 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     const [name, arr] = target
     const values = (arr as number[]).slice(0, 24)
 
-    // Prioritized pointer-resolution
-    const rangePointers = ['mid', 'm', 'left', 'l', 'right', 'r', 'low', 'high', 'start', 'end']
-    const activeRangePointers = rangePointers.filter(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
+    // Range pointers
+    let rangeStart: number | undefined
+    let rangeEnd: number | undefined
+    const startCandidates = ['left', 'l', 'low', 'start']
+    const endCandidates = ['right', 'r', 'high', 'end']
+    
+    const foundStart = startCandidates.find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
+    if (foundStart !== undefined) {
+      rangeStart = vars[foundStart] as number
+    }
+    const foundEnd = endCandidates.find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
+    if (foundEnd !== undefined) {
+      rangeEnd = vars[foundEnd] as number
+    }
+
+    // Pivot Index detection
+    let pivotIndex: number | undefined
+    const pivotIdxCandidates = ['pivotIndex', 'pivotIdx', 'pi']
+    const foundPivotIdx = pivotIdxCandidates.find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
+    if (foundPivotIdx !== undefined) {
+      pivotIndex = vars[foundPivotIdx] as number
+    } else if (typeof vars['high'] === 'number' && vars['high'] >= 0 && vars['high'] < values.length) {
+      if (vars['pivot'] !== undefined || lineCode.includes('pivot')) {
+        pivotIndex = vars['high'] as number
+      }
+    }
+
+    // Active pointer-resolution (mid, i, j, etc.)
+    const activeMid = ['mid', 'm'].find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
+    const activeI = typeof vars['i'] === 'number' && (vars['i'] as number) >= 0 && (vars['i'] as number) < values.length ? (vars['i'] as number) : undefined
+    const activeJ = typeof vars['j'] === 'number' && (vars['j'] as number) >= 0 && (vars['j'] as number) < values.length ? (vars['j'] as number) : undefined
 
     let pointer: number | undefined
     let pointer2: number | undefined
 
-    if (activeRangePointers.length > 0) {
-      pointer = vars[activeRangePointers[0]] as number
-      if (activeRangePointers.length > 1) {
-        pointer2 = vars[activeRangePointers[1]] as number
-      }
+    if (activeMid !== undefined) {
+      pointer = vars[activeMid] as number
+      if (activeI !== undefined) pointer2 = activeI
+      else if (activeJ !== undefined) pointer2 = activeJ
     } else {
-      const hasJ = typeof vars['j'] === 'number' && (vars['j'] as number) >= 0 && (vars['j'] as number) < values.length
-      const hasI = typeof vars['i'] === 'number' && (vars['i'] as number) >= 0 && (vars['i'] as number) < values.length
-
-      if (hasJ) {
-        pointer = vars['j'] as number
-        
-        const selectionPointers = ['min_idx', 'minIndex', 'minIdx', 'min', 'k']
-        const foundSel = selectionPointers.find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
-        
-        if (foundSel) {
-          pointer2 = vars[foundSel] as number
-        } else if (lineCode.includes('j - 1') || lineCode.includes('j-1') || lineCode.includes('j- 1')) {
-          pointer2 = pointer - 1
-        } else {
-          pointer2 = pointer + 1
-        }
-      } else if (hasI) {
-        pointer = vars['i'] as number
+      if (activeI !== undefined && activeJ !== undefined) {
+        pointer = activeI
+        pointer2 = activeJ
+      } else if (activeI !== undefined) {
+        pointer = activeI
+      } else if (activeJ !== undefined) {
+        pointer = activeJ
+      } else {
+        if (rangeStart !== undefined) pointer = rangeStart
+        if (rangeEnd !== undefined) pointer2 = rangeEnd
       }
     }
 
@@ -1493,21 +1582,41 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       pointer2 = undefined
     }
 
-    const nodes: DSANode[] = values.map((v, idx) => ({
-      id: `n${idx}`,
-      value: v,
-      highlight: idx === pointer ? 'comparing' : idx === pointer2 ? 'comparing' : 'none' as const,
-    }))
+    const nodes: DSANode[] = values.map((v, idx) => {
+      let highlight: DSANode['highlight'] = 'none'
+      if (idx === pivotIndex) {
+        highlight = 'pivot'
+      } else if (idx === pointer || idx === pointer2) {
+        if (lineCode.includes('swap') || lineCode.includes('temp')) {
+          highlight = 'swapping'
+        } else {
+          highlight = 'comparing'
+        }
+      } else if (rangeStart !== undefined && rangeEnd !== undefined && (idx < rangeStart || idx > rangeEnd)) {
+        highlight = 'visited'
+      }
+      return {
+        id: `n${idx}`,
+        value: v,
+        highlight,
+      }
+    })
 
-    const hashTable = detectHashTable(vars, name)
+    const hashInfo = detectHashTableInfo(vars, name)
 
     return {
       type: 'array',
       nodes,
       pointer,
       pointer2,
+      rangeStart,
+      rangeEnd,
+      pivotIndex,
       message: `${name}: [${values.join(', ')}]`,
-      hashTable,
+      hashTable: hashInfo?.table,
+      arrayName: name,
+      hashTableName: hashInfo?.name,
+      hashTableLabel: hashInfo?.label
     }
   }
 
@@ -1518,11 +1627,29 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     const [name, str] = strEntries[0]
     const chars = (str as string).split('').slice(0, 20)
     
-    const activeStrPointers = ['left', 'l', 'right', 'r', 'i', 'j'].filter(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < chars.length)
-    const pointer = activeStrPointers.length > 0 ? vars[activeStrPointers[0]] as number : undefined
-    const pointer2 = activeStrPointers.length > 1 ? vars[activeStrPointers[1]] as number : undefined
+    // Extract range start/end if present
+    let rangeStart: number | undefined
+    let rangeEnd: number | undefined
+    const startCandidates = ['left', 'l', 'low', 'start']
+    const endCandidates = ['right', 'r', 'high', 'end']
+    
+    const foundStart = startCandidates.find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < chars.length)
+    if (foundStart !== undefined) {
+      rangeStart = vars[foundStart] as number
+    }
+    const foundEnd = endCandidates.find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < chars.length)
+    if (foundEnd !== undefined) {
+      rangeEnd = vars[foundEnd] as number
+    }
 
-    const hashTable = detectHashTable(vars, name)
+    const activeStrPointers = ['left', 'l', 'right', 'r', 'i', 'j'].filter(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < chars.length)
+    let pointer = activeStrPointers.length > 0 ? vars[activeStrPointers[0]] as number : undefined
+    let pointer2 = activeStrPointers.length > 1 ? vars[activeStrPointers[1]] as number : undefined
+
+    if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart
+    if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd
+
+    const hashInfo = detectHashTableInfo(vars, name)
 
     return {
       type: 'string',
@@ -1533,8 +1660,13 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       })),
       pointer,
       pointer2,
+      rangeStart,
+      rangeEnd,
       message: `${name} = "${str}"`,
-      hashTable,
+      hashTable: hashInfo?.table,
+      arrayName: name,
+      hashTableName: hashInfo?.name,
+      hashTableLabel: hashInfo?.label
     }
   }
 
@@ -1547,6 +1679,8 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     return {
       type: 'hashmap', nodes: [], hashTable: table,
       message: `${name}: ${(mapObj as Map<unknown, unknown>).size} entries`,
+      hashTableName: name,
+      hashTableLabel: 'key → value'
     }
   }
 
@@ -1565,6 +1699,8 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     return {
       type: 'hashmap', nodes: [], hashTable: table,
       message: `${name}: ${Object.keys(table).length} entries`,
+      hashTableName: name,
+      hashTableLabel: 'key → value'
     }
   }
 

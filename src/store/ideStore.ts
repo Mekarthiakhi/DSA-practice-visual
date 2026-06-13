@@ -98,6 +98,10 @@ export interface DSAState {
   hashTable?: Record<string, unknown>
   // Merge sort groups
   mergeGroups?: number[][]
+  // Dynamic names/labels for arrays and maps/sets
+  arrayName?: string
+  hashTableName?: string
+  hashTableLabel?: string
 }
 
 export interface AIMessage {

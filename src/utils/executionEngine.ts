@@ -79,9 +79,7 @@ export function detectAlgorithm(code: string): AlgoType {
   if (lower.includes('linearsearch') || (lower.includes('linear') && lower.includes('search'))) return 'linearSearch'
   if (lower.includes('fibonacci') || lower.includes('fib(')) return 'fibonacci'
   if (lower.includes('factorial') || lower.includes('fact(')) return 'factorial'
-  if ((lower.includes('doubly') || lower.includes('prev')) && lower.includes('next')) return 'doublyLinkedList'
-  if (lower.includes('linkedlist') || lower.includes('linked list') || (lower.includes('node') && lower.includes('next'))) return 'linkedList'
-  if (lower.includes('bst') || lower.includes('binary search tree') || (lower.includes('insert') && lower.includes('left') && lower.includes('right'))) return 'bst'
+
   if (lower.includes('dijkstra') || lower.includes('shortest path')) return 'dijkstra'
   if (lower.includes('breadth') || lower.includes('bfs(') || (lower.includes('queue') && lower.includes('graph'))) return 'bfs'
   if (lower.includes('depth') || lower.includes('dfs(') || (lower.includes('stack') && lower.includes('graph'))) return 'dfs'
@@ -92,21 +90,39 @@ export function detectAlgorithm(code: string): AlgoType {
   // hashMap: require explicit hashmap keyword or key/value pair patterns — NOT just any use of Map()
   if (lower.includes('hashmap') || lower.includes('hash map') ||
       (lower.includes('map') && lower.includes('get') && !lower.includes('target') && !lower.includes('twosum'))) return 'hashMap'
-  if (lower.includes('stack') && (lower.includes('push') || lower.includes('pop'))) return 'stack'
-  if (lower.includes('queue') && (lower.includes('enqueue') || lower.includes('dequeue'))) return 'queue'
-  if (lower.includes('isvalid') && lower.includes('stack')) return 'validParentheses'
-  if (lower.includes('mergetwolists') || lower.includes('merge two lists')) return 'mergeTwoLists'
-  if (lower.includes('maxsubarray') || lower.includes('maximum subarray')) return 'maxSubArray'
-  if (lower.includes('maxprofit') || lower.includes('best time to buy')) return 'maxProfit'
+
+  // ⚠️ LEETCODE PROBLEMS must come BEFORE generic data-structure detectors (BST, stack, linkedList, etc.)
+  // These LeetCode solutions contain keywords that would falsely match generic detectors:
+  //   - Valid Parentheses → `stack` + `push`/`pop` matches generic 'stack'
+  //   - Merge Two Sorted Lists → `node` + `next` matches generic 'linkedList'
+  //   - Climbing Stairs → `climbstairs` contains substring 'bst' matching BST
+  //   - Search Insert → has `insert` + `left` + `right` matching BST heuristic
+  if (lower.includes('isvalid') || lower.includes('valid parenthes') || lower.includes('validparenthes') ||
+      (lower.includes('(') && lower.includes(')') && lower.includes('[') && lower.includes(']') && lower.includes('{') && lower.includes('}') && lower.includes('stack'))) return 'validParentheses'
+  if (lower.includes('mergetwolists') || lower.includes('merge two lists') ||
+      (lower.includes('list1') && lower.includes('list2') && lower.includes('next'))) return 'mergeTwoLists'
+  if (lower.includes('reverselist') || lower.includes('reverse linked list') ||
+      (lower.includes('prev') && lower.includes('curr') && lower.includes('next') && lower.includes('reverse'))) return 'reverseList'
+  if (lower.includes('maxsubarray') || lower.includes('maximum subarray') || lower.includes('max_subarray')) return 'maxSubArray'
+  if (lower.includes('maxprofit') || lower.includes('best time to buy') || lower.includes('max_profit')) return 'maxProfit'
+  if (lower.includes('containsduplicate') || lower.includes('contains duplicate') || lower.includes('contains_duplicate')) return 'containsDuplicate'
+  if (lower.includes('climbstairs') || lower.includes('climbing stairs') || lower.includes('climb_stairs')) return 'climbStairs'
+  if (lower.includes('maxarea') || lower.includes('most water') || lower.includes('max_area')) return 'maxArea'
+  if (lower.includes('searchinsert') || lower.includes('search insert') || lower.includes('search_insert')) return 'searchInsert'
   if (lower.includes('reverse') && lower.includes('string')) return 'reverseString'
   if (lower.includes('palindrome')) return 'isPalindrome'
   if (lower.includes('fizzbuzz') || lower.includes('fizz buzz')) return 'fizzBuzz'
+
+  // Generic data structure detectors — AFTER all specific LeetCode patterns
+  // BST: use word-boundary regex to avoid 'climbstairs' matching 'bst' as substring;
+  //      also require insert+left+right BUT exclude searchInsert patterns
+  if (/\bbst\b/.test(lower) || lower.includes('binary search tree') ||
+      (lower.includes('insert') && lower.includes('left') && lower.includes('right') && !lower.includes('searchinsert'))) return 'bst'
+  if (lower.includes('stack') && (lower.includes('push') || lower.includes('pop'))) return 'stack'
+  if (lower.includes('queue') && (lower.includes('enqueue') || lower.includes('dequeue'))) return 'queue'
+  if ((lower.includes('doubly') || lower.includes('prev')) && lower.includes('next')) return 'doublyLinkedList'
+  if (lower.includes('linkedlist') || lower.includes('linked list') || (lower.includes('node') && lower.includes('next'))) return 'linkedList'
   if (lower.includes('matrix') || (lower.includes('[i][j]'))) return 'matrixTraversal'
-  if (lower.includes('climbstairs') || lower.includes('climbing stairs')) return 'climbStairs'
-  if (lower.includes('containsduplicate') || lower.includes('contains duplicate')) return 'containsDuplicate'
-  if (lower.includes('reverselist') || lower.includes('reverse linked list')) return 'reverseList'
-  if (lower.includes('maxarea') || lower.includes('most water')) return 'maxArea'
-  if (lower.includes('searchinsert') || lower.includes('search insert')) return 'searchInsert'
   return 'generic'
 }
 
@@ -1443,54 +1459,83 @@ function extractNumber(code: string): number {
 }
 
 export function generateExecutionSteps(code: string): ExecutionStep[] {
+  const algo = detectAlgorithm(code)
+  const arr = extractArray(code)
+
+  const LEETCODE_ALGOS = new Set([
+    'twoSum', 'validParentheses', 'mergeTwoLists', 'maxSubArray', 'maxProfit',
+    'reverseString', 'climbStairs', 'containsDuplicate', 'reverseList', 'maxArea',
+    'searchInsert', 'fizzBuzz'
+  ])
+
+  // 1. Try dynamic interpreter first for LeetCode challenges
+  if (LEETCODE_ALGOS.has(algo)) {
+    try {
+      const result = interpretCode(code)
+      if (result.steps && result.steps.length > 1 && !result.error) {
+        // Only prefer dynamic steps if they have meaningful dsaState visualization
+        const hasDSA = result.steps.some(s => s.dsaState && s.dsaState.nodes && s.dsaState.nodes.length > 0)
+        if (hasDSA) {
+          return result.steps
+        }
+        // If no dsaState (e.g., simple scalar-only algos like climbStairs),
+        // fall through to static generator which has built-in visualization
+      }
+    } catch (err) {
+      console.warn('Dynamic interpreter failed, falling back to static simulator:', err)
+    }
+  }
+
+  // 2. Otherwise run static visualizers
+  if (algo !== 'generic') {
+    switch (algo) {
+      case 'bubbleSort': return genBubbleSort(arr)
+      case 'selectionSort': return genSelectionSort(arr)
+      case 'insertionSort': return genInsertionSort(arr)
+      case 'mergeSort': return genMergeSort(arr)
+      case 'quickSort': return genQuickSort(arr)
+      case 'heapSort': return genHeapSort(arr)
+      case 'binarySearch': return genBinarySearch([2,5,8,12,16,23,38,56,72,91], extractTarget(code))
+      case 'linearSearch': return genLinearSearch(arr, extractTarget(code))
+      case 'fibonacci': return genFibonacci(extractNumber(code))
+      case 'factorial': return genFactorial(extractNumber(code))
+      case 'linkedList': return genLinkedList([10,20,30,40,50])
+      case 'doublyLinkedList': return genLinkedList([5,15,25,35,45])
+      case 'bst': return genBST([50,30,70,20,40,60,80])
+      case 'bfs': return genBFS(['A','B','C','D','E','F'], { A:['B','C'], B:['D','E'], C:['F'], D:[], E:[], F:[] }, 'A')
+      case 'dfs': return genDFS(['A','B','C','D','E','F'], { A:['B','C'], B:['D','E'], C:['F'], D:[], E:[], F:[] }, 'A')
+      case 'stack': return genStack([{op:'push',val:10},{op:'push',val:20},{op:'push',val:30},{op:'pop'},{op:'push',val:40},{op:'pop'},{op:'pop'}])
+      case 'queue': return genQueue([{op:'enqueue',val:1},{op:'enqueue',val:2},{op:'enqueue',val:3},{op:'dequeue'},{op:'enqueue',val:4},{op:'dequeue'}])
+      case 'hashMap': return genHashMap([['apple',5],['banana',3],['cherry',8],['date',2],['elderberry',7]])
+      case 'twoSum': {
+        const tsParams = extractTwoSumParams(code)
+        return genTwoSum(tsParams.nums, tsParams.target)
+      }
+      case 'validParentheses': return genValidParentheses('()[]{}')
+      case 'mergeTwoLists': return genMergeTwoLists([1,2,4], [1,3,4])
+      case 'maxSubArray': return genMaxSubArray(arr.length ? arr : [-2,1,-3,4,-1,2,1,-5,4])
+      case 'maxProfit': return genMaxProfit(arr.length ? arr : [7,1,5,3,6,4])
+      case 'reverseString': return genReverseString('hello')
+      case 'climbStairs': return genClimbStairs(extractNumber(code) || 5)
+      case 'containsDuplicate': return genContainsDuplicate(arr.length ? arr : [1,2,3,1])
+      case 'reverseList': return genReverseList([1,2,3,4,5])
+      case 'maxArea': return genMaxArea(arr.length ? arr : [1,8,6,2,5,4,8,3,7])
+      case 'searchInsert': return genSearchInsert(arr.length ? arr : [1,3,5,6], extractTarget(code) || 2)
+      case 'fizzBuzz': return genFizzBuzz(15)
+    }
+  }
+
+  // 3. Dynamic interpreter fallback for generic/custom code or failing static routes
   try {
     const result = interpretCode(code)
     if (result.steps && result.steps.length > 1) {
       return result.steps
     }
   } catch (err) {
-    console.warn('Interpreter tracing failed, falling back to static generators:', err)
+    console.warn('Interpreter tracing failed:', err)
   }
 
-  const algo = detectAlgorithm(code)
-  const arr = extractArray(code)
-
-  switch (algo) {
-    case 'bubbleSort': return genBubbleSort(arr)
-    case 'selectionSort': return genSelectionSort(arr)
-    case 'insertionSort': return genInsertionSort(arr)
-    case 'mergeSort': return genMergeSort(arr)
-    case 'quickSort': return genQuickSort(arr)
-    case 'heapSort': return genHeapSort(arr)
-    case 'binarySearch': return genBinarySearch([2,5,8,12,16,23,38,56,72,91], extractTarget(code))
-    case 'linearSearch': return genLinearSearch(arr, extractTarget(code))
-    case 'fibonacci': return genFibonacci(extractNumber(code))
-    case 'factorial': return genFactorial(extractNumber(code))
-    case 'linkedList': return genLinkedList([10,20,30,40,50])
-    case 'doublyLinkedList': return genLinkedList([5,15,25,35,45])
-    case 'bst': return genBST([50,30,70,20,40,60,80])
-    case 'bfs': return genBFS(['A','B','C','D','E','F'], { A:['B','C'], B:['D','E'], C:['F'], D:[], E:[], F:[] }, 'A')
-    case 'dfs': return genDFS(['A','B','C','D','E','F'], { A:['B','C'], B:['D','E'], C:['F'], D:[], E:[], F:[] }, 'A')
-    case 'stack': return genStack([{op:'push',val:10},{op:'push',val:20},{op:'push',val:30},{op:'pop'},{op:'push',val:40},{op:'pop'},{op:'pop'}])
-    case 'queue': return genQueue([{op:'enqueue',val:1},{op:'enqueue',val:2},{op:'enqueue',val:3},{op:'dequeue'},{op:'enqueue',val:4},{op:'dequeue'}])
-    case 'hashMap': return genHashMap([['apple',5],['banana',3],['cherry',8],['date',2],['elderberry',7]])
-    case 'twoSum': {
-      const tsParams = extractTwoSumParams(code)
-      return genTwoSum(tsParams.nums, tsParams.target)
-    }
-    case 'validParentheses': return genValidParentheses('()[]{}')
-    case 'mergeTwoLists': return genMergeTwoLists([1,2,4], [1,3,4])
-    case 'maxSubArray': return genMaxSubArray(arr.length ? arr : [-2,1,-3,4,-1,2,1,-5,4])
-    case 'maxProfit': return genMaxProfit(arr.length ? arr : [7,1,5,3,6,4])
-    case 'reverseString': return genReverseString('hello')
-    case 'climbStairs': return genClimbStairs(extractNumber(code) || 5)
-    case 'containsDuplicate': return genContainsDuplicate(arr.length ? arr : [1,2,3,1])
-    case 'reverseList': return genReverseList([1,2,3,4,5])
-    case 'maxArea': return genMaxArea(arr.length ? arr : [1,8,6,2,5,4,8,3,7])
-    case 'searchInsert': return genSearchInsert(arr.length ? arr : [1,3,5,6], extractTarget(code) || 2)
-    case 'fizzBuzz': return genFizzBuzz(15)
-    default: return [createErrorStep(`Algorithm not yet supported for DSA visualization. Try switching to 'Trace' mode.`)]
-  }
+  return [createErrorStep(`Algorithm execution failed or not supported. Try switching to 'Trace' mode.`)]
 }
 
 // ─── NEW GENERATORS ──────────────────────────────────────────────────────────

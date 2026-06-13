@@ -525,8 +525,16 @@ const HashMapView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unkno
 }
 
 // ─── TWO SUM VIEW ──────────────────────────────────────────────────
-const TwoSumView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unknown>; message?: string; comparisons?: number }> = ({
-  nodes, hashTable, message, comparisons
+const TwoSumView: React.FC<{
+  nodes: DSANode[]
+  hashTable?: Record<string, unknown>
+  message?: string
+  comparisons?: number
+  arrayName?: string
+  hashTableName?: string
+  hashTableLabel?: string
+}> = ({
+  nodes, hashTable, message, comparisons, arrayName, hashTableName, hashTableLabel
 }) => {
   const entries = hashTable ? Object.entries(hashTable) : []
   const maxVal = Math.max(...nodes.map(n => Math.abs(Number(n.value) || 0)), 1)
@@ -544,7 +552,7 @@ const TwoSumView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unknow
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Array visualization */}
         <div className="flex-1 flex flex-col items-center justify-end gap-2 min-h-0">
-          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider self-start">nums array</div>
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider self-start">{arrayName || 'nums array'}</div>
           <div className="flex items-end gap-1.5 flex-wrap justify-center" style={{ minHeight: 120 }}>
             <AnimatePresence mode="popLayout">
               {nodes.map((node, idx) => {
@@ -592,8 +600,8 @@ const TwoSumView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unknow
 
         {/* HashMap panel */}
         <div className="w-44 flex-shrink-0 flex flex-col gap-2">
-          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">hash map</div>
-          <div className="text-[9px] text-gray-700 font-mono">value → index</div>
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">{hashTableName || 'hash map'}</div>
+          <div className="text-[9px] text-gray-700 font-mono">{hashTableLabel || 'value → index'}</div>
           <div className="flex flex-col gap-1.5 overflow-auto" style={{ maxHeight: 220 }}>
             <AnimatePresence mode="popLayout">
               {entries.length === 0 ? (
@@ -611,7 +619,7 @@ const TwoSumView: React.FC<{ nodes: DSANode[]; hashTable?: Record<string, unknow
                   style={{ boxShadow: '0 0 8px rgba(0,212,255,0.08)' }}
                 >
                   <span className="text-cyan-400 text-xs font-mono font-bold">{key}</span>
-                  <span className="text-gray-600 text-[10px] font-mono">→ idx</span>
+                  {val !== '✓' && <span className="text-gray-600 text-[10px] font-mono">→ idx</span>}
                   <span className="text-amber-400 text-xs font-mono font-bold">{String(val)}</span>
                 </motion.div>
               ))}
@@ -658,7 +666,7 @@ export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
   return (
     <div className="h-full w-full">
       {dsaState.type === 'array' && dsaState.hashTable !== undefined
-        ? <TwoSumView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} comparisons={dsaState.comparisons} />
+        ? <TwoSumView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} comparisons={dsaState.comparisons} arrayName={dsaState.arrayName} hashTableName={dsaState.hashTableName} hashTableLabel={dsaState.hashTableLabel} />
         : dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
       {dsaState.type === 'string' && <StringView nodes={dsaState.nodes} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} />}
       {dsaState.type === 'linkedlist' && <LinkedListView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />}
