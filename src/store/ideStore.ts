@@ -87,7 +87,9 @@ export interface DSAState {
   operations?: string[]
   // Pointers & range (used by search / two-pointer / quickSort visualizations)
   pointer?: number
+  pointerName?: string
   pointer2?: number
+  pointer2Name?: string
   rangeStart?: number
   rangeEnd?: number
   pivotIndex?: number
@@ -188,7 +190,7 @@ export interface IDEState {
   setExecMode: (mode: 'auto' | 'dsa' | 'trace') => void
 }
 
-export const useIDEStore = create<IDEState>((set, get) => ({
+export const useIDEStore = create<IDEState>((set) => ({
   code: `function bubbleSort(arr) {
   const n = arr.length;
   for (let i = 0; i < n - 1; i++) {

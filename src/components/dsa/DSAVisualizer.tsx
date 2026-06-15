@@ -36,8 +36,8 @@ const Legend = ({ items }: { items: Array<{ label: string; hl: DSANode['highligh
 )
 
 // ─── ARRAY / SORTING VIEW ────────────────────────────────────────────────────
-const ArrayView: React.FC<{ nodes: DSANode[]; comparisons?: number; swaps?: number; message?: string; pointer?: number; pointer2?: number; rangeStart?: number; rangeEnd?: number; pivotIndex?: number }> = ({
-  nodes, comparisons, swaps, message, pointer, pointer2, rangeStart, rangeEnd, pivotIndex
+const ArrayView: React.FC<{ nodes: DSANode[]; comparisons?: number; swaps?: number; message?: string; pointer?: number; pointerName?: string; pointer2?: number; pointer2Name?: string; rangeStart?: number; rangeEnd?: number; pivotIndex?: number }> = ({
+  nodes, comparisons, swaps, message, pointer, pointerName, pointer2, pointer2Name, rangeStart, rangeEnd, pivotIndex
 }) => {
   if (!nodes.length) return <div className="flex items-center justify-center h-full text-gray-500 text-sm">No data</div>
 
@@ -92,8 +92,18 @@ const ArrayView: React.FC<{ nodes: DSANode[]; comparisons?: number; swaps?: numb
                   )}
                 </motion.div>
                 <span className="text-[10px] text-gray-600 font-mono">{idx}</span>
-                {pointer === idx && <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" title="pointer" />}
-                {pointer2 === idx && <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" title="pointer2" />}
+                {pointer === idx && (
+                  <div className="absolute -bottom-8 flex flex-col items-center z-10">
+                    <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-cyan-400" />
+                    <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mt-0.5">{pointerName || 'ptr'}</div>
+                  </div>
+                )}
+                {pointer2 === idx && (
+                  <div className="absolute -bottom-8 flex flex-col items-center z-10 ml-8">
+                    <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-purple-400" />
+                    <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mt-0.5">{pointer2Name || 'ptr2'}</div>
+                  </div>
+                )}
               </motion.div>
             )
           })}
@@ -134,10 +144,12 @@ const StringStackView: React.FC<{
   stackItems?: (string | number)[]
   message?: string
   pointer?: number
+  pointerName?: string
   pointer2?: number
+  pointer2Name?: string
   stringName?: string
   stackName?: string
-}> = ({ nodes, stackItems, message, pointer, pointer2, stringName, stackName }) => {
+}> = ({ nodes, stackItems, message, pointer, pointerName, pointer2, pointer2Name, stringName, stackName }) => {
   const items = stackItems || []
 
   return (
@@ -165,8 +177,18 @@ const StringStackView: React.FC<{
                 >
                   <span className="text-lg font-mono font-bold" style={{ color: c.text }}>{node.value}</span>
                   <span className="absolute -bottom-4 text-[9px] text-gray-600 font-mono">{idx}</span>
-                  {pointer === idx && <div className="absolute -top-3 w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-l-transparent border-r-transparent border-b-cyan-400" />}
-                  {pointer2 === idx && <div className="absolute -top-3 w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-l-transparent border-r-transparent border-b-purple-400" />}
+                  {pointer === idx && (
+                    <div className="absolute -top-6 flex flex-col items-center z-10">
+                      <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mb-0.5">{pointerName || 'ptr'}</div>
+                      <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-cyan-400" />
+                    </div>
+                  )}
+                  {pointer2 === idx && (
+                    <div className="absolute -top-6 flex flex-col items-center z-10 ml-10">
+                      <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mb-0.5">{pointer2Name || 'ptr2'}</div>
+                      <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-purple-400" />
+                    </div>
+                  )}
                 </motion.div>
               )
             })}
@@ -208,7 +230,7 @@ const StringStackView: React.FC<{
 
 
 // ─── STRING VIEW ─────────────────────────────────────────────────────────────
-const StringView: React.FC<{ nodes: DSANode[]; message?: string; pointer?: number; pointer2?: number }> = ({ nodes, message, pointer, pointer2 }) => (
+const StringView: React.FC<{ nodes: DSANode[]; message?: string; pointer?: number; pointerName?: string; pointer2?: number; pointer2Name?: string }> = ({ nodes, message, pointer, pointerName, pointer2, pointer2Name }) => (
   <div className="flex flex-col items-center justify-center h-full gap-8 p-6">
     {message && (
       <motion.div key={message} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
@@ -228,8 +250,18 @@ const StringView: React.FC<{ nodes: DSANode[]; message?: string; pointer?: numbe
           >
             <span className="text-xl font-mono font-bold" style={{ color: c.text }}>{node.value}</span>
             <span className="absolute -bottom-5 text-[10px] text-gray-600 font-mono">{idx}</span>
-            {pointer === idx && <div className="absolute -top-3 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[8px] border-l-transparent border-r-transparent border-b-cyan-400" />}
-            {pointer2 === idx && <div className="absolute -top-3 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[8px] border-l-transparent border-r-transparent border-b-purple-400" />}
+            {pointer === idx && (
+              <div className="absolute -top-7 flex flex-col items-center z-10">
+                <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mb-0.5">{pointerName || 'ptr'}</div>
+                <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-cyan-400" />
+              </div>
+            )}
+            {pointer2 === idx && (
+              <div className="absolute -top-7 flex flex-col items-center z-10 ml-12">
+                <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mb-0.5">{pointer2Name || 'ptr2'}</div>
+                <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-purple-400" />
+              </div>
+            )}
           </motion.div>
         )
       })}
@@ -251,14 +283,7 @@ const LinkedListView: React.FC<{ nodes: DSANode[]; edges?: DSAEdge[]; message?: 
         <motion.div key={message} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="px-4 py-2 bg-[#13151f] border border-[#252836] rounded-lg text-sm text-gray-300 font-mono">{message}</motion.div>
       )}
-      <div className="flex items-center gap-0 overflow-x-auto max-w-full pb-4">
-        {/* HEAD pointer */}
-        <div className="flex flex-col items-center mr-3">
-          <div className="px-2 py-1 bg-cyan-900/30 border border-cyan-500/40 rounded text-[10px] text-cyan-400 font-mono">HEAD</div>
-          <div className="w-px h-4 bg-cyan-500/40" />
-          <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[7px] border-l-transparent border-r-transparent border-t-cyan-400" />
-        </div>
-
+      <div className="flex items-center gap-0 overflow-x-auto max-w-full pb-4 pt-10">
         {nodes.map((node, idx) => {
           const c = HL[node.highlight || 'none']
           return (
@@ -268,8 +293,17 @@ const LinkedListView: React.FC<{ nodes: DSANode[]; edges?: DSAEdge[]; message?: 
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1, boxShadow: c.glow || 'none' }}
                 transition={{ delay: idx * 0.08, type: 'spring', stiffness: 300 }}
-                className="flex-shrink-0"
+                className="flex-shrink-0 relative"
               >
+                {node.label && (
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                    <div className="px-2 py-0.5 bg-gray-800 border border-gray-600 rounded text-[9px] text-gray-300 font-mono whitespace-nowrap">
+                      {node.label}
+                    </div>
+                    <div className="w-px h-3 bg-gray-500" />
+                    <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-gray-500" />
+                  </div>
+                )}
                 <div className="border-2 rounded-xl overflow-hidden" style={{ borderColor: c.border }}>
                   <div className="flex">
                     {/* Value cell */}
@@ -407,10 +441,9 @@ const GraphView: React.FC<{ nodes: DSANode[]; edges?: DSAEdge[]; message?: strin
               const highlighted = from.highlight !== 'none' && from.highlight !== undefined && to.highlight !== 'none'
               return (
                 <motion.line key={edge.id}
-                  x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, stroke: highlighted ? '#00d4ff' : '#374151', strokeWidth: highlighted ? 2 : 1.5 }}
-                  transition={{ duration: 0.3 }}
+                  initial={{ opacity: 0, x1: from.x, y1: from.y, x2: to.x, y2: to.y }}
+                  animate={{ x1: from.x, y1: from.y, x2: to.x, y2: to.y, opacity: 1, stroke: highlighted ? '#00d4ff' : '#374151', strokeWidth: highlighted ? 2 : 1.5 }}
+                  transition={{ type: 'spring', stiffness: 250, damping: 25, opacity: { duration: 0.3 } }}
                 />
               )
             })}
@@ -426,12 +459,17 @@ const GraphView: React.FC<{ nodes: DSANode[]; edges?: DSAEdge[]; message?: strin
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: 'spring', stiffness: 280, damping: 22 }}
                 >
-                  {c.glow && <circle cx={node.x} cy={node.y} r={r + 6} fill={c.border + '15'} />}
-                  <circle cx={node.x} cy={node.y} r={r} fill={c.bg} stroke={c.border} strokeWidth="2.5" />
-                  <text x={node.x} y={node.y} textAnchor="middle" dominantBaseline="central"
+                  {c.glow && <motion.circle animate={{ cx: node.x, cy: node.y }} transition={{ type: 'spring', stiffness: 250, damping: 25 }} r={r + 6} fill={c.border + '15'} />}
+                  <motion.circle animate={{ cx: node.x, cy: node.y }} transition={{ type: 'spring', stiffness: 250, damping: 25 }} r={r} fill={c.bg} stroke={c.border} strokeWidth="2.5" />
+                  <motion.text animate={{ x: node.x, y: node.y }} transition={{ type: 'spring', stiffness: 250, damping: 25 }} textAnchor="middle" dominantBaseline="central"
                     fill={c.text} fontSize="14" fontFamily="JetBrains Mono, monospace" fontWeight="bold">
                     {node.value}
-                  </text>
+                  </motion.text>
+                  {node.label && (
+                    <motion.text animate={{ x: node.x, y: node.y - r - 8 }} transition={{ type: 'spring', stiffness: 250, damping: 25 }} textAnchor="middle" fill="#9ca3af" fontSize="10" fontFamily="JetBrains Mono, monospace">
+                      {node.label}
+                    </motion.text>
+                  )}
                 </motion.g>
               )
             })}
@@ -611,8 +649,12 @@ const TwoSumView: React.FC<{
   arrayName?: string
   hashTableName?: string
   hashTableLabel?: string
+  pointer?: number
+  pointerName?: string
+  pointer2?: number
+  pointer2Name?: string
 }> = ({
-  nodes, hashTable, message, comparisons, arrayName, hashTableName, hashTableLabel
+  nodes, hashTable, message, comparisons, arrayName, hashTableName, hashTableLabel, pointer, pointerName, pointer2, pointer2Name
 }) => {
   const entries = hashTable ? Object.entries(hashTable) : []
   const maxVal = Math.max(...nodes.map(n => Math.abs(Number(n.value) || 0)), 1)
@@ -663,6 +705,18 @@ const TwoSumView: React.FC<{
                       )}
                     </motion.div>
                     <span className="text-[10px] text-gray-600 font-mono">[{idx}]</span>
+                    {pointer === idx && (
+                      <div className="absolute -bottom-8 flex flex-col items-center z-10">
+                        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-cyan-400" />
+                        <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mt-0.5">{pointerName || 'ptr'}</div>
+                      </div>
+                    )}
+                    {pointer2 === idx && (
+                      <div className="absolute -bottom-8 flex flex-col items-center z-10 ml-8">
+                        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-purple-400" />
+                        <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mt-0.5">{pointer2Name || 'ptr2'}</div>
+                      </div>
+                    )}
                   </motion.div>
                 )
               })}
@@ -745,10 +799,10 @@ export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
     <div className="h-full w-full">
       {dsaState.type === 'array' && dsaState.hashTable !== undefined
         ? <TwoSumView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} comparisons={dsaState.comparisons} arrayName={dsaState.arrayName} hashTableName={dsaState.hashTableName} hashTableLabel={dsaState.hashTableLabel} />
-        : dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
+        : dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
       {dsaState.type === 'string' && dsaState.stackItems !== undefined
-        ? <StringStackView nodes={dsaState.nodes} stackItems={dsaState.stackItems} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} stringName={dsaState.arrayName} stackName={dsaState.stackName} />
-        : dsaState.type === 'string' && <StringView nodes={dsaState.nodes} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} />}
+        ? <StringStackView nodes={dsaState.nodes} stackItems={dsaState.stackItems} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} stringName={dsaState.arrayName} stackName={dsaState.stackName} />
+        : dsaState.type === 'string' && <StringView nodes={dsaState.nodes} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} />}
       {dsaState.type === 'linkedlist' && (
         new Set(dsaState.nodes.map(n => n.y || 0)).size > 1 || (dsaState.edges && dsaState.edges.some(e => e.from > e.to))
           ? <GraphView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />

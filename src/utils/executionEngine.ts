@@ -1223,7 +1223,7 @@ export function genReverseString(s: string): ExecutionStep[] {
     dsaState: {
       type: 'string',
       nodes: chars.map((c, i) => ({ id: `c${i}`, value: c, highlight: i === l ? 'comparing' : i === r ? 'comparing' : i < l || i > r ? 'found' : 'none' })),
-      pointer: l, pointer2: r, message: desc
+      pointer: l, pointerName: 'l', pointer2: r, pointer2Name: 'r', message: desc
     }
   })
 
@@ -1734,29 +1734,29 @@ export function genMaxArea(height: number[]): ExecutionStep[] {
   let left = 0, right = height.length - 1, maxArea = 0
   steps.push({ line: 2, description: 'let maxArea = 0', variables: [], callStack: [makeFrame('fn', 2, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,i) => ({id:'h'+i,value:v,highlight:'none'})), message: 'maxArea = 0' } })
   steps.push({ line: 3, description: 'let left = 0', variables: [], callStack: [makeFrame('fn', 3, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,i) => ({id:'h'+i,value:v,highlight:'none'})), pointer: left, message: 'left = 0' } })
-  steps.push({ line: 4, description: 'let right = ' + right, variables: [], callStack: [makeFrame('fn', 4, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,i) => ({id:'h'+i,value:v,highlight:'none'})), pointer: left, pointer2: right, message: 'right = ' + right } })
+  steps.push({ line: 4, description: 'let right = ' + right, variables: [], callStack: [makeFrame('fn', 4, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,i) => ({id:'h'+i,value:v,highlight:'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'right = ' + right } })
 
   while (left < right) {
-    steps.push({ line: 6, description: 'while (' + left + ' < ' + right + ')', variables: [], callStack: [makeFrame('fn', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointer2: right, message: 'Check condition' } })
+    steps.push({ line: 6, description: 'while (' + left + ' < ' + right + ')', variables: [], callStack: [makeFrame('fn', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Check condition' } })
     let h = Math.min(height[left], height[right])
-    steps.push({ line: 7, description: 'h = Math.min(' + height[left] + ', ' + height[right] + ') = ' + h, variables: [], callStack: [makeFrame('fn', 7, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'comparing':'none'})), pointer: left, pointer2: right, message: 'Height = ' + h } })
+    steps.push({ line: 7, description: 'h = Math.min(' + height[left] + ', ' + height[right] + ') = ' + h, variables: [], callStack: [makeFrame('fn', 7, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'comparing':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Height = ' + h } })
     let w = right - left
-    steps.push({ line: 8, description: 'w = ' + right + ' - ' + left + ' = ' + w, variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'comparing':'none'})), pointer: left, pointer2: right, message: 'Width = ' + w } })
+    steps.push({ line: 8, description: 'w = ' + right + ' - ' + left + ' = ' + w, variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'comparing':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Width = ' + w } })
     let area = w * h
     if (area > maxArea) maxArea = area
-    steps.push({ line: 9, description: 'maxArea = Math.max(' + maxArea + ', ' + area + ')', variables: [], callStack: [makeFrame('fn', 9, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'found':'none'})), pointer: left, pointer2: right, message: 'Area = ' + area + ', maxArea = ' + maxArea } })
+    steps.push({ line: 9, description: 'maxArea = Math.max(' + maxArea + ', ' + area + ')', variables: [], callStack: [makeFrame('fn', 9, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'found':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Area = ' + area + ', maxArea = ' + maxArea } })
 
-    steps.push({ line: 11, description: 'if (' + height[left] + ' < ' + height[right] + ')', variables: [], callStack: [makeFrame('fn', 11, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointer2: right, message: 'Compare heights' } })
+    steps.push({ line: 11, description: 'if (' + height[left] + ' < ' + height[right] + ')', variables: [], callStack: [makeFrame('fn', 11, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Compare heights' } })
     if (height[left] < height[right]) {
       left++
-      steps.push({ line: 12, description: 'left++', variables: [], callStack: [makeFrame('fn', 12, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointer2: right, message: 'left moved to ' + left } })
+      steps.push({ line: 12, description: 'left++', variables: [], callStack: [makeFrame('fn', 12, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'left moved to ' + left } })
     } else {
-      steps.push({ line: 13, description: 'else', variables: [], callStack: [makeFrame('fn', 13, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointer2: right, message: 'else' } })
+      steps.push({ line: 13, description: 'else', variables: [], callStack: [makeFrame('fn', 13, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'else' } })
       right--
-      steps.push({ line: 14, description: 'right--', variables: [], callStack: [makeFrame('fn', 14, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointer2: right, message: 'right moved to ' + right } })
+      steps.push({ line: 14, description: 'right--', variables: [], callStack: [makeFrame('fn', 14, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'right moved to ' + right } })
     }
   }
-  steps.push({ line: 6, description: 'while (' + left + ' < ' + right + ')', variables: [], callStack: [makeFrame('fn', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointer2: right, message: 'Condition false' } })
+  steps.push({ line: 6, description: 'while (' + left + ' < ' + right + ')', variables: [], callStack: [makeFrame('fn', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: height.map((v,k) => ({id:'h'+k,value:v,highlight:k===left||k===right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Condition false' } })
   steps.push({ line: 18, description: 'Return ' + maxArea, variables: [], callStack: [makeFrame('fn', 18, [])], heap: [], output: String(maxArea), dsaState: { type: 'array', nodes: height.map((v,i) => ({id:'h'+i,value:v,highlight:'visited'})), message: 'Done' } })
   return steps
 }
@@ -1766,29 +1766,29 @@ export function genSearchInsert(nums: number[], target: number): ExecutionStep[]
   steps.push({ line: 1, description: 'searchInsert', variables: [], callStack: [makeFrame('fn', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,i) => ({id:'n'+i,value:v,highlight:'none'})), message: 'Find ' + target } })
   let left = 0, right = nums.length - 1
   steps.push({ line: 2, description: 'let left = 0', variables: [], callStack: [makeFrame('fn', 2, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,i) => ({id:'n'+i,value:v,highlight:'none'})), pointer: left, message: 'left = 0' } })
-  steps.push({ line: 3, description: 'let right = ' + right, variables: [], callStack: [makeFrame('fn', 3, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,i) => ({id:'n'+i,value:v,highlight:'none'})), pointer: left, pointer2: right, message: 'right = ' + right } })
+  steps.push({ line: 3, description: 'let right = ' + right, variables: [], callStack: [makeFrame('fn', 3, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,i) => ({id:'n'+i,value:v,highlight:'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'right = ' + right } })
 
   while (left <= right) {
-    steps.push({ line: 5, description: 'while (' + left + ' <= ' + right + ')', variables: [], callStack: [makeFrame('fn', 5, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k>=left&&k<=right?'active':'none'})), pointer: left, pointer2: right, message: 'Loop condition' } })
+    steps.push({ line: 5, description: 'while (' + left + ' <= ' + right + ')', variables: [], callStack: [makeFrame('fn', 5, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k>=left&&k<=right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Loop condition' } })
     let mid = Math.floor((left + right) / 2)
-    steps.push({ line: 6, description: 'mid = ' + mid, variables: [{name:'mid',value:mid,type:'number',scope:'fn'}], callStack: [makeFrame('fn', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'comparing':k>=left&&k<=right?'active':'none'})), pointer: left, pointer2: right, message: 'mid = ' + mid } })
+    steps.push({ line: 6, description: 'mid = ' + mid, variables: [{name:'mid',value:mid,type:'number',scope:'fn'}], callStack: [makeFrame('fn', 6, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'comparing':k>=left&&k<=right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'mid = ' + mid } })
     
-    steps.push({ line: 7, description: 'if (nums[mid] === target)', variables: [], callStack: [makeFrame('fn', 7, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'comparing':k>=left&&k<=right?'active':'none'})), pointer: left, pointer2: right, message: 'Check if ' + nums[mid] + ' == ' + target } })
+    steps.push({ line: 7, description: 'if (nums[mid] === target)', variables: [], callStack: [makeFrame('fn', 7, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'comparing':k>=left&&k<=right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Check if ' + nums[mid] + ' == ' + target } })
     if (nums[mid] === target) {
-      steps.push({ line: 7, description: 'Found target at ' + mid, variables: [], callStack: [makeFrame('fn', 7, [])], heap: [], output: String(mid), dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'found':'none'})), pointer: left, pointer2: right, message: 'Found' } })
+      steps.push({ line: 7, description: 'Found target at ' + mid, variables: [], callStack: [makeFrame('fn', 7, [])], heap: [], output: String(mid), dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'found':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Found' } })
       return steps
     }
-    steps.push({ line: 8, description: 'else if (nums[mid] < target)', variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'comparing':k>=left&&k<=right?'active':'none'})), pointer: left, pointer2: right, message: 'Check if ' + nums[mid] + ' < ' + target } })
+    steps.push({ line: 8, description: 'else if (nums[mid] < target)', variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'comparing':k>=left&&k<=right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Check if ' + nums[mid] + ' < ' + target } })
     if (nums[mid] < target) {
       left = mid + 1
-      steps.push({ line: 8, description: 'left = ' + left, variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'visited':k>=left&&k<=right?'active':'none'})), pointer: left, pointer2: right, message: 'Search right half' } })
+      steps.push({ line: 8, description: 'left = ' + left, variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'visited':k>=left&&k<=right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Search right half' } })
     } else {
-      steps.push({ line: 9, description: 'else right = mid - 1', variables: [], callStack: [makeFrame('fn', 9, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'visited':k>=left&&k<=right?'active':'none'})), pointer: left, pointer2: right, message: 'Search left half' } })
+      steps.push({ line: 9, description: 'else right = mid - 1', variables: [], callStack: [makeFrame('fn', 9, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===mid?'visited':k>=left&&k<=right?'active':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Search left half' } })
       right = mid - 1
     }
   }
-  steps.push({ line: 5, description: 'while (' + left + ' <= ' + right + ')', variables: [], callStack: [makeFrame('fn', 5, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:'visited'})), pointer: left, pointer2: right, message: 'Not found' } })
-  steps.push({ line: 12, description: 'return left (' + left + ')', variables: [], callStack: [makeFrame('fn', 12, [])], heap: [], output: String(left), dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===left?'found':'none'})), pointer: left, pointer2: right, message: 'Insert position' } })
+  steps.push({ line: 5, description: 'while (' + left + ' <= ' + right + ')', variables: [], callStack: [makeFrame('fn', 5, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:'visited'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Not found' } })
+  steps.push({ line: 12, description: 'return left (' + left + ')', variables: [], callStack: [makeFrame('fn', 12, [])], heap: [], output: String(left), dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===left?'found':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Insert position' } })
   return steps
 }
 
