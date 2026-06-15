@@ -94,6 +94,7 @@ export interface DSAState {
   // Stack / Queue items
   stackItems?: (string | number)[]
   queueItems?: (string | number)[]
+  stackName?: string
   // Hash map table
   hashTable?: Record<string, unknown>
   // Merge sort groups
@@ -234,9 +235,9 @@ const result = bubbleSort([5, 2, 8, 1, 9]);`,
   clearOutput: () => set({ consoleOutput: [] }),
 
   activeVisualizationTab: 'dsa',
-  setActiveVisualizationTab: (tab: VisualizationTab) => set({ activeVisualizationTab: tab }),
-  get activeVizTab() { return get().activeVisualizationTab },
-  setActiveVizTab: (tab: VisualizationTab) => set({ activeVisualizationTab: tab }),
+  setActiveVisualizationTab: (tab: VisualizationTab) => set({ activeVisualizationTab: tab, activeVizTab: tab }),
+  activeVizTab: 'dsa',
+  setActiveVizTab: (tab: VisualizationTab) => set({ activeVisualizationTab: tab, activeVizTab: tab }),
 
   showAIPanel: false,
   setShowAIPanel: (show: boolean) => set({ showAIPanel: show }),

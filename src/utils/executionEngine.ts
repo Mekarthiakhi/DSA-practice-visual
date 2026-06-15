@@ -1270,8 +1270,9 @@ export function genValidParentheses(s: string): ExecutionStep[] {
   const steps: ExecutionStep[] = []
   const stack: string[] = []
   const map: Record<string, string> = { '(': ')', '[': ']', '{': '}' }
+  const stringNodes = s.split('').map((c, i) => ({ id: `c${i}`, value: c, highlight: 'none' as const }))
 
-  steps.push({ line: 1, description: `isValid("${s}")`, variables: [], callStack: [makeFrame('isValid', 1, [])], heap: [], output: '', dsaState: { type: 'stack', nodes: [], message: 'Check valid parentheses' } })
+  steps.push({ line: 1, description: `isValid("${s}")`, variables: [], callStack: [makeFrame('isValid', 1, [])], heap: [], output: '', dsaState: { type: 'string', nodes: stringNodes, stackItems: [...stack], message: 'Check valid parentheses', arrayName: 's', stackName: 'stack' } })
 
   for (let i = 0; i < s.length; i++) {
     const char = s[i]
@@ -1281,7 +1282,7 @@ export function genValidParentheses(s: string): ExecutionStep[] {
         line: 11, description: `Push expected closing '${map[char]}' for open '${char}'`,
         variables: [{ name: 'char', value: char, type: 'string', scope: 'isValid' }],
         callStack: [makeFrame('isValid', 11, [])], heap: [], output: '',
-        dsaState: { type: 'stack', nodes: stack.map((v, i) => ({ id: `s${i}`, value: v, highlight: i === stack.length - 1 ? 'active' : 'none' })), message: `Pushed '${map[char]}'` }
+        dsaState: { type: 'string', nodes: stringNodes.map((n, idx) => ({ ...n, highlight: idx === i ? 'comparing' : 'none' })), pointer: i, stackItems: [...stack], message: `Pushed '${map[char]}'`, arrayName: 's', stackName: 'stack' }
       })
     } else {
       if (stack.length === 0 || stack.pop() !== char) {
@@ -1289,7 +1290,7 @@ export function genValidParentheses(s: string): ExecutionStep[] {
           line: 13, description: `❌ Invalid char '${char}'`,
           variables: [{ name: 'char', value: char, type: 'string', scope: 'isValid' }],
           callStack: [makeFrame('isValid', 13, [])], heap: [], output: 'false',
-          dsaState: { type: 'stack', nodes: stack.map((v, i) => ({ id: `s${i}`, value: v, highlight: 'swapping' })), message: `Mismatch at '${char}'` }
+          dsaState: { type: 'string', nodes: stringNodes.map((n, idx) => ({ ...n, highlight: idx === i ? 'swapping' : 'none' })), pointer: i, stackItems: [...stack], message: `Mismatch at '${char}'`, arrayName: 's', stackName: 'stack' }
         })
         return steps
       }
@@ -1297,7 +1298,7 @@ export function genValidParentheses(s: string): ExecutionStep[] {
         line: 13, description: `Matched closing '${char}'`,
         variables: [{ name: 'char', value: char, type: 'string', scope: 'isValid' }],
         callStack: [makeFrame('isValid', 13, [])], heap: [], output: '',
-        dsaState: { type: 'stack', nodes: stack.map((v, i) => ({ id: `s${i}`, value: v, highlight: 'none' })), message: `Popped '${char}'` }
+        dsaState: { type: 'string', nodes: stringNodes.map((n, idx) => ({ ...n, highlight: idx === i ? 'found' : 'none' })), pointer: i, stackItems: [...stack], message: `Popped '${char}'`, arrayName: 's', stackName: 'stack' }
       })
     }
   }
@@ -1306,33 +1307,83 @@ export function genValidParentheses(s: string): ExecutionStep[] {
   steps.push({
     line: 17, description: isValid ? '✅ Valid string' : '❌ Leftover unclosed brackets',
     variables: [], callStack: [makeFrame('isValid', 17, [])], heap: [], output: String(isValid),
-    dsaState: { type: 'stack', nodes: stack.map((v, i) => ({ id: `s${i}`, value: v, highlight: 'none' })), message: isValid ? 'Valid!' : 'Invalid!' }
+    dsaState: { type: 'string', nodes: stringNodes.map((n) => ({ ...n, highlight: 'none' })), stackItems: [...stack], message: isValid ? 'Valid!' : 'Invalid!', arrayName: 's', stackName: 'stack' }
   })
   return steps
 }
 
 export function genMergeTwoLists(list1: number[], list2: number[]): ExecutionStep[] {
   const steps: ExecutionStep[] = []
-  const merged: number[] = []
-  let i = 0, j = 0
+  
+  const nodes1: DSANode[] = list1.map((v, i) => ({ id: `l1-${i}`, value: String(v), x: i * 100 + 60, y: 80, highlight: 'none', label: i === 0 ? 'list1' : undefined }))
+  const nodes2: DSANode[] = list2.map((v, i) => ({ id: `l2-${i}`, value: String(v), x: i * 100 + 60, y: 180, highlight: 'none', label: i === 0 ? 'list2' : undefined }))
+  
+  const edges1: DSAEdge[] = list1.slice(1).map((_, i) => ({ id: `e1-${i}`, from: `l1-${i}`, to: `l1-${i+1}`, directed: true }))
+  const edges2: DSAEdge[] = list2.slice(1).map((_, i) => ({ id: `e2-${i}`, from: `l2-${i}`, to: `l2-${i+1}`, directed: true }))
 
-  steps.push({ line: 1, description: 'Merge two sorted lists', variables: [], callStack: [makeFrame('mergeTwoLists', 1, [])], heap: [], output: '', dsaState: { type: 'array', nodes: [], message: 'Merging...' } })
+  let i = 0, j = 0
+  const mergedNodes: DSANode[] = []
+  const mergedEdges: DSAEdge[] = []
+
+  const getState = (msg: string): DSAState => ({
+    type: 'linkedlist',
+    nodes: [...nodes1, ...nodes2, ...mergedNodes],
+    edges: [...edges1, ...edges2, ...mergedEdges],
+    message: msg
+  })
+
+  steps.push({ line: 1, description: 'Merge two sorted lists', variables: [], callStack: [makeFrame('mergeTwoLists', 1, [])], heap: [], output: '', dsaState: getState('Initial Lists') })
 
   while (i < list1.length && j < list2.length) {
     if (list1[i] <= list2[j]) {
-      merged.push(list1[i])
-      steps.push({ line: 10, description: `Take ${list1[i]} from list1`, variables: [], callStack: [makeFrame('merge', 10, [])], heap: [], output: '', dsaState: { type: 'array', nodes: merged.map((v, k) => ({ id: `m${k}`, value: v, highlight: k === merged.length - 1 ? 'active' : 'none' })), message: `Added ${list1[i]}` } })
+      nodes1[i].highlight = 'active'
+      const newNode: DSANode = { id: `m-${mergedNodes.length}`, value: String(list1[i]), x: mergedNodes.length * 100 + 60, y: 280, highlight: 'processing', label: mergedNodes.length === 0 ? 'merged' : undefined }
+      mergedNodes.push(newNode)
+      if (mergedNodes.length > 1) {
+        mergedEdges.push({ id: `em-${mergedNodes.length-1}`, from: `m-${mergedNodes.length-2}`, to: newNode.id, directed: true })
+      }
+      steps.push({ line: 10, description: `Take ${list1[i]} from list1`, variables: [], callStack: [makeFrame('merge', 10, [])], heap: [], output: '', dsaState: getState(`Added ${list1[i]}`) })
+      nodes1[i].highlight = 'visited'
+      newNode.highlight = 'none'
       i++
     } else {
-      merged.push(list2[j])
-      steps.push({ line: 12, description: `Take ${list2[j]} from list2`, variables: [], callStack: [makeFrame('merge', 12, [])], heap: [], output: '', dsaState: { type: 'array', nodes: merged.map((v, k) => ({ id: `m${k}`, value: v, highlight: k === merged.length - 1 ? 'active' : 'none' })), message: `Added ${list2[j]}` } })
+      nodes2[j].highlight = 'active'
+      const newNode: DSANode = { id: `m-${mergedNodes.length}`, value: String(list2[j]), x: mergedNodes.length * 100 + 60, y: 280, highlight: 'processing', label: mergedNodes.length === 0 ? 'merged' : undefined }
+      mergedNodes.push(newNode)
+      if (mergedNodes.length > 1) {
+        mergedEdges.push({ id: `em-${mergedNodes.length-1}`, from: `m-${mergedNodes.length-2}`, to: newNode.id, directed: true })
+      }
+      steps.push({ line: 12, description: `Take ${list2[j]} from list2`, variables: [], callStack: [makeFrame('merge', 12, [])], heap: [], output: '', dsaState: getState(`Added ${list2[j]}`) })
+      nodes2[j].highlight = 'visited'
+      newNode.highlight = 'none'
       j++
     }
   }
-  while (i < list1.length) { merged.push(list1[i++]) }
-  while (j < list2.length) { merged.push(list2[j++]) }
+
+  while (i < list1.length) {
+    nodes1[i].highlight = 'active'
+    const newNode: DSANode = { id: `m-${mergedNodes.length}`, value: String(list1[i]), x: mergedNodes.length * 100 + 60, y: 280, highlight: 'processing', label: mergedNodes.length === 0 ? 'merged' : undefined }
+    mergedNodes.push(newNode)
+    if (mergedNodes.length > 1) mergedEdges.push({ id: `em-${mergedNodes.length-1}`, from: `m-${mergedNodes.length-2}`, to: newNode.id, directed: true })
+    steps.push({ line: 15, description: `Take remaining ${list1[i]} from list1`, variables: [], callStack: [makeFrame('merge', 15, [])], heap: [], output: '', dsaState: getState(`Added ${list1[i]}`) })
+    nodes1[i].highlight = 'visited'
+    newNode.highlight = 'none'
+    i++
+  }
   
-  steps.push({ line: 16, description: '✅ Merged remainder', variables: [], callStack: [makeFrame('merge', 16, [])], heap: [], output: `[${merged.join(',')}]`, dsaState: { type: 'array', nodes: merged.map((v, k) => ({ id: `m${k}`, value: v, highlight: 'found' })), message: 'Done' } })
+  while (j < list2.length) {
+    nodes2[j].highlight = 'active'
+    const newNode: DSANode = { id: `m-${mergedNodes.length}`, value: String(list2[j]), x: mergedNodes.length * 100 + 60, y: 280, highlight: 'processing', label: mergedNodes.length === 0 ? 'merged' : undefined }
+    mergedNodes.push(newNode)
+    if (mergedNodes.length > 1) mergedEdges.push({ id: `em-${mergedNodes.length-1}`, from: `m-${mergedNodes.length-2}`, to: newNode.id, directed: true })
+    steps.push({ line: 16, description: `Take remaining ${list2[j]} from list2`, variables: [], callStack: [makeFrame('merge', 16, [])], heap: [], output: '', dsaState: getState(`Added ${list2[j]}`) })
+    nodes2[j].highlight = 'visited'
+    newNode.highlight = 'none'
+    j++
+  }
+
+  mergedNodes.forEach(n => n.highlight = 'found')
+  steps.push({ line: 18, description: '✅ Merge completed', variables: [], callStack: [makeFrame('merge', 18, [])], heap: [], output: `[${mergedNodes.map(n => n.value).join(',')}]`, dsaState: getState('Done') })
   return steps
 }
 
@@ -1403,6 +1454,7 @@ function extractTarget(code: string): number {
     /binarySearch\s*\([^,)]+,\s*(-?[\d.]+)\)/i,
     /linearSearch\s*\([^,)]+,\s*(-?[\d.]+)\)/i,
     /search\s*\([^,)]+,\s*(-?[\d.]+)\)/i,
+    /searchInsert\s*\([^,)]+,\s*(-?[\d.]+)\)/i,
     /const\s+target\s*=\s*(-?[\d.]+)/i,
   ]
   for (const p of patterns) {
@@ -1446,16 +1498,37 @@ function extractTwoSumParams(code: string): { nums: number[]; target: number } {
 function extractNumber(code: string): number {
   // Patterns for fibonacci(n) or factorial(n) calls
   const patterns = [
-    /(?:fibonacci|factorial|fib|fact)\s*\(\s*(-?[\d]+)\s*\)/i,
+    /(?:fibonacci|factorial|fib|fact|climbStairs|fizzBuzz)\s*\(\s*(-?[\d]+)\s*\)/i,
     /fib\(\s*(-?[\d]+)\s*\)/i,
     /n\s*=\s*([\d]+)/i,
     /const\s+n\s*=\s*([\d]+)/i,
   ]
   for (const p of patterns) {
     const m = code.match(p)
-    if (m) return Math.min(parseInt(m[1]), 12)
+    if (m) return Math.min(parseInt(m[1]), 30) // cap at 30 to prevent massive rendering loops
   }
   return 8
+}
+
+function extractString(code: string): string | null {
+  const match = code.match(/(?:isValid|reverseString|search)\s*\(\s*(['"`])(.*?)\1\s*\)/i) || 
+                code.match(/(?:const|let|var)\s+[a-zA-Z_]\w*\s*=\s*(['"`])(.*?)\1/)
+  if (match) return match[2]
+  return null
+}
+
+function extractMultipleArrays(code: string): number[][] {
+  const arrays: number[][] = []
+  const matches = code.matchAll(/\[([\d,\s\-]*)\]/g)
+  for (const match of matches) {
+    try {
+      const arr = JSON.parse(`[${match[1]}]`) as number[]
+      if (Array.isArray(arr) && arr.every(n => typeof n === 'number')) {
+        arrays.push(arr)
+      }
+    } catch { /* ignore */ }
+  }
+  return arrays
 }
 
 export function generateExecutionSteps(code: string): ExecutionStep[] {
@@ -1511,17 +1584,22 @@ export function generateExecutionSteps(code: string): ExecutionStep[] {
         const tsParams = extractTwoSumParams(code)
         return genTwoSum(tsParams.nums, tsParams.target)
       }
-      case 'validParentheses': return genValidParentheses('()[]{}')
-      case 'mergeTwoLists': return genMergeTwoLists([1,2,4], [1,3,4])
+      case 'validParentheses': return genValidParentheses(extractString(code) || '()[]{}')
+      case 'mergeTwoLists': {
+        const arrays = extractMultipleArrays(code)
+        const l1 = arrays.length > 0 ? arrays[0] : [1,2,4]
+        const l2 = arrays.length > 1 ? arrays[1] : [1,3,4]
+        return genMergeTwoLists(l1, l2)
+      }
       case 'maxSubArray': return genMaxSubArray(arr.length ? arr : [-2,1,-3,4,-1,2,1,-5,4])
       case 'maxProfit': return genMaxProfit(arr.length ? arr : [7,1,5,3,6,4])
-      case 'reverseString': return genReverseString('hello')
+      case 'reverseString': return genReverseString(extractString(code) || 'hello')
       case 'climbStairs': return genClimbStairs(extractNumber(code) || 5)
       case 'containsDuplicate': return genContainsDuplicate(arr.length ? arr : [1,2,3,1])
-      case 'reverseList': return genReverseList([1,2,3,4,5])
+      case 'reverseList': return genReverseList(arr.length ? arr : [1,2,3,4,5])
       case 'maxArea': return genMaxArea(arr.length ? arr : [1,8,6,2,5,4,8,3,7])
       case 'searchInsert': return genSearchInsert(arr.length ? arr : [1,3,5,6], extractTarget(code) || 2)
-      case 'fizzBuzz': return genFizzBuzz(15)
+      case 'fizzBuzz': return genFizzBuzz(extractNumber(code) || 15)
     }
   }
 
@@ -1588,37 +1666,64 @@ export function genContainsDuplicate(nums: number[]): ExecutionStep[] {
 export function genReverseList(values: number[]): ExecutionStep[] {
   const steps: ExecutionStep[] = []
   
-  // Helper to build list nodes based on an array
-  const buildNodes = (arr: number[]) => {
-    return arr.map((v, i) => ({ id: 'n'+i, value: v, highlight: 'none' as const }))
+  const buildState = (vals: number[], revVals: number[], activeIdx: number, stepMsg: string): DSAState => {
+    const nodes: DSANode[] = []
+    const edges: DSAEdge[] = []
+    
+    // Reversed part (left side)
+    revVals.forEach((v, i) => {
+      nodes.push({ id: `r-${i}`, value: String(v), x: i * 100 + 60, y: 180, highlight: 'visited' })
+      if (i > 0) edges.push({ id: `er-${i}`, from: `r-${i}`, to: `r-${i-1}`, directed: true })
+    })
+    
+    // Current active node
+    if (activeIdx < values.length) {
+      nodes.push({ id: `c-${activeIdx}`, value: String(values[activeIdx]), x: (revVals.length) * 100 + 60, y: 180, highlight: 'active', label: 'curr' })
+      if (revVals.length > 0) {
+        // Show pointer from curr to prev
+        edges.push({ id: `ec`, from: `c-${activeIdx}`, to: `r-${revVals.length-1}`, directed: true, highlight: true })
+      }
+    }
+    
+    // Remaining original list (right side)
+    values.slice(activeIdx + 1).forEach((v, i) => {
+      const actualIdx = activeIdx + 1 + i
+      nodes.push({ id: `o-${actualIdx}`, value: String(v), x: (revVals.length + 1 + i) * 100 + 60, y: 180, highlight: 'none' })
+      if (i === 0 && activeIdx < values.length) {
+        // Pointer from curr to next
+        edges.push({ id: `eo-0`, from: `c-${activeIdx}`, to: `o-${actualIdx}`, directed: true })
+      } else if (i > 0) {
+        edges.push({ id: `eo-${i}`, from: `o-${actualIdx-1}`, to: `o-${actualIdx}`, directed: true })
+      }
+    })
+
+    return { type: 'linkedlist', nodes, edges, message: stepMsg }
   }
   
-  let nodes = buildNodes(values)
-  
-  steps.push({ line: 8, description: 'reverseList(head)', variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: [...nodes], message: 'Start' } })
-  
-  steps.push({ line: 9, description: 'let prev = null', variables: [{name:'prev',value:'null',type:'object',scope:'fn'}], callStack: [makeFrame('fn', 9, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: [...nodes], message: 'prev = null' } })
-  
-  steps.push({ line: 10, description: 'let curr = head', variables: [{name:'curr',value:values[0]||'null',type:'object',scope:'fn'}], callStack: [makeFrame('fn', 10, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: nodes.map((n, i) => i === 0 ? {...n, highlight: 'active'} : n), message: 'curr = head' } })
+  steps.push({ line: 8, description: 'reverseList(head)', variables: [], callStack: [makeFrame('fn', 8, [])], heap: [], output: '', dsaState: buildState(values, [], 0, 'Start') })
+  steps.push({ line: 9, description: 'let prev = null', variables: [{name:'prev',value:'null',type:'object',scope:'fn'}], callStack: [makeFrame('fn', 9, [])], heap: [], output: '', dsaState: buildState(values, [], 0, 'prev = null') })
   
   let reversedVals: number[] = []
   for (let i = 0; i < values.length; i++) {
-    steps.push({ line: 11, description: 'while (curr !== null)', variables: [], callStack: [makeFrame('fn', 11, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: buildNodes([...reversedVals, ...values.slice(i)]).map((n, k) => k === reversedVals.length ? {...n, highlight: 'active'} : (k < reversedVals.length ? {...n, highlight: 'visited'} : n)), message: 'Processing ' + values[i] } })
+    steps.push({ line: 11, description: 'while (curr !== null)', variables: [], callStack: [makeFrame('fn', 11, [])], heap: [], output: '', dsaState: buildState(values, reversedVals, i, `Processing ${values[i]}`) })
+    steps.push({ line: 12, description: 'let nextTemp = curr.next', variables: [], callStack: [makeFrame('fn', 12, [])], heap: [], output: '', dsaState: buildState(values, reversedVals, i, 'Save nextTemp') })
     
-    steps.push({ line: 12, description: 'let nextTemp = curr.next', variables: [], callStack: [makeFrame('fn', 12, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: buildNodes([...reversedVals, ...values.slice(i)]).map((n, k) => k === reversedVals.length ? {...n, highlight: 'active'} : k === reversedVals.length+1 ? {...n, highlight: 'comparing'} : (k < reversedVals.length ? {...n, highlight: 'visited'} : n)), message: 'Save nextTemp' } })
+    // Reverse pointer
+    const stateWithReversedEdge = buildState(values, reversedVals, i, 'Reverse pointer')
     
-    steps.push({ line: 13, description: 'curr.next = prev', variables: [], callStack: [makeFrame('fn', 13, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: buildNodes([...reversedVals, ...values.slice(i)]).map((n, k) => k === reversedVals.length ? {...n, highlight: 'active'} : (k < reversedVals.length ? {...n, highlight: 'visited'} : n)), message: 'Reverse pointer' } })
+    steps.push({ line: 13, description: 'curr.next = prev', variables: [], callStack: [makeFrame('fn', 13, [])], heap: [], output: '', dsaState: stateWithReversedEdge })
     
-    reversedVals.unshift(values[i])
+    reversedVals.push(values[i])
     
-    steps.push({ line: 14, description: 'prev = curr', variables: [], callStack: [makeFrame('fn', 14, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: buildNodes([...reversedVals, ...values.slice(i+1)]).map((n, k) => k <= reversedVals.length-1 ? {...n, highlight: 'visited'} : n), message: 'Move prev' } })
-    
-    steps.push({ line: 15, description: 'curr = nextTemp', variables: [], callStack: [makeFrame('fn', 15, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: buildNodes([...reversedVals, ...values.slice(i+1)]).map((n, k) => k <= reversedVals.length-1 ? {...n, highlight: 'visited'} : k === reversedVals.length ? {...n, highlight: 'active'} : n), message: 'Move curr' } })
+    steps.push({ line: 14, description: 'prev = curr', variables: [], callStack: [makeFrame('fn', 14, [])], heap: [], output: '', dsaState: buildState(values, reversedVals, i + 1, 'Move prev') })
+    steps.push({ line: 15, description: 'curr = nextTemp', variables: [], callStack: [makeFrame('fn', 15, [])], heap: [], output: '', dsaState: buildState(values, reversedVals, i + 1, 'Move curr') })
   }
   
-  steps.push({ line: 11, description: 'while (curr !== null) (null)', variables: [], callStack: [makeFrame('fn', 11, [])], heap: [], output: '', dsaState: { type: 'linkedlist', nodes: buildNodes(reversedVals).map((n) => ({...n, highlight: 'found'})), message: 'List fully reversed' } })
+  const finalState = buildState(values, reversedVals, values.length, 'List fully reversed')
+  finalState.nodes.forEach(n => n.highlight = 'found')
   
-  steps.push({ line: 17, description: 'return prev', variables: [], callStack: [makeFrame('fn', 17, [])], heap: [], output: '[' + [...values].reverse().join(',') + ']', dsaState: { type: 'linkedlist', nodes: buildNodes(reversedVals).map((n) => ({...n, highlight: 'found'})), message: 'Done' } })
+  steps.push({ line: 11, description: 'while (curr !== null) (null)', variables: [], callStack: [makeFrame('fn', 11, [])], heap: [], output: '', dsaState: finalState })
+  steps.push({ line: 17, description: 'return prev', variables: [], callStack: [makeFrame('fn', 17, [])], heap: [], output: '[' + reversedVals.slice().reverse().join(',') + ']', dsaState: finalState })
   
   return steps
 }

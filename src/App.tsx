@@ -4,12 +4,13 @@ import { CodeEditor } from './components/editor/CodeEditor'
 import { VisualizationPanel } from './components/visualization/VisualizationPanel'
 import { AIPanel } from './components/ai-panel/AIPanel'
 import { LeetCodePanel } from './components/leetcode/LeetCodePanel'
+import { LeetCodeDetailPanel } from './components/leetcode/LeetCodeDetailPanel'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useIDEStore } from './store/ideStore'
 import { usePanelResize } from './hooks/usePanelResize'
 
 export default function App() {
-  const { leftPanelWidth, rightPanelWidth, setLeftPanelWidth, setRightPanelWidth } = useIDEStore()
+  const { leftPanelWidth, rightPanelWidth, setLeftPanelWidth, setRightPanelWidth, activeLeetCodeProblem, showLeetCodePanel } = useIDEStore()
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Use custom hook for panel resizing - handles cleanup automatically
@@ -30,7 +31,6 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-bg-primary text-text-primary font-body">
       <TopBar />
-      <LeetCodePanel />
 
       <div
         ref={containerRef}
@@ -73,8 +73,12 @@ export default function App() {
 
         {/* Right: AI Panel */}
         <div style={{ width: `${rightPanelWidth}%`, minWidth: 0 }} className="flex-shrink-0 flex flex-col">
-          <ErrorBoundary componentName="AI Panel">
-            <AIPanel />
+          <ErrorBoundary componentName={showLeetCodePanel ? (activeLeetCodeProblem ? "LeetCode Detail Panel" : "LeetCode Panel") : "AI Panel"}>
+            {showLeetCodePanel ? (
+              activeLeetCodeProblem ? <LeetCodeDetailPanel /> : <LeetCodePanel />
+            ) : (
+              <AIPanel />
+            )}
           </ErrorBoundary>
         </div>
       </div>

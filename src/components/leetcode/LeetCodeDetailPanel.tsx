@@ -1,0 +1,141 @@
+import React from 'react';
+import { X, Code, Play } from 'lucide-react';
+import { useIDEStore } from '../../store/ideStore';
+import { LeetCodeProblem } from '../../data/leetcodeProblems';
+
+export const LeetCodeDetailPanel: React.FC = () => {
+  const { 
+    activeLeetCodeProblem,
+    setActiveLeetCodeProblem,
+    setCode,
+    setLanguage,
+    setFileName,
+    setExecMode
+  } = useIDEStore();
+
+  if (!activeLeetCodeProblem) return null;
+
+  const handleClose = () => {
+    setActiveLeetCodeProblem(undefined);
+    useIDEStore.getState().setShowLeetCodePanel(false);
+  };
+
+  const handleBackToList = () => {
+    setActiveLeetCodeProblem(undefined);
+  };
+
+  const handleLoadStarterCode = (problem: LeetCodeProblem, lang: 'javascript' | 'python') => {
+    const code = problem.starterCode[lang];
+    if (code) {
+      setCode(code);
+      setLanguage(lang);
+      setFileName(problem.title.replace(/\s+/g, '-').toLowerCase());
+      setExecMode('trace');
+    }
+  };
+
+  const handleLoadSolution = (problem: LeetCodeProblem, lang: 'javascript' | 'python') => {
+    const code = problem.solution?.[lang];
+    if (code) {
+      setCode(code);
+      setLanguage(lang);
+      setFileName(problem.title.replace(/\s+/g, '-').toLowerCase());
+      setExecMode('dsa');
+    } else {
+      setCode(`// Optimal Solution not available yet for ${problem.title}\n// Try writing your own and using '🪄 Auto' trace!`);
+      setLanguage('javascript');
+      setFileName(problem.title.replace(/\s+/g, '-').toLowerCase());
+      setExecMode('trace');
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col bg-[#0c0e14] border-l border-[#1e2130] overflow-hidden h-full">
+      <div className="h-12 border-b border-[#1e2130] flex items-center justify-between px-4 flex-shrink-0 bg-[#0f1117]">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleBackToList}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
+          >
+            <span className="text-[10px]">◀</span> Back
+          </button>
+          <div className="w-px h-4 bg-[#1e2130] mx-1" />
+          <h2 className="text-white font-semibold text-sm">Problem Details</h2>
+        </div>
+        <button 
+          onClick={handleClose}
+          className="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"
+          title="Close problem & return to AI Assistant"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5" style={{ scrollbarWidth: 'thin', scrollbarColor: '#2a2d3e transparent' }}>
+        <div className="flex items-center gap-3 mb-4">
+          <h1 className="text-xl font-bold text-white">{activeLeetCodeProblem.id}. {activeLeetCodeProblem.title}</h1>
+        </div>
+
+        <div className="flex gap-2 mb-6">
+          <span className={`text-[10px] px-2 py-1 rounded-md uppercase tracking-wider font-bold ${
+            activeLeetCodeProblem.difficulty === 'Easy' ? 'text-green-400 bg-green-400/10 border border-green-400/20' :
+            activeLeetCodeProblem.difficulty === 'Medium' ? 'text-amber-400 bg-amber-400/10 border border-amber-400/20' :
+            'text-red-400 bg-red-400/10 border border-red-400/20'
+          }`}>
+            {activeLeetCodeProblem.difficulty}
+          </span>
+          <span className="text-[11px] px-2 py-1 rounded-md bg-[#13151f] border border-[#2a2d3e] text-gray-300">
+            {activeLeetCodeProblem.category}
+          </span>
+        </div>
+
+        <div className="prose prose-invert prose-sm max-w-none mb-8">
+          <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{activeLeetCodeProblem.description}</p>
+        </div>
+
+        <div className="space-y-4 mb-8">
+          {activeLeetCodeProblem.examples.map((ex, i) => (
+            <div key={i} className="bg-[#13151f] border border-[#1e2130] rounded-lg p-3">
+              <div className="text-xs font-bold text-gray-400 mb-2">Example {i + 1}:</div>
+              <div className="font-mono text-xs text-gray-300 mb-1"><span className="text-gray-500">Input:</span> {ex.input}</div>
+              <div className="font-mono text-xs text-gray-300"><span className="text-gray-500">Output:</span> {ex.output}</div>
+              {ex.explanation && (
+                <div className="text-xs text-gray-400 mt-2 border-t border-[#1e2130] pt-2">
+                  <span className="text-gray-500">Explanation:</span> {ex.explanation}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-8">
+          <div className="text-xs font-bold text-gray-400 mb-2">Constraints:</div>
+          <ul className="list-disc pl-5 space-y-1">
+            {activeLeetCodeProblem.constraints.map((c, i) => (
+              <li key={i} className="text-xs text-gray-300 font-mono bg-[#13151f] px-2 py-0.5 rounded inline-block mb-1">{c}</li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-3 pt-4 border-t border-[#1e2130]">
+          <h3 className="text-sm font-semibold text-white">JavaScript</h3>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => handleLoadStarterCode(activeLeetCodeProblem, 'javascript')}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-[#13151f] border border-[#2a2d3e] hover:bg-[#1e2130] hover:border-cyan-500/30 text-gray-300 text-xs font-medium transition-all"
+            >
+              <Code size={14} /> Starter Code
+            </button>
+            <button 
+              onClick={() => handleLoadSolution(activeLeetCodeProblem, 'javascript')}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-medium shadow-lg shadow-cyan-500/20 transition-all"
+            >
+              <Play size={14} fill="currentColor" /> Load Solution
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

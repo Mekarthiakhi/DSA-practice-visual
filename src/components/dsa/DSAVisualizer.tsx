@@ -128,6 +128,84 @@ const ArrayView: React.FC<{ nodes: DSANode[]; comparisons?: number; swaps?: numb
     </div>
   )
 }
+// ─── STRING + STACK VIEW ─────────────────────────────────────────────────────
+const StringStackView: React.FC<{
+  nodes: DSANode[]
+  stackItems?: (string | number)[]
+  message?: string
+  pointer?: number
+  pointer2?: number
+  stringName?: string
+  stackName?: string
+}> = ({ nodes, stackItems, message, pointer, pointer2, stringName, stackName }) => {
+  const items = stackItems || []
+
+  return (
+    <div className="flex flex-col h-full gap-3 p-4 select-none overflow-auto">
+      {message && (
+        <motion.div key={message} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="px-4 py-2 bg-[#13151f] border border-[#252836] rounded-lg text-sm text-center text-gray-300 font-mono flex-shrink-0">
+          {message}
+        </motion.div>
+      )}
+
+      <div className="flex flex-wrap gap-4 flex-1 min-h-0 overflow-auto">
+        {/* String visualization */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 min-w-[200px] min-h-0">
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider self-start">{stringName || 'string'}</div>
+          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+            {nodes.map((node, idx) => {
+              const c = HL[node.highlight || 'none']
+              return (
+                <motion.div key={node.id} layout
+                  animate={{ backgroundColor: c.bg, borderColor: c.border, boxShadow: c.glow || 'none' }}
+                  transition={{ duration: 0.3 }}
+                  className="w-10 h-12 flex flex-col items-center justify-center rounded-lg border-2 relative"
+                  style={{ borderColor: c.border, backgroundColor: c.bg }}
+                >
+                  <span className="text-lg font-mono font-bold" style={{ color: c.text }}>{node.value}</span>
+                  <span className="absolute -bottom-4 text-[9px] text-gray-600 font-mono">{idx}</span>
+                  {pointer === idx && <div className="absolute -top-3 w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-l-transparent border-r-transparent border-b-cyan-400" />}
+                  {pointer2 === idx && <div className="absolute -top-3 w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-l-transparent border-r-transparent border-b-purple-400" />}
+                </motion.div>
+              )
+            })}
+          </div>
+          <Legend items={[{ label: 'Checking', hl: 'comparing' }, { label: 'Matched', hl: 'found' }]} />
+        </div>
+
+        {/* Stack panel */}
+        <div className="w-full sm:w-32 flex-shrink-0 flex flex-col items-center gap-2 min-w-[120px]">
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">{stackName || 'stack'}</div>
+          <div className="text-[10px] text-cyan-400/60 font-mono mb-1 tracking-wider">TOP ▼</div>
+          <div className="w-24 border-l-2 border-r-2 border-b-2 border-gray-600 rounded-b-lg min-h-12 flex flex-col-reverse overflow-hidden">
+            <AnimatePresence mode="popLayout">
+              {[...items].reverse().map((item, i) => {
+                const isTop = i === items.length - 1
+                const c = isTop ? HL.active : HL.visited
+                return (
+                  <motion.div key={`${item}-${i}`}
+                    layout
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0, backgroundColor: c.bg, borderColor: c.border, boxShadow: isTop ? c.glow : 'none' }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    className="border-t-2 py-1.5 text-center font-mono font-bold text-sm"
+                    style={{ borderColor: c.border, color: c.text }}
+                  >
+                    {item}
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+          {items.length === 0 && <div className="w-24 h-12 border-2 border-dashed border-gray-700 rounded-lg flex items-center justify-center text-gray-600 text-xs font-mono">empty</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 // ─── STRING VIEW ─────────────────────────────────────────────────────────────
 const StringView: React.FC<{ nodes: DSANode[]; message?: string; pointer?: number; pointer2?: number }> = ({ nodes, message, pointer, pointer2 }) => (
@@ -549,9 +627,9 @@ const TwoSumView: React.FC<{
         </motion.div>
       )}
 
-      <div className="flex gap-4 flex-1 min-h-0">
+      <div className="flex flex-wrap gap-4 flex-1 min-h-0 overflow-auto">
         {/* Array visualization */}
-        <div className="flex-1 flex flex-col items-center justify-end gap-2 min-h-0">
+        <div className="flex-1 flex flex-col items-center justify-end gap-2 min-w-[200px] min-h-0">
           <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider self-start">{arrayName || 'nums array'}</div>
           <div className="flex items-end gap-1.5 flex-wrap justify-center" style={{ minHeight: 120 }}>
             <AnimatePresence mode="popLayout">
@@ -599,7 +677,7 @@ const TwoSumView: React.FC<{
         </div>
 
         {/* HashMap panel */}
-        <div className="w-44 flex-shrink-0 flex flex-col gap-2">
+        <div className="w-full sm:w-44 flex-shrink-0 flex flex-col gap-2 min-w-[150px]">
           <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">{hashTableName || 'hash map'}</div>
           <div className="text-[9px] text-gray-700 font-mono">{hashTableLabel || 'value → index'}</div>
           <div className="flex flex-col gap-1.5 overflow-auto" style={{ maxHeight: 220 }}>
@@ -668,8 +746,14 @@ export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
       {dsaState.type === 'array' && dsaState.hashTable !== undefined
         ? <TwoSumView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} comparisons={dsaState.comparisons} arrayName={dsaState.arrayName} hashTableName={dsaState.hashTableName} hashTableLabel={dsaState.hashTableLabel} />
         : dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
-      {dsaState.type === 'string' && <StringView nodes={dsaState.nodes} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} />}
-      {dsaState.type === 'linkedlist' && <LinkedListView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />}
+      {dsaState.type === 'string' && dsaState.stackItems !== undefined
+        ? <StringStackView nodes={dsaState.nodes} stackItems={dsaState.stackItems} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} stringName={dsaState.arrayName} stackName={dsaState.stackName} />
+        : dsaState.type === 'string' && <StringView nodes={dsaState.nodes} message={dsaState.message} pointer={dsaState.pointer} pointer2={dsaState.pointer2} />}
+      {dsaState.type === 'linkedlist' && (
+        new Set(dsaState.nodes.map(n => n.y || 0)).size > 1 || (dsaState.edges && dsaState.edges.some(e => e.from > e.to))
+          ? <GraphView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />
+          : <LinkedListView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />
+      )}
       {dsaState.type === 'tree' && <TreeView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />}
       {dsaState.type === 'heap' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message ?? 'Min/Max Heap'} />}
       {dsaState.type === 'matrix' && <ArrayView nodes={dsaState.nodes} message={dsaState.message ?? 'Matrix'} />}

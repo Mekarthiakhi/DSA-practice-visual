@@ -860,55 +860,70 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
   const filteredEvents = filterSwapEvents(events, activeArrayName)
 
   const codeLines = code.split('\n')
-  const steps: ExecutionStep[] = []
-  let pendingOutput: string[] = []
-  let prevLine = -1
-  let prevVarSnap = ''
   
+  // Find all line event indices
+  const lineEventIndices: number[] = []
+  for (let idx = 0; idx < filteredEvents.length; idx++) {
+    if (filteredEvents[idx].type === 'line') {
+      lineEventIndices.push(idx)
+    }
+  }
+
+  const steps: ExecutionStep[] = []
   let swaps = 0
   let comparisons = 0
   let prevArrState: number[] = []
   let prevPointers = ''
 
-  for (const ev of filteredEvents) {
-    if (ev.type === 'output' && ev.output) {
-      pendingOutput.push(ev.output)
-      continue
+  for (let k = 0; k < lineEventIndices.length; k++) {
+    const curIdx = lineEventIndices[k]
+    const curEv = filteredEvents[curIdx]
+    
+    // Find next line event
+    const nextIdx = k + 1 < lineEventIndices.length ? lineEventIndices[k + 1] : -1
+    const nextEv = nextIdx !== -1 ? filteredEvents[nextIdx] : curEv
+    
+    // The variables, callstack, and scope for this step come from the next event (representing post-execution state of current line)
+    const varsForStep = nextEv.vars
+    const callStackForStep = nextEv.callStack
+    const lineForStep = curEv.line
+    
+    // Collect all outputs between current line event and next line event
+    const limitIdx = nextIdx !== -1 ? nextIdx : filteredEvents.length
+    const outputs: string[] = []
+    for (let oIdx = curIdx + 1; oIdx < limitIdx; oIdx++) {
+      const oEv = filteredEvents[oIdx]
+      if (oEv.type === 'output' && oEv.output) {
+        outputs.push(oEv.output)
+      }
     }
-
-    const varSnap = JSON.stringify(ev.vars)
-
-    // Skip if same line and same state (no meaningful change)
-    if (ev.line === prevLine && varSnap === prevVarSnap && pendingOutput.length === 0) continue
-    prevLine = ev.line
-    prevVarSnap = varSnap
 
     const prevStep = steps[steps.length - 1]
     const prevVars = prevStep?.variables || []
 
-    const currentVars: Variable[] = Object.entries(ev.vars)
-      .filter(([k]) => !k.startsWith('__'))
+    const currentVars: Variable[] = Object.entries(varsForStep)
+      .filter(([name]) => !name.startsWith('__'))
       .map(([name, value]) => {
         const serialized = safeSerialize(value)
         const prev = prevVars.find(v => v.name === name)
         const changed = !prev || JSON.stringify(prev.value) !== JSON.stringify(serialized)
-        return { name, value: serialized, type: typeOf(value), scope: ev.callStack[ev.callStack.length - 1] || 'main', changed }
+        return { name, value: serialized, type: typeOf(value), scope: callStackForStep[callStackForStep.length - 1] || 'main', changed }
       })
 
-    const callStack: StackFrame[] = ev.callStack.map((name, idx) => ({
-      id: `f${idx}`, name, line: ev.line, variables: [], isActive: idx === ev.callStack.length - 1,
+    const callStack: StackFrame[] = callStackForStep.map((name, idx) => ({
+      id: `f${idx}`, name, line: lineForStep, variables: [], isActive: idx === callStackForStep.length - 1,
     }))
 
-    const lineCode = codeLines[ev.line - 1]?.trim() || ''
-      const changedArray = currentVars.find(v => v.changed && v.type === 'Array' && Array.isArray(v.value) && typeof v.value[0] === 'number')
-      if (changedArray) activeArrayName = changedArray.name
-      if (!activeArrayName) {
-        const fallback = currentVars.find(v => (v.name === 'arr' || v.name === 'nums' || v.name === 'array') && v.type === 'Array')
-        if (fallback) activeArrayName = fallback.name
-      }
+    const lineCode = codeLines[lineForStep - 1]?.trim() || ''
+    const changedArray = currentVars.find(v => v.changed && v.type === 'Array' && Array.isArray(v.value) && typeof v.value[0] === 'number')
+    if (changedArray) activeArrayName = changedArray.name
+    if (!activeArrayName) {
+      const fallback = currentVars.find(v => (v.name === 'arr' || v.name === 'nums' || v.name === 'array') && v.type === 'Array')
+      if (fallback) activeArrayName = fallback.name
+    }
 
-    const dsaState = buildDSAState(ev.vars, activeArrayName, lineCode)
-    const desc = buildDesc(lineCode, ev.vars)
+    const dsaState = buildDSAState(varsForStep, activeArrayName, lineCode)
+    const desc = buildDesc(lineCode, varsForStep)
 
     if (dsaState && dsaState.type === 'array') {
       const currentArr = dsaState.nodes.map(n => Number(n.value))
@@ -938,20 +953,14 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
     }
 
     steps.push({
-      line: ev.line,
+      line: lineForStep,
       description: desc,
       variables: currentVars,
       callStack,
       heap: [],
-      output: pendingOutput.join('\n'),
+      output: outputs.join('\n'),
       dsaState,
     })
-    pendingOutput = []
-  }
-
-  if (pendingOutput.length > 0 && steps.length > 0) {
-    const last = steps[steps.length - 1]
-    steps[steps.length - 1] = { ...last, output: [last.output, ...pendingOutput].filter(Boolean).join('\n') }
   }
 
   // Mark as sorted if strictly increasing at the end
@@ -1250,7 +1259,10 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
 
   // 1. STACK DETECTOR
   const stackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
-  if (stackVar) {
+  const strEntriesForStack = Object.entries(vars).filter(([k, v]) => !k.startsWith('__') && typeof v === 'string' && (v as string).length > 0 && k !== 'type')
+  const hasArrayForStack = Object.entries(vars).some(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && typeof (v as unknown[])[0] === 'number')
+
+  if (stackVar && strEntriesForStack.length === 0 && !hasArrayForStack) {
     const [name, arr] = stackVar
     const items = arr as (string | number)[]
     return {
@@ -1365,75 +1377,97 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
   }
 
   // 4. LINKED LIST DETECTOR
-  const findLinkedListHead = (vrs: Record<string, unknown>) => {
-    const candidates = Object.entries(vrs).filter(([, v]) => 
-      v && typeof v === 'object' && 'next' in v
-    )
-    if (candidates.length === 0) return null
-    const preferred = candidates.find(([k]) => ['head', 'list', 'curr', 'current', 'list1', 'list2', 'l1', 'l2', 'head1', 'head2'].includes(k))
-    return preferred ? preferred[1] : candidates[0][1]
-  }
-  const head = findLinkedListHead(vars)
-  if (head) {
+  const linkedListVars = Object.entries(vars).filter(([, v]) => 
+    v && typeof v === 'object' && ('next' in v || 'val' in v || 'value' in v)
+  )
+
+  if (linkedListVars.length > 0) {
     const nodes: DSANode[] = []
     const edges: DSAEdge[] = []
-    const visited = new Set<unknown>()
-    let curr: any = head
-    let idx = 0
     
-    const pointers: Record<string, string> = {}
-    for (const [k, v] of Object.entries(vars)) {
-      if (v && typeof v === 'object' && ('next' in v || 'value' in v || 'val' in v)) {
-        const valStr = String((v as any).val !== undefined ? (v as any).val : (v as any).value)
-        pointers[valStr] = k
-      }
+    // Map node object references to the variable names that point to them
+    const nodePointers = new Map<unknown, string[]>()
+    for (const [k, v] of linkedListVars) {
+      const existing = nodePointers.get(v) || []
+      existing.push(k)
+      nodePointers.set(v, existing)
     }
 
-    while (curr && !visited.has(curr)) {
-      visited.add(curr)
-      const val = curr.val !== undefined ? curr.val : curr.value
-      const id = `ll-${idx}`
-      
-      let highlight: DSANode['highlight'] = 'none'
-      const ptrName = pointers[String(val)]
-      if (ptrName) {
-        if (['curr', 'current', 'list1', 'list2', 'l1', 'l2'].includes(ptrName)) {
+    // Determine the heads to start tracing from
+    // Prioritize named lists, dummy nodes, or heads
+    const preferredHeadNames = ['list1', 'list2', 'l1', 'l2', 'head1', 'head2', 'head', 'dummy', 'list']
+    let startVars = linkedListVars.filter(([k]) => preferredHeadNames.includes(k))
+    if (startVars.length === 0) startVars = linkedListVars
+
+    const globalVisited = new Set<unknown>()
+    let currentY = 80
+    let listCount = 0
+
+    for (const [varName, headNode] of startVars) {
+      if (globalVisited.has(headNode)) continue // Already traced this node as part of another list
+
+      let curr: any = headNode
+      let idx = 0
+
+      while (curr && !globalVisited.has(curr)) {
+        globalVisited.add(curr)
+        const val = curr.val !== undefined ? curr.val : curr.value
+        const id = `ll-${listCount}-${idx}`
+        
+        let highlight: DSANode['highlight'] = 'none'
+        const ptrNames = nodePointers.get(curr) || []
+        
+        // Determine highlighting based on variable names pointing to this node
+        if (ptrNames.some(n => ['curr', 'current', 'list1', 'list2', 'l1', 'l2'].includes(n))) {
           highlight = 'active'
-        } else if (['prev', 'p'].includes(ptrName)) {
+        } else if (ptrNames.some(n => ['prev', 'p'].includes(n))) {
           highlight = 'visited'
-        } else if (['next', 'nextTemp', 'q', 'temp'].includes(ptrName)) {
+        } else if (ptrNames.some(n => ['next', 'nextTemp', 'q', 'temp'].includes(n))) {
           highlight = 'comparing'
-        } else {
+        } else if (ptrNames.length > 0 && !ptrNames.includes(varName)) {
+          // It has some other pointer pointing to it
           highlight = 'processing'
         }
-      }
 
-      nodes.push({
-        id,
-        value: val !== undefined ? String(val) : `Node`,
-        x: idx * 120 + 60,
-        y: 120,
-        highlight
-      })
+        // Create a label showing which variables point to this node
+        const label = ptrNames.join(', ')
 
-      if (idx > 0) {
-        edges.push({
-          id: `e-ll-${idx-1}-${idx}`,
-          from: `ll-${idx-1}`,
-          to: id,
-          directed: true
+        nodes.push({
+          id,
+          value: val !== undefined ? String(val) : `Node`,
+          x: idx * 100 + 60,
+          y: currentY,
+          highlight,
+          label: label || undefined
         })
+
+        if (idx > 0) {
+          edges.push({
+            id: `e-ll-${listCount}-${idx-1}-${idx}`,
+            from: `ll-${listCount}-${idx-1}`,
+            to: id,
+            directed: true
+          })
+        }
+        
+        curr = curr.next
+        idx++
       }
       
-      curr = curr.next
-      idx++
+      if (idx > 0) {
+        currentY += 100 // Move down for the next list
+        listCount++
+      }
     }
     
-    return {
-      type: 'linkedlist',
-      nodes,
-      edges,
-      message: `Linked List Traversal (Length: ${nodes.length})`
+    // If we have nodes, return the state
+    if (nodes.length > 0) {
+      return {
+        type: 'linkedlist',
+        nodes,
+        edges,
+        message: `Linked List Traversal (Lists: ${listCount}, Nodes: ${nodes.length})`
+      }
     }
   }
 
@@ -1552,35 +1586,36 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       }
     }
 
-    // Active pointer-resolution (mid, i, j, etc.)
-    const activeMid = ['mid', 'm'].find(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < values.length)
-    const activeI = typeof vars['i'] === 'number' && (vars['i'] as number) >= 0 && (vars['i'] as number) < values.length ? (vars['i'] as number) : undefined
-    const activeJ = typeof vars['j'] === 'number' && (vars['j'] as number) >= 0 && (vars['j'] as number) < values.length ? (vars['j'] as number) : undefined
-
+    // Dynamic pointer detection
     let pointer: number | undefined
     let pointer2: number | undefined
 
-    if (activeMid !== undefined) {
-      pointer = vars[activeMid] as number
-      if (activeI !== undefined) pointer2 = activeI
-      else if (activeJ !== undefined) pointer2 = activeJ
-    } else {
-      if (activeI !== undefined && activeJ !== undefined) {
-        pointer = activeI
-        pointer2 = activeJ
-      } else if (activeI !== undefined) {
-        pointer = activeI
-      } else if (activeJ !== undefined) {
-        pointer = activeJ
-      } else {
-        if (rangeStart !== undefined) pointer = rangeStart
-        if (rangeEnd !== undefined) pointer2 = rangeEnd
-      }
-    }
+    const ignoredNumNames = new Set([
+      'length', 'len', 'n', 'size', 'count', 'sum', 'total', 'max', 'min', 
+      'target', 'diff', 'curr', 'current', 'temp', 'val', 'value', 'ans', 'res', 'result', 'pivot'
+    ]);
 
-    if (pointer2 !== undefined && (pointer2 < 0 || pointer2 >= values.length)) {
-      pointer2 = undefined
-    }
+    const validIndices = Object.entries(vars)
+      .filter(([k, v]) => !k.startsWith('__') && !ignoredNumNames.has(k.toLowerCase()) && typeof v === 'number' && (v as number) >= 0 && (v as number) < values.length)
+      .map(([k, v]) => ({ name: k, val: v as number }));
+
+    // Priority naming list for pointers
+    const pointerPriority = ['mid', 'm', 'left', 'l', 'right', 'r', 'i', 'j', 'p1', 'p2', 'idx', 'index'];
+    
+    validIndices.sort((a, b) => {
+      const idxA = pointerPriority.indexOf(a.name.toLowerCase());
+      const idxB = pointerPriority.indexOf(b.name.toLowerCase());
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return 0; // maintain original order for others
+    });
+
+    if (validIndices.length > 0) pointer = validIndices[0].val;
+    if (validIndices.length > 1) pointer2 = validIndices[1].val;
+
+    if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart;
+    if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd;
 
     const nodes: DSANode[] = values.map((v, idx) => {
       let highlight: DSANode['highlight'] = 'none'
@@ -1603,6 +1638,8 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     })
 
     const hashInfo = detectHashTableInfo(vars, name)
+    const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
+    const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
 
     return {
       type: 'array',
@@ -1616,7 +1653,9 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       hashTable: hashInfo?.table,
       arrayName: name,
       hashTableName: hashInfo?.name,
-      hashTableLabel: hashInfo?.label
+      hashTableLabel: hashInfo?.label,
+      stackItems,
+      stackName: detectedStackVar ? detectedStackVar[0] : undefined
     }
   }
 
@@ -1642,14 +1681,40 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       rangeEnd = vars[foundEnd] as number
     }
 
-    const activeStrPointers = ['left', 'l', 'right', 'r', 'i', 'j'].filter(p => typeof vars[p] === 'number' && (vars[p] as number) >= 0 && (vars[p] as number) < chars.length)
-    let pointer = activeStrPointers.length > 0 ? vars[activeStrPointers[0]] as number : undefined
-    let pointer2 = activeStrPointers.length > 1 ? vars[activeStrPointers[1]] as number : undefined
+    // Dynamic pointer detection for strings
+    let pointer: number | undefined
+    let pointer2: number | undefined
 
-    if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart
-    if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd
+    const ignoredNumNames = new Set([
+      'length', 'len', 'n', 'size', 'count', 'sum', 'total', 'max', 'min', 
+      'target', 'diff', 'curr', 'current', 'temp', 'val', 'value', 'ans', 'res', 'result', 'pivot'
+    ]);
+
+    const validIndices = Object.entries(vars)
+      .filter(([k, v]) => !k.startsWith('__') && !ignoredNumNames.has(k.toLowerCase()) && typeof v === 'number' && (v as number) >= 0 && (v as number) < chars.length)
+      .map(([k, v]) => ({ name: k, val: v as number }));
+
+    // Priority naming list for pointers
+    const pointerPriority = ['mid', 'm', 'left', 'l', 'right', 'r', 'i', 'j', 'p1', 'p2', 'idx', 'index'];
+    
+    validIndices.sort((a, b) => {
+      const idxA = pointerPriority.indexOf(a.name.toLowerCase());
+      const idxB = pointerPriority.indexOf(b.name.toLowerCase());
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return 0; // maintain original order for others
+    });
+
+    if (validIndices.length > 0) pointer = validIndices[0].val;
+    if (validIndices.length > 1) pointer2 = validIndices[1].val;
+
+    if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart;
+    if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd;
 
     const hashInfo = detectHashTableInfo(vars, name)
+    const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
+    const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
 
     return {
       type: 'string',
@@ -1666,7 +1731,9 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       hashTable: hashInfo?.table,
       arrayName: name,
       hashTableName: hashInfo?.name,
-      hashTableLabel: hashInfo?.label
+      hashTableLabel: hashInfo?.label,
+      stackItems,
+      stackName: detectedStackVar ? detectedStackVar[0] : undefined
     }
   }
 
