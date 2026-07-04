@@ -59,12 +59,14 @@ export type AlgoType =
   | 'binarySearch' | 'linearSearch'
   | 'fibonacci' | 'factorial'
   | 'linkedList' | 'doublyLinkedList'
-  | 'bst' | 'avl'
+  | 'bst' | 'avl' | 'heap'
   | 'bfs' | 'dfs' | 'dijkstra'
   | 'stack' | 'queue'
   | 'hashMap'
   | 'twoSum' | 'reverseString' | 'isPalindrome' | 'fizzBuzz' | 'climbStairs' | 'containsDuplicate' | 'reverseList' | 'maxArea' | 'searchInsert'
   | 'validParentheses' | 'mergeTwoLists' | 'maxSubArray' | 'maxProfit'
+  | 'longestSubstring'
+  | 'nQueens' | 'knapsack'
   | 'matrixTraversal'
   | 'generic'
 export function detectAlgorithm(code: string): AlgoType {
@@ -109,6 +111,14 @@ export function detectAlgorithm(code: string): AlgoType {
   if (lower.includes('climbstairs') || lower.includes('climbing stairs') || lower.includes('climb_stairs')) return 'climbStairs'
   if (lower.includes('maxarea') || lower.includes('most water') || lower.includes('max_area')) return 'maxArea'
   if (lower.includes('searchinsert') || lower.includes('search insert') || lower.includes('search_insert')) return 'searchInsert'
+  if (lower.includes('longestsubstring') || lower.includes('longest substring') || lower.includes('longest_substring') ||
+      (lower.includes('longest') && lower.includes('without') && lower.includes('repeating')) ||
+      (lower.includes('sliding') && lower.includes('window') && lower.includes('set')) ||
+      (lower.includes('maxlength') && lower.includes('set') && (lower.includes('left') || lower.includes('right')))) return 'longestSubstring'
+  if (lower.includes('nqueens') || lower.includes('n-queens') || lower.includes('n_queens') || 
+      (lower.includes('board') && lower.includes('queen') && lower.includes('backtrack'))) return 'nQueens'
+  if (lower.includes('knapsack') || lower.includes('knap sack') || 
+      (lower.includes('weight') && lower.includes('value') && lower.includes('capacity') && lower.includes('dp'))) return 'knapsack'
   if (lower.includes('reverse') && lower.includes('string')) return 'reverseString'
   if (lower.includes('palindrome')) return 'isPalindrome'
   if (lower.includes('fizzbuzz') || lower.includes('fizz buzz')) return 'fizzBuzz'
@@ -118,6 +128,7 @@ export function detectAlgorithm(code: string): AlgoType {
   //      also require insert+left+right BUT exclude searchInsert patterns
   if (/\bbst\b/.test(lower) || lower.includes('binary search tree') ||
       (lower.includes('insert') && lower.includes('left') && lower.includes('right') && !lower.includes('searchinsert'))) return 'bst'
+  if (lower.includes('heap') && !lower.includes('heapsort')) return 'heap'
   if (lower.includes('stack') && (lower.includes('push') || lower.includes('pop'))) return 'stack'
   if (lower.includes('queue') && (lower.includes('enqueue') || lower.includes('dequeue'))) return 'queue'
   if ((lower.includes('doubly') || lower.includes('prev')) && lower.includes('next')) return 'doublyLinkedList'
@@ -1511,9 +1522,15 @@ function extractNumber(code: string): number {
 }
 
 function extractString(code: string): string | null {
-  const match = code.match(/(?:isValid|reverseString|search)\s*\(\s*(['"`])(.*?)\1\s*\)/i) || 
-                code.match(/(?:const|let|var)\s+[a-zA-Z_]\w*\s*=\s*(['"`])(.*?)\1/)
-  if (match) return match[2]
+  // Try function call patterns first: isPalindrome("racecar"), isValid("()[]{}"), reverseString("hello")
+  const fnMatch = code.match(/(?:isValid|isPalindrome|reverseString|reverse|palindrome|search|check)\s*\(\s*(['"`])(.*?)\1\s*\)/i)
+  if (fnMatch) return fnMatch[2]
+  // Try variable declarations: const str = "hello", let s = 'world'
+  const varMatch = code.match(/(?:const|let|var)\s+(?:str|s|string|input|text|word)\s*=\s*(['"`])(.*?)\1/i)
+  if (varMatch) return varMatch[2]
+  // Any string variable declaration
+  const anyVarMatch = code.match(/(?:const|let|var)\s+[a-zA-Z_]\w*\s*=\s*(['"`])(.*?)\1/)
+  if (anyVarMatch) return anyVarMatch[2]
   return null
 }
 
@@ -1529,6 +1546,232 @@ function extractMultipleArrays(code: string): number[][] {
     } catch { /* ignore */ }
   }
   return arrays
+}
+
+// ─── DYNAMIC EXTRACTION: Graph ──────────────────────────────────────────────
+
+function extractGraph(code: string): { nodes: string[]; adj: Record<string, string[]>; start: string } {
+  const defaultGraph = { nodes: ['A','B','C','D','E','F'], adj: { A:['B','C'], B:['D','E'], C:['F'], D:[] as string[], E:[] as string[], F:[] as string[] }, start: 'A' }
+
+  // Match object literal with string-keyed arrays: { A:['B','C'], B:['D'], ... }
+  // or { 'A': ['B','C'], 'B': ['D'], ... }
+  const objMatch = code.match(/(?:graph|adj(?:acency)?(?:List)?|g)\s*=\s*\{([^}]+(?:\[[^\]]*\][^}]*)*)\}/i)
+  if (objMatch) {
+    try {
+      const body = objMatch[1]
+      const adj: Record<string, string[]> = {}
+      // Parse entries like  A: ['B', 'C']  or  'A': ['B', 'C']  or  A: []  
+      const entryPattern = /['"]?(\w+)['"]?\s*:\s*\[([^\]]*)\]/g
+      let entry
+      while ((entry = entryPattern.exec(body)) !== null) {
+        const key = entry[1]
+        const neighbors = entry[2]
+          .split(',')
+          .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
+          .filter(s => s.length > 0)
+        adj[key] = neighbors
+      }
+      const nodes = Object.keys(adj)
+      if (nodes.length >= 2) {
+        // Also add any neighbor that isn't a key
+        for (const neighbors of Object.values(adj)) {
+          for (const n of neighbors) {
+            if (!adj[n]) { adj[n] = []; nodes.push(n) }
+          }
+        }
+        // Try to find start node from function call
+        const startMatch = code.match(/(?:bfs|dfs)\s*\([^,]+,\s*['"]?(\w+)['"]?\s*\)/i)
+        const start = startMatch ? startMatch[1] : nodes[0]
+        return { nodes: [...new Set(nodes)], adj, start }
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Try numeric adjacency list: [[1,2],[3],[],[4],[]]  
+  const numAdjMatch = code.match(/(?:graph|adj)\s*=\s*(\[\s*\[.*?\]\s*\])/is)
+  if (numAdjMatch) {
+    try {
+      const parsed = JSON.parse(numAdjMatch[1])
+      if (Array.isArray(parsed)) {
+        const adj: Record<string, string[]> = {}
+        const nodes: string[] = []
+        parsed.forEach((neighbors: number[], i: number) => {
+          const id = String(i)
+          nodes.push(id)
+          adj[id] = Array.isArray(neighbors) ? neighbors.map(String) : []
+        })
+        return { nodes, adj, start: nodes[0] || '0' }
+      }
+    } catch { /* fall through */ }
+  }
+
+  return defaultGraph
+}
+
+// ─── DYNAMIC EXTRACTION: Stack Operations ────────────────────────────────────
+
+function extractStackOps(code: string): Array<{ op: 'push' | 'pop'; val?: number }> {
+  const ops: Array<{ op: 'push' | 'pop'; val?: number }> = []
+
+  // Match stack.push(val) and stack.pop() patterns
+  const opPattern = /\b(?:stack|s)\.?(push|pop)\s*\(\s*(-?\d+)?\s*\)/gi
+  let m
+  while ((m = opPattern.exec(code)) !== null) {
+    const op = m[1].toLowerCase() as 'push' | 'pop'
+    const val = m[2] !== undefined ? parseInt(m[2]) : undefined
+    ops.push({ op, val })
+  }
+
+  // Also try: push(val) without object prefix
+  if (ops.length === 0) {
+    // We need to preserve order, so scan linearly
+    const lines = code.split('\n')
+    for (const line of lines) {
+      const pushM = line.match(/push\s*\(\s*(-?\d+)\s*\)/)
+      const popM = line.match(/pop\s*\(/)
+      if (pushM) ops.push({ op: 'push', val: parseInt(pushM[1]) })
+      if (popM && !pushM) ops.push({ op: 'pop' })
+    }
+  }
+
+  // Also try extracting from array-based initialization: [10, 20, 30]
+  if (ops.length === 0) {
+    const arrMatch = code.match(/\[([\d,\s]+)\]/)
+    if (arrMatch) {
+      const nums = arrMatch[1].split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
+      nums.forEach(val => ops.push({ op: 'push', val }))
+    }
+  }
+
+  if (ops.length === 0) {
+    return [{op:'push',val:10},{op:'push',val:20},{op:'push',val:30},{op:'pop'},{op:'push',val:40},{op:'pop'},{op:'pop'}]
+  }
+  return ops
+}
+
+// ─── DYNAMIC EXTRACTION: Queue Operations ────────────────────────────────────
+
+function extractQueueOps(code: string): Array<{ op: 'enqueue' | 'dequeue'; val?: number }> {
+  const ops: Array<{ op: 'enqueue' | 'dequeue'; val?: number }> = []
+
+  // Match queue.enqueue(val) / queue.dequeue() / queue.push(val) / queue.shift()
+  const opPattern = /\b(?:queue|q)\.?(enqueue|dequeue|push|shift|add|remove|offer|poll)\s*\(\s*(-?\d+)?\s*\)/gi
+  let m
+  while ((m = opPattern.exec(code)) !== null) {
+    const rawOp = m[1].toLowerCase()
+    const isEnqueue = ['enqueue', 'push', 'add', 'offer'].includes(rawOp)
+    const val = m[2] !== undefined ? parseInt(m[2]) : undefined
+    ops.push({ op: isEnqueue ? 'enqueue' : 'dequeue', val })
+  }
+
+  // Try extracting from array initialization
+  if (ops.length === 0) {
+    const arrMatch = code.match(/\[([\d,\s]+)\]/)
+    if (arrMatch) {
+      const nums = arrMatch[1].split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
+      nums.forEach(val => ops.push({ op: 'enqueue', val }))
+    }
+  }
+
+  if (ops.length === 0) {
+    return [{op:'enqueue',val:1},{op:'enqueue',val:2},{op:'enqueue',val:3},{op:'dequeue'},{op:'enqueue',val:4},{op:'dequeue'}]
+  }
+  return ops
+}
+
+// ─── DYNAMIC EXTRACTION: HashMap Entries ─────────────────────────────────────
+
+function extractHashMapEntries(code: string): Array<[string, number]> {
+  const entries: Array<[string, number]> = []
+
+  // Match map.set('key', value) patterns
+  const setPattern = /\.set\s*\(\s*['"]([^'"]+)['"]\s*,\s*(-?\d+)\s*\)/g
+  let m
+  while ((m = setPattern.exec(code)) !== null) {
+    entries.push([m[1], parseInt(m[2])])
+  }
+
+  // Match map['key'] = value or map.key = value patterns
+  if (entries.length === 0) {
+    const assignPattern = /\w+\[\s*['"]([^'"]+)['"]\s*\]\s*=\s*(-?\d+)/g
+    while ((m = assignPattern.exec(code)) !== null) {
+      entries.push([m[1], parseInt(m[2])])
+    }
+  }
+
+  // Match object literal: { apple: 5, banana: 3 }
+  if (entries.length === 0) {
+    const objMatch = code.match(/(?:map|hash|table|dict)\s*=\s*\{([^}]+)\}/i)
+    if (objMatch) {
+      const entryPattern = /['"]?(\w+)['"]?\s*:\s*(-?\d+)/g
+      while ((m = entryPattern.exec(objMatch[1])) !== null) {
+        entries.push([m[1], parseInt(m[2])])
+      }
+    }
+  }
+
+  if (entries.length === 0) {
+    return [['apple',5],['banana',3],['cherry',8],['date',2],['elderberry',7]]
+  }
+  return entries
+}
+
+// ─── DYNAMIC EXTRACTION: DP Knapsack ─────────────────────────────────────────
+
+function extractKnapsackParams(code: string): { W: number; weights: number[]; values: number[] } {
+  const arrays = extractMultipleArrays(code)
+  const numbers = [...code.matchAll(/(?:const|let|var)\s+(?:W|capacity|Capacity)\s*=\s*(\d+)/g)]
+  let W = 50
+  if (numbers.length > 0) {
+    W = parseInt(numbers[0][1])
+  } else {
+    // try to find from function call knapsack(W, weights, values)
+    const callMatch = code.match(/knapsack\s*\(\s*(\d+)\s*,/)
+    if (callMatch) W = parseInt(callMatch[1])
+  }
+  
+  if (arrays.length >= 2) {
+    // assuming values then weights, or weights then values. Typically values are larger
+    const a1 = arrays[0]
+    const a2 = arrays[1]
+    const sum1 = a1.reduce((a,b)=>a+b,0)
+    const sum2 = a2.reduce((a,b)=>a+b,0)
+    if (sum1 > sum2) return { W, values: a1, weights: a2 }
+    return { W, values: a2, weights: a1 }
+  }
+  
+  return { W: 50, values: [60, 100, 120], weights: [10, 20, 30] }
+}
+
+// ─── DYNAMIC EXTRACTION: Heap Operations ─────────────────────────────────────
+
+function extractHeapOps(code: string): Array<{ op: 'insert' | 'extract'; val?: number }> {
+  const ops: Array<{ op: 'insert' | 'extract'; val?: number }> = []
+  
+  // Try finding insert(val) and extractMin() / extractMax() / poll() / pop()
+  const opPattern = /\b(?:heap|pq|q)\.?(insert|add|push|extract|poll|pop|remove)\s*\(\s*(-?\d+)?\s*\)/gi
+  let m
+  while ((m = opPattern.exec(code)) !== null) {
+    const rawOp = m[1].toLowerCase()
+    const isInsert = ['insert', 'add', 'push'].includes(rawOp)
+    const val = m[2] !== undefined ? parseInt(m[2]) : undefined
+    ops.push({ op: isInsert ? 'insert' : 'extract', val })
+  }
+  
+  // Fallback to array initialization => series of inserts
+  if (ops.length === 0) {
+    const arrMatch = code.match(/\[([\d,\s]+)\]/)
+    if (arrMatch) {
+      const nums = arrMatch[1].split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
+      nums.forEach(val => ops.push({ op: 'insert', val }))
+      ops.push({ op: 'extract' })
+    }
+  }
+  
+  if (ops.length === 0) {
+    return [{op:'insert',val:10},{op:'insert',val:5},{op:'insert',val:20},{op:'insert',val:2},{op:'extract'},{op:'extract'}]
+  }
+  return ops
 }
 
 export function generateExecutionSteps(code: string): ExecutionStep[] {
@@ -1568,18 +1811,27 @@ export function generateExecutionSteps(code: string): ExecutionStep[] {
       case 'mergeSort': return genMergeSort(arr)
       case 'quickSort': return genQuickSort(arr)
       case 'heapSort': return genHeapSort(arr)
-      case 'binarySearch': return genBinarySearch([2,5,8,12,16,23,38,56,72,91], extractTarget(code))
+      case 'binarySearch': {
+        const bsArr = arr.length ? [...arr].sort((a, b) => a - b) : [2,5,8,12,16,23,38,56,72,91]
+        return genBinarySearch(bsArr, extractTarget(code))
+      }
       case 'linearSearch': return genLinearSearch(arr, extractTarget(code))
       case 'fibonacci': return genFibonacci(extractNumber(code))
       case 'factorial': return genFactorial(extractNumber(code))
-      case 'linkedList': return genLinkedList([10,20,30,40,50])
-      case 'doublyLinkedList': return genLinkedList([5,15,25,35,45])
-      case 'bst': return genBST([50,30,70,20,40,60,80])
-      case 'bfs': return genBFS(['A','B','C','D','E','F'], { A:['B','C'], B:['D','E'], C:['F'], D:[], E:[], F:[] }, 'A')
-      case 'dfs': return genDFS(['A','B','C','D','E','F'], { A:['B','C'], B:['D','E'], C:['F'], D:[], E:[], F:[] }, 'A')
-      case 'stack': return genStack([{op:'push',val:10},{op:'push',val:20},{op:'push',val:30},{op:'pop'},{op:'push',val:40},{op:'pop'},{op:'pop'}])
-      case 'queue': return genQueue([{op:'enqueue',val:1},{op:'enqueue',val:2},{op:'enqueue',val:3},{op:'dequeue'},{op:'enqueue',val:4},{op:'dequeue'}])
-      case 'hashMap': return genHashMap([['apple',5],['banana',3],['cherry',8],['date',2],['elderberry',7]])
+      case 'linkedList': return genLinkedList(arr.length ? arr : [10,20,30,40,50])
+      case 'doublyLinkedList': return genLinkedList(arr.length ? arr : [5,15,25,35,45])
+      case 'bst': return genBST(arr.length ? arr : [50,30,70,20,40,60,80])
+      case 'bfs': {
+        const g = extractGraph(code)
+        return genBFS(g.nodes, g.adj, g.start)
+      }
+      case 'dfs': {
+        const g = extractGraph(code)
+        return genDFS(g.nodes, g.adj, g.start)
+      }
+      case 'stack': return genStack(extractStackOps(code))
+      case 'queue': return genQueue(extractQueueOps(code))
+      case 'hashMap': return genHashMap(extractHashMapEntries(code))
       case 'twoSum': {
         const tsParams = extractTwoSumParams(code)
         return genTwoSum(tsParams.nums, tsParams.target)
@@ -1594,12 +1846,20 @@ export function generateExecutionSteps(code: string): ExecutionStep[] {
       case 'maxSubArray': return genMaxSubArray(arr.length ? arr : [-2,1,-3,4,-1,2,1,-5,4])
       case 'maxProfit': return genMaxProfit(arr.length ? arr : [7,1,5,3,6,4])
       case 'reverseString': return genReverseString(extractString(code) || 'hello')
+      case 'isPalindrome': return genIsPalindrome(extractString(code) || 'racecar')
       case 'climbStairs': return genClimbStairs(extractNumber(code) || 5)
       case 'containsDuplicate': return genContainsDuplicate(arr.length ? arr : [1,2,3,1])
       case 'reverseList': return genReverseList(arr.length ? arr : [1,2,3,4,5])
       case 'maxArea': return genMaxArea(arr.length ? arr : [1,8,6,2,5,4,8,3,7])
       case 'searchInsert': return genSearchInsert(arr.length ? arr : [1,3,5,6], extractTarget(code) || 2)
       case 'fizzBuzz': return genFizzBuzz(extractNumber(code) || 15)
+      case 'longestSubstring': return genLongestSubstring(extractString(code) || 'pwwkew')
+      case 'nQueens': return genNQueens(extractNumber(code) || 4)
+      case 'knapsack': {
+        const kp = extractKnapsackParams(code)
+        return genKnapsack(kp.W, kp.weights, kp.values)
+      }
+      case 'heap': return genHeap(extractHeapOps(code))
     }
   }
 
@@ -1666,7 +1926,7 @@ export function genContainsDuplicate(nums: number[]): ExecutionStep[] {
 export function genReverseList(values: number[]): ExecutionStep[] {
   const steps: ExecutionStep[] = []
   
-  const buildState = (vals: number[], revVals: number[], activeIdx: number, stepMsg: string): DSAState => {
+  const buildState = (_vals: number[], revVals: number[], activeIdx: number, stepMsg: string): DSAState => {
     const nodes: DSANode[] = []
     const edges: DSAEdge[] = []
     
@@ -1789,6 +2049,384 @@ export function genSearchInsert(nums: number[], target: number): ExecutionStep[]
   }
   steps.push({ line: 5, description: 'while (' + left + ' <= ' + right + ')', variables: [], callStack: [makeFrame('fn', 5, [])], heap: [], output: '', dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:'visited'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Not found' } })
   steps.push({ line: 12, description: 'return left (' + left + ')', variables: [], callStack: [makeFrame('fn', 12, [])], heap: [], output: String(left), dsaState: { type: 'array', nodes: nums.map((v,k) => ({id:'n'+k,value:v,highlight:k===left?'found':'none'})), pointer: left, pointerName: 'left', pointer2: right, pointer2Name: 'right', message: 'Insert position' } })
+  return steps
+}
+
+// ─── IS PALINDROME GENERATOR ─────────────────────────────────────────────────
+
+export function genIsPalindrome(s: string): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  const chars = s.split('')
+  let left = 0, right = chars.length - 1
+
+  const snap = (desc: string, l: number, r: number, result?: boolean): ExecutionStep => ({
+    line: 1, description: desc,
+    variables: [
+      { name: 'str', value: s, type: 'string', scope: 'isPalindrome' },
+      { name: 'left', value: l, type: 'number', scope: 'isPalindrome', changed: true },
+      { name: 'right', value: r, type: 'number', scope: 'isPalindrome', changed: true },
+    ],
+    callStack: [makeFrame('isPalindrome', 1, [], true)],
+    heap: [], output: result !== undefined ? String(result) : '',
+    dsaState: {
+      type: 'string',
+      nodes: chars.map((c, i) => ({
+        id: `c${i}`, value: c,
+        highlight: i === l || i === r ? 'comparing'
+          : (i < l || i > r) ? 'found'
+          : 'none'
+      })),
+      pointer: l, pointerName: 'L',
+      pointer2: r, pointer2Name: 'R',
+      message: desc
+    }
+  })
+
+  steps.push(snap(`Check if "${s}" is a palindrome`, left, right))
+
+  while (left < right) {
+    if (chars[left] !== chars[right]) {
+      steps.push(snap(`'${chars[left]}' ≠ '${chars[right]}' → ❌ NOT a palindrome`, left, right, false))
+      return steps
+    }
+    steps.push(snap(`'${chars[left]}' === '${chars[right]}' ✓ match`, left, right))
+    left++
+    right--
+  }
+
+  steps.push(snap(`✅ "${s}" IS a palindrome!`, left, right, true))
+  return steps
+}
+
+// ─── LONGEST SUBSTRING GENERATOR ─────────────────────────────────────────────
+
+export function genLongestSubstring(s: string): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  const chars = s.split('')
+  const set = new Set<string>()
+  let left = 0
+  let maxLen = 0
+  let bestLeft = 0, bestRight = 0
+
+  const snap = (desc: string, l: number, r: number, hl?: Record<number, DSANode['highlight']>): ExecutionStep => {
+    const highlights: Record<number, DSANode['highlight']> = hl || {}
+    // Default: highlight window
+    if (!hl) {
+      for (let i = 0; i < chars.length; i++) {
+        if (i < l) highlights[i] = 'visited'
+        else if (i >= l && i <= r) highlights[i] = 'active'
+        else highlights[i] = 'none'
+      }
+    }
+    return {
+      line: 1, description: desc,
+      variables: [
+        { name: 'str', value: s, type: 'string', scope: 'longestSubstring' },
+        { name: 'left', value: l, type: 'number', scope: 'longestSubstring', changed: true },
+        { name: 'right', value: r, type: 'number', scope: 'longestSubstring', changed: true },
+        { name: 'maxLength', value: maxLen, type: 'number', scope: 'longestSubstring', changed: true },
+        { name: 'set', value: [...set], type: 'Set', scope: 'longestSubstring', changed: true },
+      ],
+      callStack: [makeFrame('longestSubstring', 1, [], true)],
+      heap: [], output: '',
+      dsaState: {
+        type: 'string',
+        nodes: chars.map((c, i) => ({
+          id: `c${i}`, value: c,
+          highlight: highlights[i] || 'none'
+        })),
+        pointer: l, pointerName: 'L',
+        pointer2: r, pointer2Name: 'R',
+        stackItems: [...set] as (string | number)[],
+        stackName: 'Set',
+        message: desc
+      }
+    }
+  }
+
+  // Initial step
+  steps.push(snap(`Longest Substring Without Repeating Characters: "${s}"`, 0, -1))
+  steps.push(snap(`Initialize: left=0, right=0, maxLength=0, set={}`, 0, 0))
+
+  for (let right = 0; right < chars.length; right++) {
+    const char = chars[right]
+
+    // Check if char already in set
+    if (set.has(char)) {
+      const hlDup: Record<number, DSANode['highlight']> = {}
+      for (let i = 0; i < chars.length; i++) {
+        if (i < left) hlDup[i] = 'visited'
+        else if (i >= left && i <= right) hlDup[i] = i === right ? 'swapping' : 'active'
+        else hlDup[i] = 'none'
+      }
+      steps.push(snap(`'${char}' already in Set! Shrink window from left`, left, right, hlDup))
+
+      // Shrink window until duplicate is removed
+      while (set.has(char)) {
+        const removed = chars[left]
+        set.delete(removed)
+        left++
+        const hlShrink: Record<number, DSANode['highlight']> = {}
+        for (let i = 0; i < chars.length; i++) {
+          if (i < left) hlShrink[i] = 'visited'
+          else if (i >= left && i <= right) hlShrink[i] = i === right ? 'comparing' : 'active'
+          else hlShrink[i] = 'none'
+        }
+        steps.push(snap(`Removed '${removed}' from Set, left=${left}. Set={${[...set].join(',')}}`, left, right, hlShrink))
+      }
+    }
+
+    // Add current char
+    set.add(char)
+    const windowLen = right - left + 1
+    if (windowLen > maxLen) {
+      maxLen = windowLen
+      bestLeft = left
+      bestRight = right
+    }
+
+    const hlAdd: Record<number, DSANode['highlight']> = {}
+    for (let i = 0; i < chars.length; i++) {
+      if (i < left) hlAdd[i] = 'visited'
+      else if (i >= left && i <= right) hlAdd[i] = 'found'
+      else hlAdd[i] = 'none'
+    }
+    steps.push(snap(
+      `Add '${char}'. Window "${chars.slice(left, right + 1).join('')}" len=${windowLen}, maxLength=${maxLen}`,
+      left, right, hlAdd
+    ))
+  }
+
+  // Final result
+  const hlFinal: Record<number, DSANode['highlight']> = {}
+  for (let i = 0; i < chars.length; i++) {
+    if (i >= bestLeft && i <= bestRight) hlFinal[i] = 'found'
+    else hlFinal[i] = 'visited'
+  }
+  steps.push(snap(
+    `✅ Longest substring: "${chars.slice(bestLeft, bestRight + 1).join('')}" (length ${maxLen})`,
+    bestLeft, bestRight, hlFinal
+  ))
+
+  return steps
+}
+
+// ─── GENERATORS: Heap, Knapsack, N-Queens ──────────────────────────────────
+
+export function genHeap(ops: Array<{ op: 'insert' | 'extract'; val?: number }>): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  const heap: number[] = []
+
+  const snap = (desc: string, active?: number, comparing?: number, swapping?: number): ExecutionStep => {
+    return {
+      line: 1, description: desc,
+      variables: [
+        { name: 'heap', value: [...heap], type: 'Array', scope: 'genHeap' },
+      ],
+      callStack: [makeFrame('heap', 1, [], true)],
+      heap: [], output: '',
+      dsaState: {
+        type: 'tree',
+        nodes: heap.map((val, i) => ({
+          id: `n${i}`, value: val,
+          highlight: i === swapping ? 'swapping' : i === comparing ? 'comparing' : i === active ? 'active' : 'none'
+        })),
+        edges: heap.map((_, i) => {
+          const parent = Math.floor((i - 1) / 2)
+          if (i > 0) return { id: `e${parent}-${i}`, from: `n${parent}`, to: `n${i}` }
+          return null
+        }).filter(e => e !== null) as DSAEdge[],
+        message: desc
+      }
+    }
+  }
+
+  steps.push(snap(`Initialize empty Heap`))
+
+  for (const { op, val } of ops) {
+    if (op === 'insert' && val !== undefined) {
+      heap.push(val)
+      let curr = heap.length - 1
+      steps.push(snap(`Insert ${val} at end of heap`, curr))
+      
+      while (curr > 0) {
+        const parent = Math.floor((curr - 1) / 2)
+        steps.push(snap(`Compare ${heap[curr]} with parent ${heap[parent]}`, curr, parent))
+        if (heap[curr] < heap[parent]) {
+          steps.push(snap(`Swap ${heap[curr]} and ${heap[parent]}`, curr, parent, curr))
+          const temp = heap[curr]
+          heap[curr] = heap[parent]
+          heap[parent] = temp
+          curr = parent
+        } else {
+          break
+        }
+      }
+      steps.push(snap(`Heap after inserting ${val}`))
+    } else if (op === 'extract' && heap.length > 0) {
+      const min = heap[0]
+      steps.push(snap(`Extract root (min): ${min}`, 0))
+      const last = heap.pop()!
+      if (heap.length > 0) {
+        heap[0] = last
+        let curr = 0
+        steps.push(snap(`Move last element ${last} to root`, curr))
+        
+        while (true) {
+          const left = 2 * curr + 1
+          const right = 2 * curr + 2
+          let smallest = curr
+          
+          if (left < heap.length) {
+            steps.push(snap(`Compare ${heap[curr]} with left child ${heap[left]}`, curr, left))
+            if (heap[left] < heap[smallest]) smallest = left
+          }
+          if (right < heap.length) {
+            steps.push(snap(`Compare ${heap[smallest]} with right child ${heap[right]}`, smallest, right))
+            if (heap[right] < heap[smallest]) smallest = right
+          }
+          
+          if (smallest !== curr) {
+            steps.push(snap(`Swap ${heap[curr]} and ${heap[smallest]}`, curr, smallest, curr))
+            const temp = heap[curr]
+            heap[curr] = heap[smallest]
+            heap[smallest] = temp
+            curr = smallest
+          } else {
+            break
+          }
+        }
+      }
+      steps.push(snap(`Heap after extraction`))
+    }
+  }
+
+  return steps
+}
+
+export function genKnapsack(W: number, weights: number[], values: number[]): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  const n = weights.length
+  const dp: number[][] = Array.from({ length: n + 1 }, () => Array(W + 1).fill(0))
+
+  const snap = (desc: string, currN: number, currW: number, hl?: 'checking'|'matched'): ExecutionStep => {
+    // Flatten DP table to 1D array for visualization
+    const flatDP = dp.flat()
+    return {
+      line: 1, description: desc,
+      variables: [
+        { name: 'dp', value: dp, type: 'Array', scope: 'knapsack' },
+        { name: 'W', value: W, type: 'number', scope: 'knapsack' },
+        { name: 'weights', value: weights, type: 'Array', scope: 'knapsack' },
+        { name: 'values', value: values, type: 'Array', scope: 'knapsack' }
+      ],
+      callStack: [makeFrame('knapsack', 1, [], true)],
+      heap: [], output: '',
+      dsaState: {
+        type: 'array',
+        nodes: flatDP.map((val, i) => {
+          const r = Math.floor(i / (W + 1))
+          const c = i % (W + 1)
+          let highlight: DSANode['highlight'] = 'none'
+          if (r === currN && c === currW) highlight = hl === 'checking' ? 'comparing' : 'active'
+          else if (r <= currN) highlight = 'visited'
+          return { id: `c${i}`, value: val, highlight }
+        }),
+        message: desc
+      }
+    }
+  }
+
+  steps.push(snap(`Initialize DP table (size ${n + 1}x${W + 1}) for 0/1 Knapsack`, 0, 0))
+
+  for (let i = 1; i <= n; i++) {
+    for (let w = 0; w <= W; w++) {
+      steps.push(snap(`Checking item ${i} (weight: ${weights[i-1]}, value: ${values[i-1]}) at capacity ${w}`, i, w, 'checking'))
+      if (weights[i - 1] <= w) {
+        dp[i][w] = Math.max(
+          values[i - 1] + dp[i - 1][w - weights[i - 1]],
+          dp[i - 1][w]
+        )
+      } else {
+        dp[i][w] = dp[i - 1][w]
+      }
+      steps.push(snap(`Computed max value: ${dp[i][w]}`, i, w, 'matched'))
+    }
+  }
+
+  steps.push(snap(`Finished! Max value for capacity ${W} is ${dp[n][W]}`, n, W, 'matched'))
+  return steps
+}
+
+export function genNQueens(n: number): ExecutionStep[] {
+  const steps: ExecutionStep[] = []
+  const board = Array.from({ length: n }, () => Array(n).fill('.'))
+  const res: string[][] = []
+
+  const snap = (desc: string, row: number, col: number, hl?: 'checking'|'placed'|'invalid'): ExecutionStep => {
+    return {
+      line: 1, description: desc,
+      variables: [
+        { name: 'board', value: board.map(r => r.join('')), type: 'Array', scope: 'nQueens' },
+        { name: 'solutions', value: res.length, type: 'number', scope: 'nQueens' }
+      ],
+      callStack: [makeFrame('nQueens', 1, [], true)],
+      heap: [], output: '',
+      dsaState: {
+        type: 'matrix',
+        nodes: board.flat().map((val, i) => {
+          const r = Math.floor(i / n)
+          const c = i % n
+          let highlight: DSANode['highlight'] = 'none'
+          if (r === row && c === col) {
+            highlight = hl === 'invalid' ? 'comparing' : (hl === 'placed' ? 'active' : 'processing')
+          } else if (val === 'Q') {
+            highlight = 'found'
+          }
+          return { id: `c${i}`, value: val, highlight }
+        }),
+        message: desc
+      }
+    }
+  }
+
+  function isValid(r: number, c: number): boolean {
+    for (let i = 0; i < r; i++) {
+      if (board[i][c] === 'Q') return false
+    }
+    for (let i = r - 1, j = c - 1; i >= 0 && j >= 0; i--, j--) {
+      if (board[i][j] === 'Q') return false
+    }
+    for (let i = r - 1, j = c + 1; i >= 0 && j < n; i--, j++) {
+      if (board[i][j] === 'Q') return false
+    }
+    return true
+  }
+
+  function backtrack(r: number) {
+    if (r === n) {
+      res.push(board.map(row => row.join('')))
+      steps.push(snap(`Found solution #${res.length}!`, r-1, 0, 'placed'))
+      return
+    }
+    for (let c = 0; c < n; c++) {
+      steps.push(snap(`Trying row ${r}, col ${c}`, r, c, 'checking'))
+      if (isValid(r, c)) {
+        board[r][c] = 'Q'
+        steps.push(snap(`Placed Queen at row ${r}, col ${c}`, r, c, 'placed'))
+        backtrack(r + 1)
+        board[r][c] = '.'
+        steps.push(snap(`Backtrack: Removed Queen at row ${r}, col ${c}`, r, c, 'checking'))
+      } else {
+        steps.push(snap(`Invalid position at row ${r}, col ${c}`, r, c, 'invalid'))
+      }
+    }
+  }
+
+  steps.push(snap(`Start ${n}-Queens Backtracking`, 0, 0))
+  backtrack(0)
+  steps.push(snap(`Finished! Found ${res.length} solutions.`, -1, -1))
+
   return steps
 }
 
