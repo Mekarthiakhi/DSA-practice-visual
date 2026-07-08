@@ -112,6 +112,7 @@ export function detectAlgorithm(code: string): AlgoType {
   if (lower.includes('maxarea') || lower.includes('most water') || lower.includes('max_area')) return 'maxArea'
   if (lower.includes('searchinsert') || lower.includes('search insert') || lower.includes('search_insert')) return 'searchInsert'
   if (lower.includes('longestsubstring') || lower.includes('longest substring') || lower.includes('longest_substring') ||
+      lower.includes('longestsubarray') || lower.includes('lengthoflongestsubstring') ||
       (lower.includes('longest') && lower.includes('without') && lower.includes('repeating')) ||
       (lower.includes('sliding') && lower.includes('window') && lower.includes('set')) ||
       (lower.includes('maxlength') && lower.includes('set') && (lower.includes('left') || lower.includes('right')))) return 'longestSubstring'
@@ -1531,6 +1532,9 @@ function extractString(code: string): string | null {
   // Any string variable declaration
   const anyVarMatch = code.match(/(?:const|let|var)\s+[a-zA-Z_]\w*\s*=\s*(['"`])(.*?)\1/)
   if (anyVarMatch) return anyVarMatch[2]
+  // Generic function call with string argument: longestSubArray('abcabcbb'), anyFunc("test")
+  const genericCallMatch = code.match(/[a-zA-Z_]\w*\s*\(\s*(['"`])(.*?)\1\s*\)/)
+  if (genericCallMatch) return genericCallMatch[2]
   return null
 }
 
@@ -2110,11 +2114,10 @@ export function genLongestSubstring(s: string): ExecutionStep[] {
 
   const snap = (desc: string, l: number, r: number, hl?: Record<number, DSANode['highlight']>): ExecutionStep => {
     const highlights: Record<number, DSANode['highlight']> = hl || {}
-    // Default: highlight window
+    // Default: highlight window as active, everything else gray
     if (!hl) {
       for (let i = 0; i < chars.length; i++) {
-        if (i < l) highlights[i] = 'visited'
-        else if (i >= l && i <= r) highlights[i] = 'active'
+        if (i >= l && i <= r) highlights[i] = 'active'
         else highlights[i] = 'none'
       }
     }
@@ -2155,9 +2158,10 @@ export function genLongestSubstring(s: string): ExecutionStep[] {
     if (set.has(char)) {
       const hlDup: Record<number, DSANode['highlight']> = {}
       for (let i = 0; i < chars.length; i++) {
-        if (i < left) hlDup[i] = 'visited'
-        else if (i >= left && i <= right) hlDup[i] = i === right ? 'swapping' : 'active'
-        else hlDup[i] = 'none'
+        if (i < left) hlDup[i] = 'none'           // passed — gray
+        else if (i === right) hlDup[i] = 'swapping' // duplicate — red
+        else if (i >= left && i < right) hlDup[i] = 'active'  // current window — cyan
+        else hlDup[i] = 'none'                     // not yet reached — gray
       }
       steps.push(snap(`'${char}' already in Set! Shrink window from left`, left, right, hlDup))
 
@@ -2168,9 +2172,11 @@ export function genLongestSubstring(s: string): ExecutionStep[] {
         left++
         const hlShrink: Record<number, DSANode['highlight']> = {}
         for (let i = 0; i < chars.length; i++) {
-          if (i < left) hlShrink[i] = 'visited'
-          else if (i >= left && i <= right) hlShrink[i] = i === right ? 'comparing' : 'active'
-          else hlShrink[i] = 'none'
+          if (i < left) hlShrink[i] = 'none'       // passed — gray
+          else if (i === left - 1) hlShrink[i] = 'none' // just removed — gray
+          else if (i === right) hlShrink[i] = 'comparing' // waiting to add — amber
+          else if (i >= left && i < right) hlShrink[i] = 'active' // remaining window — cyan
+          else hlShrink[i] = 'none'                 // not yet reached — gray
         }
         steps.push(snap(`Removed '${removed}' from Set, left=${left}. Set={${[...set].join(',')}}`, left, right, hlShrink))
       }
@@ -2187,9 +2193,8 @@ export function genLongestSubstring(s: string): ExecutionStep[] {
 
     const hlAdd: Record<number, DSANode['highlight']> = {}
     for (let i = 0; i < chars.length; i++) {
-      if (i < left) hlAdd[i] = 'visited'
-      else if (i >= left && i <= right) hlAdd[i] = 'found'
-      else hlAdd[i] = 'none'
+      if (i >= left && i <= right) hlAdd[i] = 'found'  // valid window — green
+      else hlAdd[i] = 'none'                            // everything else — gray
     }
     steps.push(snap(
       `Add '${char}'. Window "${chars.slice(left, right + 1).join('')}" len=${windowLen}, maxLength=${maxLen}`,
@@ -2197,11 +2202,11 @@ export function genLongestSubstring(s: string): ExecutionStep[] {
     ))
   }
 
-  // Final result
+  // Final result — only highlight the best substring, everything else gray
   const hlFinal: Record<number, DSANode['highlight']> = {}
   for (let i = 0; i < chars.length; i++) {
     if (i >= bestLeft && i <= bestRight) hlFinal[i] = 'found'
-    else hlFinal[i] = 'visited'
+    else hlFinal[i] = 'none'
   }
   steps.push(snap(
     `✅ Longest substring: "${chars.slice(bestLeft, bestRight + 1).join('')}" (length ${maxLen})`,

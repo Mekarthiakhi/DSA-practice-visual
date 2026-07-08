@@ -163,11 +163,14 @@ const StringStackView: React.FC<{
 
       <div className="flex flex-wrap gap-4 flex-1 min-h-0 overflow-auto">
         {/* String visualization */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 min-w-[200px] min-h-0">
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 min-w-[200px] min-h-0">
           <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider self-start">{stringName || 'string'}</div>
-          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+          <div className="flex items-center justify-center gap-1.5 flex-wrap pt-6">
             {nodes.map((node, idx) => {
               const c = HL[node.highlight || 'none']
+              const isLeftPtr = pointer === idx
+              const isRightPtr = pointer2 === idx
+              const isBothPtrs = isLeftPtr && isRightPtr
               return (
                 <motion.div key={node.id} layout
                   animate={{ backgroundColor: c.bg, borderColor: c.border, boxShadow: c.glow || 'none' }}
@@ -177,15 +180,15 @@ const StringStackView: React.FC<{
                 >
                   <span className="text-lg font-mono font-bold" style={{ color: c.text }}>{node.value}</span>
                   <span className="absolute -bottom-4 text-[9px] text-gray-600 font-mono">{idx}</span>
-                  {pointer === idx && (
-                    <div className="absolute -top-6 flex flex-col items-center z-10">
-                      <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mb-0.5">{pointerName || 'ptr'}</div>
+                  {isLeftPtr && (
+                    <div className={`absolute -top-6 flex flex-col items-center z-10 ${isBothPtrs ? '-ml-5' : ''}`}>
+                      <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mb-0.5">{pointerName || 'L'}</div>
                       <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-cyan-400" />
                     </div>
                   )}
-                  {pointer2 === idx && (
-                    <div className="absolute -top-6 flex flex-col items-center z-10 ml-10">
-                      <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mb-0.5">{pointer2Name || 'ptr2'}</div>
+                  {isRightPtr && (
+                    <div className={`absolute -top-6 flex flex-col items-center z-10 ${isBothPtrs ? 'ml-5' : ''}`}>
+                      <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mb-0.5">{pointer2Name || 'R'}</div>
                       <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-purple-400" />
                     </div>
                   )}
@@ -193,13 +196,48 @@ const StringStackView: React.FC<{
               )
             })}
           </div>
-          <Legend items={[{ label: 'Checking', hl: 'comparing' }, { label: 'Matched', hl: 'found' }]} />
+
+          {/* Dynamic variable info */}
+          <div className="flex items-center gap-3 flex-wrap justify-center mt-1">
+            {pointer !== undefined && (
+              <div className="flex items-center gap-1 text-[11px] font-mono">
+                <span className="text-cyan-500 font-semibold">left</span>
+                <span className="text-gray-600">=</span>
+                <motion.span key={`l-${pointer}`} initial={{ scale: 1.3, color: '#00d4ff' }} animate={{ scale: 1, color: '#e8eaf0' }} className="font-bold">{pointer}</motion.span>
+              </div>
+            )}
+            {pointer2 !== undefined && (
+              <div className="flex items-center gap-1 text-[11px] font-mono">
+                <span className="text-purple-400 font-semibold">right</span>
+                <span className="text-gray-600">=</span>
+                <motion.span key={`r-${pointer2}`} initial={{ scale: 1.3, color: '#a855f7' }} animate={{ scale: 1, color: '#e8eaf0' }} className="font-bold">{pointer2}</motion.span>
+              </div>
+            )}
+            {pointer !== undefined && pointer2 !== undefined && pointer2 >= 0 && (
+              <div className="flex items-center gap-1 text-[11px] font-mono">
+                <span className="text-emerald-400 font-semibold">window</span>
+                <span className="text-gray-600">=</span>
+                <span className="text-emerald-300 font-bold">"{nodes.slice(pointer, pointer2 + 1).map(n => n.value).join('')}"</span>
+                <span className="text-gray-600">({Math.max(0, pointer2 - pointer + 1)})</span>
+              </div>
+            )}
+          </div>
+
+          <Legend items={[
+            { label: 'Window', hl: 'active' },
+            { label: 'Duplicate', hl: 'swapping' },
+            { label: 'Shrinking', hl: 'comparing' },
+            { label: 'Valid', hl: 'found' },
+            { label: 'Visited', hl: 'visited' },
+          ]} />
         </div>
 
-        {/* Stack panel */}
+        {/* Set / Stack panel */}
         <div className="w-full sm:w-32 flex-shrink-0 flex flex-col items-center gap-2 min-w-[120px]">
-          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">{stackName || 'stack'}</div>
-          <div className="text-[10px] text-cyan-400/60 font-mono mb-1 tracking-wider">TOP ▼</div>
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">{stackName || 'Set'}</div>
+          <div className="text-[10px] text-cyan-400/60 font-mono mb-1 tracking-wider">
+            {items.length > 0 ? `${items.length} item${items.length > 1 ? 's' : ''}` : ''}
+          </div>
           <div className="w-24 border-l-2 border-r-2 border-b-2 border-gray-600 rounded-b-lg min-h-12 flex flex-col-reverse overflow-hidden">
             <AnimatePresence mode="popLayout">
               {[...items].reverse().map((item, i) => {
