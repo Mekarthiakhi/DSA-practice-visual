@@ -824,8 +824,9 @@ function filterSwapEvents(events: TraceEvent[], activeArrayName: string): TraceE
                     (val1 === expectedVal2 && val2 === expectedVal2) ||
                     (val1 === expectedVal1 && val2 === expectedVal1)
                   ) {
-                    // Skip the intermediate state where duplicates exist
-                    continue
+                    // Instead of deleting the event, patch the array to hide the intermediate state
+                    // This keeps the line trace intact but prevents visual glitches
+                    cur.vars[activeArrayName] = [...prevArr]
                   }
                 }
               }
@@ -1592,11 +1593,15 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
 
     const ignoredNumNames = new Set([
       'length', 'len', 'n', 'size', 'count', 'sum', 'total', 'max', 'min', 
-      'target', 'diff', 'curr', 'current', 'temp', 'val', 'value', 'ans', 'res', 'result', 'pivot'
+      'target', 'diff', 'curr', 'current', 'temp', 'val', 'value', 'ans', 'res', 'result', 'pivot',
+      'maxLength', 'maxLen', 'maxlength', 'zeroCount', 'zerocount', 'ones', 'zeros',
+      'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
+      'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
+      'key', 'depth', 'level', 'step', 'steps'
     ]);
 
     const validIndices = Object.entries(vars)
-      .filter(([k, v]) => !k.startsWith('__') && !ignoredNumNames.has(k.toLowerCase()) && typeof v === 'number' && (v as number) >= 0 && (v as number) < values.length)
+      .filter(([k, v]) => !k.startsWith('__') && !ignoredNumNames.has(k.toLowerCase()) && typeof v === 'number' && (v as number) >= 0 && (v as number) <= values.length)
       .map(([k, v]) => ({ name: k, val: v as number }));
 
     // Priority naming list for pointers
@@ -1617,18 +1622,29 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart;
     if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd;
 
+    const pointerName = validIndices.length > 0 ? validIndices[0].name : foundStart || undefined
+    const pointer2Name = validIndices.length > 1 ? validIndices[1].name : foundEnd || undefined
+
+    const isWindow = rangeStart !== undefined && rangeEnd !== undefined && rangeEnd >= rangeStart
+
     const nodes: DSANode[] = values.map((v, idx) => {
       let highlight: DSANode['highlight'] = 'none'
-      if (idx === pivotIndex) {
-        highlight = 'pivot'
-      } else if (idx === pointer || idx === pointer2) {
-        if (lineCode.includes('swap') || lineCode.includes('temp')) {
-          highlight = 'swapping'
-        } else {
-          highlight = 'comparing'
+      if (isWindow && rangeStart !== undefined && rangeEnd !== undefined) {
+        if (idx >= rangeStart && idx <= rangeEnd) highlight = 'active'
+        if (idx === pointer) highlight = 'comparing'
+        if (idx === pointer2) highlight = 'comparing'
+      } else {
+        if (idx === pivotIndex) {
+          highlight = 'pivot'
+        } else if (idx === pointer || idx === pointer2) {
+          if (lineCode.includes('swap') || lineCode.includes('temp')) {
+            highlight = 'swapping'
+          } else {
+            highlight = 'comparing'
+          }
+        } else if (rangeStart !== undefined && rangeEnd !== undefined && (idx < rangeStart || idx > rangeEnd)) {
+          highlight = 'visited'
         }
-      } else if (rangeStart !== undefined && rangeEnd !== undefined && (idx < rangeStart || idx > rangeEnd)) {
-        highlight = 'visited'
       }
       return {
         id: `n${idx}`,
@@ -1645,7 +1661,9 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       type: 'array',
       nodes,
       pointer,
+      pointerName,
       pointer2,
+      pointer2Name,
       rangeStart,
       rangeEnd,
       pivotIndex,
@@ -1687,11 +1705,15 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
 
     const ignoredNumNames = new Set([
       'length', 'len', 'n', 'size', 'count', 'sum', 'total', 'max', 'min', 
-      'target', 'diff', 'curr', 'current', 'temp', 'val', 'value', 'ans', 'res', 'result', 'pivot'
+      'target', 'diff', 'curr', 'current', 'temp', 'val', 'value', 'ans', 'res', 'result', 'pivot',
+      'maxLength', 'maxLen', 'maxlength', 'zeroCount', 'zerocount', 'ones', 'zeros',
+      'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
+      'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
+      'key', 'depth', 'level', 'step', 'steps'
     ]);
 
     const validIndices = Object.entries(vars)
-      .filter(([k, v]) => !k.startsWith('__') && !ignoredNumNames.has(k.toLowerCase()) && typeof v === 'number' && (v as number) >= 0 && (v as number) < chars.length)
+      .filter(([k, v]) => !k.startsWith('__') && !ignoredNumNames.has(k.toLowerCase()) && typeof v === 'number' && (v as number) >= 0 && (v as number) <= chars.length)
       .map(([k, v]) => ({ name: k, val: v as number }));
 
     // Priority naming list for pointers
@@ -1712,19 +1734,35 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart;
     if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd;
 
+    const pointerName = validIndices.length > 0 ? validIndices[0].name : foundStart || undefined
+    const pointer2Name = validIndices.length > 1 ? validIndices[1].name : foundEnd || undefined
+
+    const isWindow = rangeStart !== undefined && rangeEnd !== undefined && rangeEnd >= rangeStart
+
     const hashInfo = detectHashTableInfo(vars, name)
     const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
     const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
 
     return {
       type: 'string',
-      nodes: chars.map((c, i) => ({
-        id: `c${i}`,
-        value: c,
-        highlight: i === pointer ? 'comparing' : i === pointer2 ? 'comparing' : 'none' as const
-      })),
+      nodes: chars.map((c, i) => {
+        let highlight: DSANode['highlight'] = 'none'
+        if (isWindow && rangeStart !== undefined && rangeEnd !== undefined) {
+          if (i >= rangeStart && i <= rangeEnd) highlight = 'active'
+          if (i === pointer || i === pointer2) highlight = 'comparing'
+        } else {
+          highlight = i === pointer ? 'comparing' : i === pointer2 ? 'comparing' : 'none'
+        }
+        return {
+          id: `c${i}`,
+          value: c,
+          highlight
+        }
+      }),
       pointer,
+      pointerName,
       pointer2,
+      pointer2Name,
       rangeStart,
       rangeEnd,
       message: `${name} = "${str}"`,

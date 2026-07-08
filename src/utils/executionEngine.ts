@@ -1779,32 +1779,22 @@ function extractHeapOps(code: string): Array<{ op: 'insert' | 'extract'; val?: n
 }
 
 export function generateExecutionSteps(code: string): ExecutionStep[] {
+  // 1. ALWAYS try dynamic interpreter first — run the user's actual code
+  try {
+    const result = interpretCode(code)
+    if (result.steps && result.steps.length > 1 && !result.error) {
+      // Only prefer dynamic steps if they have meaningful dsaState visualization
+      const hasDSA = result.steps.some(s => s.dsaState && s.dsaState.nodes && s.dsaState.nodes.length > 0)
+      if (hasDSA) {
+        return result.steps
+      }
+    }
+  } catch (err) {
+    console.warn('Dynamic interpreter failed, falling back to static simulator:', err)
+  }
+
   const algo = detectAlgorithm(code)
   const arr = extractArray(code)
-
-  const LEETCODE_ALGOS = new Set([
-    'twoSum', 'validParentheses', 'mergeTwoLists', 'maxSubArray', 'maxProfit',
-    'reverseString', 'climbStairs', 'containsDuplicate', 'reverseList', 'maxArea',
-    'searchInsert', 'fizzBuzz'
-  ])
-
-  // 1. Try dynamic interpreter first for LeetCode challenges
-  if (LEETCODE_ALGOS.has(algo)) {
-    try {
-      const result = interpretCode(code)
-      if (result.steps && result.steps.length > 1 && !result.error) {
-        // Only prefer dynamic steps if they have meaningful dsaState visualization
-        const hasDSA = result.steps.some(s => s.dsaState && s.dsaState.nodes && s.dsaState.nodes.length > 0)
-        if (hasDSA) {
-          return result.steps
-        }
-        // If no dsaState (e.g., simple scalar-only algos like climbStairs),
-        // fall through to static generator which has built-in visualization
-      }
-    } catch (err) {
-      console.warn('Dynamic interpreter failed, falling back to static simulator:', err)
-    }
-  }
 
   // 2. Otherwise run static visualizers
   if (algo !== 'generic') {
