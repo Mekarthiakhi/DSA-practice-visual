@@ -5,13 +5,7 @@
   "installCommand": "npm install",
   "framework": "vite",
   "env": {
-    "VITE_API_URL": {
-      "description": "API endpoint for backend requests",
-      "default": "https://dsa-practice-visual.vercel.app/api"
-    },
-    "VITE_ENVIRONMENT": {
-      "description": "Environment mode",
-      "default": "production"
-    }
+    "VITE_API_URL": "https://dsa-practice-visual.vercel.app/api",
+    "VITE_ENVIRONMENT": "production"
   }
 }
