@@ -12,6 +12,9 @@
 
 import { ExecutionStep, Variable, StackFrame, DSAState, DSANode, DSAEdge } from '../store/ideStore'
 
+let _lastWindowStart: number | undefined
+let _lastWindowEnd: number | undefined
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TraceEvent {
@@ -845,6 +848,9 @@ function filterSwapEvents(events: TraceEvent[], activeArrayName: string): TraceE
 // ─── Events → Steps ──────────────────────────────────────────────────────────
 
 function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
+  _lastWindowStart = undefined
+  _lastWindowEnd = undefined
+
   // 1. Detect active array name first to guide the filter
   let activeArrayName = ''
   for (const ev of events) {
@@ -1597,7 +1603,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       'maxLength', 'maxLen', 'maxlength', 'zeroCount', 'zerocount', 'ones', 'zeros',
       'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
       'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
-      'key', 'depth', 'level', 'step', 'steps'
+      'key', 'depth', 'level', 'step', 'steps', 'windowSum'
     ]);
 
     const validIndices = Object.entries(vars)
@@ -1613,7 +1619,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       if (idxA !== -1 && idxB !== -1) return idxA - idxB;
       if (idxA !== -1) return -1;
       if (idxB !== -1) return 1;
-      return 0; // maintain original order for others
+      return 0;
     });
 
     if (validIndices.length > 0) pointer = validIndices[0].val;
@@ -1625,23 +1631,103 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     const pointerName = validIndices.length > 0 ? validIndices[0].name : foundStart || undefined
     const pointer2Name = validIndices.length > 1 ? validIndices[1].name : foundEnd || undefined
 
+    // ── Array access parser (resolve arr[j], arr[j+1], arr[j-k], etc.) ──
+    const accessedIndices = new Set<number>()
+    const arrayAccessRegex = new RegExp(`\\b${name}\\s*\\[([^\\]]+)\\]`, 'g')
+    let match;
+    while ((match = arrayAccessRegex.exec(lineCode)) !== null) {
+      const indexExpr = match[1].trim()
+      let idx: number | null = null
+      if (/^\d+$/.test(indexExpr)) {
+        // Literal number: arr[0]
+        idx = parseInt(indexExpr)
+      } else if (vars[indexExpr] !== undefined && typeof vars[indexExpr] === 'number') {
+        // Single variable: arr[j]
+        idx = vars[indexExpr] as number
+      } else {
+        // Arithmetic: arr[j + 1] or arr[j - k]
+        const arith = indexExpr.match(/^(\w+)\s*([+\-*])\s*(\w+)$/)
+        if (arith) {
+          const leftName = arith[1]
+          const op = arith[2]
+          const rightName = arith[3]
+          // Resolve left operand
+          let leftVal: number | null = null
+          if (/^\d+$/.test(leftName)) leftVal = parseInt(leftName)
+          else if (vars[leftName] !== undefined && typeof vars[leftName] === 'number') leftVal = vars[leftName] as number
+          // Resolve right operand
+          let rightVal: number | null = null
+          if (/^\d+$/.test(rightName)) rightVal = parseInt(rightName)
+          else if (vars[rightName] !== undefined && typeof vars[rightName] === 'number') rightVal = vars[rightName] as number
+
+          if (leftVal !== null && rightVal !== null) {
+            if (op === '+') idx = leftVal + rightVal
+            else if (op === '-') idx = leftVal - rightVal
+            else if (op === '*') idx = leftVal * rightVal
+          }
+        }
+      }
+      if (idx !== null && idx >= 0 && idx < values.length) {
+        accessedIndices.add(idx)
+      }
+    }
+
+    // ── Sliding window detection ──
+    // When variable `k` (window size) exists, compute the window range dynamically.
+    // IMPORTANT: The sliding phase only activates on lines that ACCESS the array.
+    // This prevents the first loop's exit (i reaches k) from falsely triggering the sliding window.
+    if (rangeStart === undefined && rangeEnd === undefined && typeof vars['k'] === 'number') {
+      const kVal = vars['k'] as number
+      if (kVal > 0 && kVal < values.length) {
+        // Collect ALL valid loop indices to find the furthest-along pointer
+        const allLoopVals = validIndices.map(vi => vi.val)
+        const maxLoopVal = allLoopVals.length > 0 ? Math.max(...allLoopVals) : -1
+
+        if (maxLoopVal >= kVal && accessedIndices.size > 0) {
+          // Sliding phase: the window is [maxLoopVal - k + 1 .. maxLoopVal]
+          // Only activates when the line actually accesses the array (e.g. arr[j-k] or arr[j])
+          rangeStart = maxLoopVal - kVal + 1
+          rangeEnd = maxLoopVal
+          _lastWindowStart = rangeStart
+          _lastWindowEnd = rangeEnd
+        } else if (maxLoopVal >= 0 && maxLoopVal < kVal) {
+          // Build phase: the window is growing from [0 .. maxLoopVal]
+          rangeStart = 0
+          rangeEnd = maxLoopVal
+          _lastWindowStart = rangeStart
+          _lastWindowEnd = rangeEnd
+        } else if (_lastWindowStart !== undefined && _lastWindowEnd !== undefined) {
+          // Persist the window on lines without array access (e.g. loop conditions, Math.max)
+          rangeStart = _lastWindowStart
+          rangeEnd = _lastWindowEnd
+        }
+      }
+    }
+
     const isWindow = rangeStart !== undefined && rangeEnd !== undefined && rangeEnd >= rangeStart
+
+    // Detect if this line is an actual element swap
+    const isSwapLine = (
+      (lineCode.includes('swap') || lineCode.includes('temp')) ||
+      (/\[.*\]\s*=/.test(lineCode) && accessedIndices.size >= 2)
+    )
 
     const nodes: DSANode[] = values.map((v, idx) => {
       let highlight: DSANode['highlight'] = 'none'
       if (isWindow && rangeStart !== undefined && rangeEnd !== undefined) {
+        // Window mode: elements in window are 'active', elements accessed on this line are 'comparing'
         if (idx >= rangeStart && idx <= rangeEnd) highlight = 'active'
-        if (idx === pointer) highlight = 'comparing'
-        if (idx === pointer2) highlight = 'comparing'
+        // Elements outside the window that were previously inside are 'visited'
+        if (idx < rangeStart) highlight = 'visited'
+        // Accessed elements get highlighted over the base window color
+        if (accessedIndices.has(idx)) highlight = 'comparing'
       } else {
         if (idx === pivotIndex) {
           highlight = 'pivot'
-        } else if (idx === pointer || idx === pointer2) {
-          if (lineCode.includes('swap') || lineCode.includes('temp')) {
-            highlight = 'swapping'
-          } else {
-            highlight = 'comparing'
-          }
+        } else if (accessedIndices.has(idx)) {
+          highlight = isSwapLine ? 'swapping' : 'comparing'
+        } else if (idx === pointer) {
+          highlight = 'active'
         } else if (rangeStart !== undefined && rangeEnd !== undefined && (idx < rangeStart || idx > rangeEnd)) {
           highlight = 'visited'
         }
