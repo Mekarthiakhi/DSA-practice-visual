@@ -601,10 +601,19 @@ function instrumentCode(code: string, names: Set<string>): string {
         const suffix = raw.substring(condEnd)
         const parts = inner.split(';')
         if (parts.length === 3) {
+          // Standard for(init; cond; increment) loop
           const init = parts[0]
           const cond = parts[1].trim() || 'true'
           const next = parts[2]
           out.push(`${prefix}${init}; (${captureExpr}, __trace__(${ln}), ${cond}); ${next}${suffix}`)
+        } else if (inner.includes(' of ') || inner.includes(' in ')) {
+          // for...of / for...in loop: instrument inside the opening brace
+          const braceIdx = raw.lastIndexOf('{')
+          if (braceIdx !== -1) {
+            out.push(`${raw.substring(0, braceIdx + 1)} ${captureExpr}; __trace__(${ln});${raw.substring(braceIdx + 1)}`)
+          } else {
+            out.push(raw)
+          }
         } else {
           out.push(raw)
         }
@@ -924,6 +933,21 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
     const lineCode = codeLines[lineForStep - 1]?.trim() || ''
     const changedArray = currentVars.find(v => v.changed && v.type === 'Array' && Array.isArray(v.value) && typeof v.value[0] === 'number')
     if (changedArray) activeArrayName = changedArray.name
+    
+    // Dynamically switch active array/string based on which one is accessed in the current line
+    const accessedStructures = currentVars.filter(v => 
+      (v.type === 'Array' && Array.isArray(v.value) && typeof v.value[0] === 'number') || 
+      (v.type === 'string' && typeof v.value === 'string' && v.value.length > 0)
+    ).filter(v => new RegExp(`\\b${v.name}\\b`).test(lineCode))
+
+    if (accessedStructures.length > 0) {
+      activeArrayName = accessedStructures.reduce((best, cur) => {
+        const bestLen = (best.value as any).length || 0;
+        const curLen = (cur.value as any).length || 0;
+        return curLen > bestLen ? cur : best;
+      }).name;
+    }
+
     if (!activeArrayName) {
       const fallback = currentVars.find(v => (v.name === 'arr' || v.name === 'nums' || v.name === 'array') && v.type === 'Array')
       if (fallback) activeArrayName = fallback.name
@@ -1223,9 +1247,10 @@ function detectDataType(code: string, vars: Record<string, unknown>): Interprete
 
 // ─── DSA state builder ────────────────────────────────────────────────────────
 
-function detectHashTableInfo(vars: Record<string, unknown>, excludeName: string): { table: Record<string, unknown>; name: string; label: string } | undefined {
-  const mapEntry = Object.entries(vars).find(([k, v]) => !k.startsWith('__') && v instanceof Map)
-  if (mapEntry) {
+function detectHashTableInfo(vars: Record<string, unknown>, excludeName: string, lineCode: string = ''): { table: Record<string, unknown>; name: string; label: string } | undefined {
+  const mapEntries = Object.entries(vars).filter(([k, v]) => !k.startsWith('__') && v instanceof Map)
+  if (mapEntries.length > 0) {
+    const mapEntry = mapEntries.find(([k]) => new RegExp(`\\b${k}\\b`).test(lineCode)) || mapEntries[0]
     const [name, mapObj] = mapEntry
     const table: Record<string, unknown> = {}
     ;(mapObj as Map<unknown, unknown>).forEach((v, k) => { table[String(k)] = v })
@@ -1235,29 +1260,35 @@ function detectHashTableInfo(vars: Record<string, unknown>, excludeName: string)
     return { table, name, label }
   }
 
-  const setEntry = Object.entries(vars).find(([k, v]) => !k.startsWith('__') && v instanceof Set)
-  if (setEntry) {
+  const setEntries = Object.entries(vars).filter(([k, v]) => !k.startsWith('__') && v instanceof Set)
+  if (setEntries.length > 0) {
+    const setEntry = setEntries.find(([k]) => new RegExp(`\\b${k}\\b`).test(lineCode)) || setEntries[0]
     const [name, setObj] = setEntry
     const table: Record<string, unknown> = {}
     ;(setObj as Set<unknown>).forEach((v) => { table[String(v)] = '✓' })
     return { table, name, label: 'presence' }
   }
 
-  const objEntry = Object.entries(vars).find(([k, v]) =>
+  const objEntries = Object.entries(vars).filter(([k, v]) =>
     !k.startsWith('__') && k !== excludeName && k !== 'variables' && typeof v === 'object' && v !== null && !Array.isArray(v) &&
-    !(v instanceof Map) && !(v instanceof Set) &&
-    Object.values(v as object).some(val => typeof val === 'number' || typeof val === 'string' || typeof val === 'boolean')
+    !(v instanceof Map) && !(v instanceof Set)
   )
-  if (objEntry) {
-    const [name, obj] = objEntry
-    const table: Record<string, unknown> = {}
-    Object.entries(obj as Record<string, unknown>)
-      .filter(([, v]) => typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean')
-      .slice(0, 20)
-      .forEach(([k, v]) => { table[k] = v })
-    const keysAreNumbers = Object.keys(table).every(k => !isNaN(Number(k)))
-    const label = keysAreNumbers ? 'value → index' : 'key → value'
-    return { table, name, label }
+  if (objEntries.length > 0) {
+    // Prefer objects accessed on the current line, otherwise fallback to any object with valid values
+    const accessedObj = objEntries.find(([k]) => new RegExp(`\\b${k}\\b`).test(lineCode))
+    const objEntry = accessedObj || objEntries.find(([, v]) => Object.values(v as object).some(val => typeof val === 'number' || typeof val === 'string' || typeof val === 'boolean'))
+    
+    if (objEntry) {
+      const [name, obj] = objEntry
+      const table: Record<string, unknown> = {}
+      Object.entries(obj as Record<string, unknown>)
+        .filter(([, v]) => typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean')
+        .slice(0, 20)
+        .forEach(([k, v]) => { table[k] = v })
+      const keysAreNumbers = Object.keys(table).every(k => !isNaN(Number(k)))
+      const label = keysAreNumbers ? 'value → index' : 'key → value'
+      return { table, name, label }
+    }
   }
   return undefined
 }
@@ -1603,7 +1634,8 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       'maxLength', 'maxLen', 'maxlength', 'zeroCount', 'zerocount', 'ones', 'zeros',
       'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
       'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
-      'key', 'depth', 'level', 'step', 'steps', 'windowSum'
+      'key', 'depth', 'level', 'step', 'steps', 'windowSum',
+      'formed', 'required', 'minLen', 'start', 'minLength', 'minStart'
     ]);
 
     const validIndices = Object.entries(vars)
@@ -1739,7 +1771,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       }
     })
 
-    const hashInfo = detectHashTableInfo(vars, name)
+    const hashInfo = detectHashTableInfo(vars, name, lineCode)
     const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
     const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
 
@@ -1767,7 +1799,16 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
   const strEntries = Object.entries(vars)
     .filter(([k, v]) => !k.startsWith('__') && typeof v === 'string' && (v as string).length > 0)
   if (strEntries.length > 0) {
-    const [name, str] = strEntries[0]
+    let target = strEntries[0]
+    if (preferredName) {
+      const match = strEntries.find(a => a[0] === preferredName)
+      if (match) target = match
+    } else {
+      target = strEntries.reduce((best, cur) =>
+        (cur[1] as string).length > (best[1] as string).length ? cur : best
+      )
+    }
+    const [name, str] = target
     const chars = (str as string).split('').slice(0, 20)
     
     // Extract range start/end if present
@@ -1795,7 +1836,8 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       'maxLength', 'maxLen', 'maxlength', 'zeroCount', 'zerocount', 'ones', 'zeros',
       'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
       'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
-      'key', 'depth', 'level', 'step', 'steps'
+      'key', 'depth', 'level', 'step', 'steps',
+      'formed', 'required', 'minLen', 'start', 'minLength', 'minStart'
     ]);
 
     const validIndices = Object.entries(vars)
@@ -1825,7 +1867,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
 
     const isWindow = rangeStart !== undefined && rangeEnd !== undefined && rangeEnd >= rangeStart
 
-    const hashInfo = detectHashTableInfo(vars, name)
+    const hashInfo = detectHashTableInfo(vars, name, lineCode)
     const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
     const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
 

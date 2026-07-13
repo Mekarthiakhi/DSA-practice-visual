@@ -267,6 +267,133 @@ const StringStackView: React.FC<{
 }
 
 
+// ─── STRING + HASHMAP VIEW ────────────────────────────────────────────────
+const StringHashMapView: React.FC<{
+  nodes: DSANode[]
+  hashTable?: Record<string, unknown>
+  message?: string
+  pointer?: number
+  pointerName?: string
+  pointer2?: number
+  pointer2Name?: string
+  stringName?: string
+  hashTableName?: string
+  hashTableLabel?: string
+}> = ({ nodes, hashTable, message, pointer, pointerName, pointer2, pointer2Name, stringName, hashTableName, hashTableLabel }) => {
+  const entries = hashTable ? Object.entries(hashTable) : []
+
+  return (
+    <div className="flex flex-col h-full gap-3 p-4 select-none overflow-auto">
+      {message && (
+        <motion.div key={message} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="px-4 py-2 bg-[#13151f] border border-[#252836] rounded-lg text-sm text-center text-gray-300 font-mono flex-shrink-0">
+          {message}
+        </motion.div>
+      )}
+
+      <div className="flex flex-wrap gap-4 flex-1 min-h-0 overflow-auto">
+        {/* String visualization */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 min-w-[200px] min-h-0">
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider self-start">{stringName || 'string'}</div>
+          <div className="flex items-center justify-center gap-1.5 flex-wrap pt-6">
+            {nodes.map((node, idx) => {
+              const c = HL[node.highlight || 'none']
+              const isLeftPtr = pointer === idx
+              const isRightPtr = pointer2 === idx
+              const isBothPtrs = isLeftPtr && isRightPtr
+              return (
+                <motion.div key={node.id} layout
+                  animate={{ backgroundColor: c.bg, borderColor: c.border, boxShadow: c.glow || 'none' }}
+                  transition={{ duration: 0.3 }}
+                  className="w-12 h-14 flex flex-col items-center justify-center rounded-lg border-2 relative"
+                  style={{ borderColor: c.border, backgroundColor: c.bg }}
+                >
+                  <span className="text-xl font-mono font-bold" style={{ color: c.text }}>{node.value}</span>
+                  <span className="absolute -bottom-5 text-[10px] text-gray-600 font-mono">{idx}</span>
+                  {isLeftPtr && (
+                    <div className={`absolute -top-7 flex flex-col items-center z-10 ${isBothPtrs ? '-ml-6' : ''}`}>
+                      <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mb-0.5">{pointerName || 'L'}</div>
+                      <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-cyan-400" />
+                    </div>
+                  )}
+                  {isRightPtr && (
+                    <div className={`absolute -top-7 flex flex-col items-center z-10 ${isBothPtrs ? 'ml-6' : ''}`}>
+                      <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mb-0.5">{pointer2Name || 'R'}</div>
+                      <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-purple-400" />
+                    </div>
+                  )}
+                </motion.div>
+              )
+            })}
+          </div>
+
+          {/* Dynamic variable info */}
+          <div className="flex items-center gap-3 flex-wrap justify-center mt-3">
+            {pointer !== undefined && (
+              <div className="flex items-center gap-1 text-[11px] font-mono">
+                <span className="text-cyan-500 font-semibold">left</span>
+                <span className="text-gray-600">=</span>
+                <motion.span key={`l-${pointer}`} initial={{ scale: 1.3, color: '#00d4ff' }} animate={{ scale: 1, color: '#e8eaf0' }} className="font-bold">{pointer}</motion.span>
+              </div>
+            )}
+            {pointer2 !== undefined && (
+              <div className="flex items-center gap-1 text-[11px] font-mono">
+                <span className="text-purple-400 font-semibold">right</span>
+                <span className="text-gray-600">=</span>
+                <motion.span key={`r-${pointer2}`} initial={{ scale: 1.3, color: '#a855f7' }} animate={{ scale: 1, color: '#e8eaf0' }} className="font-bold">{pointer2}</motion.span>
+              </div>
+            )}
+            {pointer !== undefined && pointer2 !== undefined && pointer2 >= 0 && (
+              <div className="flex items-center gap-1 text-[11px] font-mono">
+                <span className="text-emerald-400 font-semibold">window</span>
+                <span className="text-gray-600">=</span>
+                <span className="text-emerald-300 font-bold">"{nodes.slice(pointer, pointer2 + 1).map(n => n.value).join('')}"</span>
+                <span className="text-gray-600">({Math.max(0, pointer2 - pointer + 1)})</span>
+              </div>
+            )}
+          </div>
+
+          <Legend items={[
+            { label: 'Window', hl: 'active' },
+            { label: 'Match', hl: 'found' },
+            { label: 'Checking', hl: 'comparing' },
+            { label: 'Visited', hl: 'visited' },
+          ]} />
+        </div>
+
+        {/* HashMap panel */}
+        <div className="w-full sm:w-44 flex-shrink-0 flex flex-col gap-2 min-w-[150px]">
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">{hashTableName || 'hash map'}</div>
+          <div className="text-[9px] text-gray-700 font-mono">{hashTableLabel || 'key → value'}</div>
+          <div className="flex flex-col gap-1.5 overflow-auto" style={{ maxHeight: 220 }}>
+            <AnimatePresence mode="popLayout">
+              {entries.length === 0 ? (
+                <div className="text-gray-700 text-xs font-mono px-2 py-3 text-center border border-dashed border-gray-700 rounded-lg">
+                  empty
+                </div>
+              ) : entries.map(([key, val]) => (
+                <motion.div key={key}
+                  layout
+                  initial={{ opacity: 0, x: 20, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -10, scale: 0.8 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                  className="flex items-center justify-between gap-2 bg-[#0d1b2a] border border-cyan-500/30 rounded-lg px-3 py-2"
+                  style={{ boxShadow: '0 0 8px rgba(0,212,255,0.08)' }}
+                >
+                  <span className="text-cyan-400 text-xs font-mono font-bold">{key}</span>
+                  {val !== '✓' && <span className="text-gray-600 text-[10px] font-mono">→</span>}
+                  <span className="text-amber-400 text-xs font-mono font-bold">{String(val)}</span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── STRING VIEW ─────────────────────────────────────────────────────────────
 const StringView: React.FC<{ nodes: DSANode[]; message?: string; pointer?: number; pointerName?: string; pointer2?: number; pointer2Name?: string }> = ({ nodes, message, pointer, pointerName, pointer2, pointer2Name }) => (
   <div className="flex flex-col items-center justify-center h-full gap-8 p-6">
@@ -838,7 +965,9 @@ export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
       {dsaState.type === 'array' && dsaState.hashTable !== undefined
         ? <TwoSumView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} comparisons={dsaState.comparisons} arrayName={dsaState.arrayName} hashTableName={dsaState.hashTableName} hashTableLabel={dsaState.hashTableLabel} />
         : dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
-      {dsaState.type === 'string' && dsaState.stackItems !== undefined
+      {dsaState.type === 'string' && dsaState.hashTable !== undefined
+        ? <StringHashMapView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} stringName={dsaState.arrayName} hashTableName={dsaState.hashTableName} hashTableLabel={dsaState.hashTableLabel} />
+        : dsaState.type === 'string' && dsaState.stackItems !== undefined
         ? <StringStackView nodes={dsaState.nodes} stackItems={dsaState.stackItems} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} stringName={dsaState.arrayName} stackName={dsaState.stackName} />
         : dsaState.type === 'string' && <StringView nodes={dsaState.nodes} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} />}
       {dsaState.type === 'linkedlist' && (
