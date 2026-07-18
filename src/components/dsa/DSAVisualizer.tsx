@@ -7,17 +7,18 @@ interface DSAVisualizerProps {
 }
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
-const HL: Record<NonNullable<DSANode['highlight']>, { bg: string; border: string; text: string; glow?: string; shadow?: string }> = {
-  active:     { bg: '#0d2233', border: '#00d4ff', text: '#00d4ff', glow: '0 0 16px rgba(0,212,255,0.7)', shadow: '#00d4ff' },
-  visited:    { bg: '#0d2218', border: '#10b981', text: '#10b981' },
-  comparing:  { bg: '#2a230a', border: '#f59e0b', text: '#f59e0b', glow: '0 0 16px rgba(245,158,11,0.6)', shadow: '#f59e0b' },
-  swapping:   { bg: '#2a0d0d', border: '#ef4444', text: '#ef4444', glow: '0 0 16px rgba(239,68,68,0.6)', shadow: '#ef4444' },
+export const HL: Record<string, { bg: string, border: string, text: string, glow?: string, shadow?: string }> = {
+  active:     { bg: '#083344', border: '#06b6d4', text: '#22d3ee', glow: '0 0 20px rgba(6,182,212,0.6)' },
+  comparing:  { bg: '#3b2210', border: '#f59e0b', text: '#fbbf24', glow: '0 0 16px rgba(245,158,11,0.5)' },
+  swapping:   { bg: '#3b1016', border: '#ef4444', text: '#f87171', glow: '0 0 16px rgba(239,68,68,0.5)' },
+  visited:    { bg: '#162b25', border: '#10b981', text: '#34d399', glow: '0 0 12px rgba(16,185,129,0.2)' },
   found:      { bg: '#0d2a18', border: '#10b981', text: '#10b981', glow: '0 0 20px rgba(16,185,129,0.7)', shadow: '#10b981' },
   current:    { bg: '#1a1040', border: '#a855f7', text: '#a855f7', glow: '0 0 16px rgba(168,85,247,0.6)' },
   pivot:      { bg: '#2a1a00', border: '#f97316', text: '#f97316', glow: '0 0 16px rgba(249,115,22,0.7)' },
   sorted:     { bg: '#0a1a12', border: '#34d399', text: '#34d399' },
   processing: { bg: '#1a1640', border: '#818cf8', text: '#818cf8', glow: '0 0 12px rgba(129,140,248,0.5)' },
   heapifying: { bg: '#101e40', border: '#6366f1', text: '#6366f1', glow: '0 0 12px rgba(99,102,241,0.5)' },
+  skipped:    { bg: '#1c1917', border: '#57534e', text: '#a8a29e' },
   none:       { bg: '#13151f', border: '#252836', text: '#6b7280' },
 }
 
@@ -36,15 +37,20 @@ const Legend = ({ items }: { items: Array<{ label: string; hl: DSANode['highligh
 )
 
 // ─── ARRAY / SORTING VIEW ────────────────────────────────────────────────────
-const ArrayView: React.FC<{ nodes: DSANode[]; comparisons?: number; swaps?: number; message?: string; pointer?: number; pointerName?: string; pointer2?: number; pointer2Name?: string; rangeStart?: number; rangeEnd?: number; pivotIndex?: number }> = ({
-  nodes, comparisons, swaps, message, pointer, pointerName, pointer2, pointer2Name, rangeStart, rangeEnd, pivotIndex
+const ArrayView: React.FC<{ nodes: DSANode[]; auxiliaryData?: Record<string, any>; comparisons?: number; swaps?: number; message?: string; pointer?: number; pointerName?: string; pointer2?: number; pointer2Name?: string; rangeStart?: number; rangeEnd?: number; pivotIndex?: number }> = ({
+  nodes, auxiliaryData, comparisons, swaps, message, pointer, pointerName, pointer2, pointer2Name, rangeStart, rangeEnd, pivotIndex
 }) => {
   if (!nodes.length) return <div className="flex items-center justify-center h-full text-gray-500 text-sm">No data</div>
 
-  const maxVal = Math.max(...nodes.map(n => Number(n.value) || 0), 1)
+  // Detect if array contains strings (non-numeric values)
+  const isStringArray = nodes.some(n => isNaN(Number(n.value)) && typeof n.value === 'string')
+  // Render as boxes if it's a string array, OR if it's explicitly generic, OR if sorting stats (swaps) aren't present
+  const renderAsBoxes = isStringArray || !!auxiliaryData?.isGeneric || swaps === undefined
+  const maxVal = renderAsBoxes ? 1 : Math.max(...nodes.map(n => Math.abs(Number(n.value)) || 0), 1)
+  const sc = auxiliaryData?.stringCompare
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-6 p-4 select-none">
+    <div className="flex flex-col items-center justify-center h-full gap-4 p-4 select-none overflow-auto">
       {message && (
         <motion.div key={message} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
           className="px-4 py-2 bg-[#13151f] border border-[#252836] rounded-lg text-sm text-center max-w-lg text-gray-300 font-mono">
@@ -52,89 +58,205 @@ const ArrayView: React.FC<{ nodes: DSANode[]; comparisons?: number; swaps?: numb
         </motion.div>
       )}
 
-      {/* Bars */}
-      <div className="flex items-end gap-1.5 relative" style={{ minHeight: 200 }}>
-        {/* Range bracket */}
-        {rangeStart !== undefined && rangeEnd !== undefined && (
-          <div className="absolute bottom-8 h-0.5 bg-cyan-500/30 rounded" style={{ left: rangeStart * 46, width: (rangeEnd - rangeStart + 1) * 46, bottom: -2 }} />
-        )}
-        <AnimatePresence mode="popLayout">
-          {nodes.map((node, idx) => {
-            const c = HL[node.highlight || 'none']
-            const val = Math.max(Number(node.value) || 1, 1)
-            const h = Math.max(24, (val / maxVal) * 180)
-            const isPivot = pivotIndex === idx
+      {/* String Comparison Panel (word vs target character comparison) */}
+      {sc && (
+        <div className="flex flex-col items-center gap-3 w-full">
+          <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">{sc.str1Name} vs {sc.str2Name} — character comparison</div>
+          <div className="flex flex-col gap-2">
+            {[{ name: sc.str1Name, val: sc.str1Val }, { name: sc.str2Name, val: sc.str2Val }].map((s, sIdx) => (
+              <div key={sIdx} className="flex items-center gap-1">
+                <span className="text-[10px] text-gray-500 font-mono w-14 text-right mr-2 flex-shrink-0">{s.name}</span>
+                {s.val.split('').map((char: string, i: number) => {
+                  const isComparing = sc.idx === i
+                  const char1 = sc.str1Val[i]
+                  const char2 = sc.str2Val[i]
+                  const isMatch = isComparing && char1 === char2
+                  const isMismatch = isComparing && char1 !== char2
+                  const hlKey = isMatch ? 'found' : isMismatch ? 'swapping' : isComparing ? 'comparing' : 'none'
+                  const c = HL[hlKey]
+                  return (
+                    <motion.div key={i} layout
+                      animate={{
+                        backgroundColor: c.bg,
+                        borderColor: c.border,
+                        boxShadow: c.glow || 'none'
+                      }}
+                      transition={{ duration: 0.25 }}
+                      className="w-7 h-9 flex items-center justify-center rounded-md border-2 relative"
+                    >
+                      <span className="text-sm font-mono font-bold" style={{ color: c.text }}>{char}</span>
+                      {isComparing && sIdx === 1 && (
+                        <div className="absolute -bottom-5 flex flex-col items-center z-10">
+                          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-amber-400" />
+                          <span className="text-[8px] text-amber-400 font-mono">j={i}</span>
+                        </div>
+                      )}
+                    </motion.div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+          {sc.idx !== undefined && sc.str1Val[sc.idx] !== undefined && sc.str2Val[sc.idx] !== undefined && (
+            <div className="text-[11px] font-mono mt-1">
+              <span className="text-gray-500">{sc.str1Name}[{sc.idx}]=</span>
+              <span className={sc.str1Val[sc.idx] === sc.str2Val[sc.idx] ? 'text-emerald-400' : 'text-red-400'}>&#39;{sc.str1Val[sc.idx]}&#39;</span>
+              <span className="text-gray-600 mx-1">{sc.str1Val[sc.idx] === sc.str2Val[sc.idx] ? '===' : '!=='}</span>
+              <span className={sc.str1Val[sc.idx] === sc.str2Val[sc.idx] ? 'text-emerald-400' : 'text-red-400'}>&#39;{sc.str2Val[sc.idx]}&#39;</span>
+              <span className="text-gray-500">={sc.str2Name}[{sc.idx}]</span>
+              {sc.str1Val[sc.idx] === sc.str2Val[sc.idx] && <span className="text-emerald-400 ml-2">✓ match</span>}
+              {sc.str1Val[sc.idx] !== sc.str2Val[sc.idx] && <span className="text-red-400 ml-2">✗ mismatch</span>}
+            </div>
+          )}
+        </div>
+      )}
 
-            return (
-              <motion.div key={node.id} layout
-                initial={{ opacity: 0, scaleY: 0 }}
-                animate={{ opacity: 1, scaleY: 1, boxShadow: c.glow || 'none' }}
-                exit={{ opacity: 0, scaleY: 0 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-                className="flex flex-col items-center gap-1 origin-bottom"
-              >
-                <motion.span className="text-[11px] font-mono font-bold transition-colors duration-200"
-                  animate={{ color: c.text }} style={{ minWidth: 24, textAlign: 'center' }}>
-                  {node.value}
-                </motion.span>
-                <motion.div
-                  className="w-9 rounded-t relative overflow-hidden cursor-default"
-                  style={{ height: h }}
-                  animate={{ backgroundColor: c.bg, borderColor: c.border }}
-                  transition={{ duration: 0.25 }}
-                  initial={false}
+      {/* Array items - render as word boxes for strings or generic code, bars for sorting algorithms */}
+      {renderAsBoxes ? (
+        <div className="flex items-center gap-2 relative flex-wrap justify-center pt-2" style={{ minHeight: 60 }}>
+          <AnimatePresence mode="popLayout">
+            {nodes.map((node, idx) => {
+              const c = HL[node.highlight || 'none']
+              return (
+                <motion.div key={node.id} layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1, boxShadow: c.glow || 'none' }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                  className="flex flex-col items-center gap-1 relative"
                 >
-                  <div className="absolute inset-0 border rounded-t" style={{ borderColor: c.border }} />
-                  {isPivot && <div className="absolute top-0 left-0 right-0 h-0.5 bg-orange-400" />}
-                  {(node.highlight === 'comparing' || node.highlight === 'swapping' || node.highlight === 'active') && (
-                    <motion.div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/8"
-                      animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.7, repeat: Infinity }} />
+                  <motion.div
+                    className="px-3 py-2 rounded-lg border-2 relative overflow-hidden cursor-default"
+                    animate={{ backgroundColor: c.bg, borderColor: c.border }}
+                    transition={{ duration: 0.25 }}
+                    initial={false}
+                  >
+                    <motion.span className="text-sm font-mono font-bold transition-colors duration-200"
+                      animate={{ color: c.text }}>
+                      {node.value}
+                    </motion.span>
+                    {(node.highlight === 'comparing' || node.highlight === 'active') && (
+                      <motion.div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/8"
+                        animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.7, repeat: Infinity }} />
+                    )}
+                  </motion.div>
+                  <span className="text-[10px] text-gray-600 font-mono">[{idx}]</span>
+                  {pointer === idx && (
+                    <div className="absolute -bottom-7 flex flex-col items-center z-10">
+                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-cyan-400" />
+                      <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mt-0.5">{pointerName || 'i'}</div>
+                    </div>
                   )}
                 </motion.div>
-                <span className="text-[10px] text-gray-600 font-mono">{idx}</span>
-                {pointer === idx && (
-                  <div className="absolute -bottom-8 flex flex-col items-center z-10">
-                    <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-cyan-400" />
-                    <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mt-0.5">{pointerName || 'ptr'}</div>
-                  </div>
-                )}
-                {pointer2 === idx && (
-                  <div className="absolute -bottom-8 flex flex-col items-center z-10 ml-8">
-                    <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-purple-400" />
-                    <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mt-0.5">{pointer2Name || 'ptr2'}</div>
-                  </div>
-                )}
-              </motion.div>
-            )
-          })}
-        </AnimatePresence>
-      </div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="flex items-end gap-1.5 relative" style={{ minHeight: 200 }}>
+          {rangeStart !== undefined && rangeEnd !== undefined && (
+            <div className="absolute bottom-8 h-0.5 bg-cyan-500/30 rounded" style={{ left: rangeStart * 46, width: (rangeEnd - rangeStart + 1) * 46, bottom: -2 }} />
+          )}
+          <AnimatePresence mode="sync">
+            {nodes.map((node, idx) => {
+              const c = HL[node.highlight || 'none']
+              const val = Math.max(Number(node.value) || 1, 1)
+              const h = Math.max(24, (val / maxVal) * 180)
+              const isPivot = pivotIndex === idx
 
-      {/* Stats */}
-      <div className="flex gap-6 text-xs font-mono">
-        {comparisons !== undefined && (
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-            <span className="text-gray-500">Comparisons:</span>
-            <motion.span key={comparisons} initial={{ scale: 1.4, color: '#f59e0b' }} animate={{ scale: 1, color: '#e8eaf0' }} className="font-bold">{comparisons}</motion.span>
-          </div>
-        )}
-        {swaps !== undefined && (
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
-            <span className="text-gray-500">Swaps:</span>
-            <motion.span key={swaps} initial={{ scale: 1.4, color: '#ef4444' }} animate={{ scale: 1, color: '#e8eaf0' }} className="font-bold">{swaps}</motion.span>
-          </div>
-        )}
-      </div>
+              return (
+                <motion.div key={node.id} layout
+                  initial={{ opacity: 0, scaleY: 0 }}
+                  animate={{ opacity: 1, scaleY: 1, boxShadow: c.glow || 'none' }}
+                  exit={{ opacity: 0, scaleY: 0 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  className="flex flex-col items-center gap-1 origin-bottom relative"
+                >
+                  <motion.span className="text-[11px] font-mono font-bold transition-colors duration-200"
+                    animate={{ color: c.text }} style={{ minWidth: 24, textAlign: 'center' }}>
+                    {node.value}
+                  </motion.span>
+                  <motion.div
+                    className="w-9 rounded-t relative overflow-hidden cursor-default"
+                    style={{ height: h }}
+                    animate={{ backgroundColor: c.bg, borderColor: c.border }}
+                    transition={{ duration: 0.2 }}
+                    initial={false}
+                  >
+                    <div className="absolute inset-0 border rounded-t" style={{ borderColor: c.border }} />
+                    {isPivot && <div className="absolute top-0 left-0 right-0 h-0.5 bg-orange-400" />}
+                    {(node.highlight === 'comparing' || node.highlight === 'swapping' || node.highlight === 'active') && (
+                      <motion.div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/8"
+                        animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.7, repeat: Infinity }} />
+                    )}
+                  </motion.div>
+                  {/* Index label */}
+                  <span className="text-[10px] text-gray-600 font-mono">{idx}</span>
+                  {/* i pointer */}
+                  {pointer === idx && (
+                    <div className="absolute -bottom-8 flex flex-col items-center z-10">
+                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-cyan-400" />
+                      <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mt-0.5">{pointerName || 'i'}</div>
+                    </div>
+                  )}
+                  {/* j pointer */}
+                  {pointer2 === idx && (
+                    <div className="absolute -bottom-8 flex flex-col items-center z-10 ml-10">
+                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-purple-400" />
+                      <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mt-0.5">{pointer2Name || 'j'}</div>
+                    </div>
+                  )}
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+      )}
 
-      <Legend items={[
-        { label: 'Comparing', hl: 'comparing' },
-        { label: 'Swapping', hl: 'swapping' },
-        { label: 'Active', hl: 'active' },
-        { label: 'Sorted', hl: 'sorted' },
-        { label: 'Found', hl: 'found' },
-      ]} />
+      {/* Stats - only for numeric sorting algorithms */}
+      {!renderAsBoxes && (
+        <div className="flex gap-6 text-xs font-mono mt-8">
+          {comparisons !== undefined && (
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+              <span className="text-gray-500">Comparisons:</span>
+              <motion.span key={comparisons} initial={{ scale: 1.4, color: '#f59e0b' }} animate={{ scale: 1, color: '#e8eaf0' }} className="font-bold">{comparisons}</motion.span>
+            </div>
+          )}
+          {swaps !== undefined && (
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+              <span className="text-gray-500">Swaps:</span>
+              <motion.span key={swaps} initial={{ scale: 1.4, color: '#ef4444' }} animate={{ scale: 1, color: '#e8eaf0' }} className="font-bold">{swaps}</motion.span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {renderAsBoxes && !isStringArray ? (
+        <Legend items={[
+          { label: 'Read/Active', hl: 'active' },
+          { label: 'Comparing', hl: 'comparing' },
+          { label: 'Written', hl: 'swapping' },
+          { label: 'Visited', hl: 'visited' },
+          { label: 'Found', hl: 'found' },
+        ]} />
+      ) : isStringArray ? (
+        <Legend items={[
+          { label: 'Current', hl: 'active' },
+          { label: 'Checking', hl: 'comparing' },
+          { label: 'Match', hl: 'found' },
+          { label: 'Skipped', hl: 'skipped' },
+        ]} />
+      ) : (
+        <Legend items={[
+          { label: 'Comparing', hl: 'comparing' },
+          { label: 'Swapping', hl: 'swapping' },
+          { label: 'Active', hl: 'active' },
+          { label: 'Sorted', hl: 'sorted' },
+          { label: 'Found', hl: 'found' },
+        ]} />
+      )}
     </div>
   )
 }
@@ -964,7 +1086,7 @@ export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
     <div className="h-full w-full">
       {dsaState.type === 'array' && dsaState.hashTable !== undefined
         ? <TwoSumView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} comparisons={dsaState.comparisons} arrayName={dsaState.arrayName} hashTableName={dsaState.hashTableName} hashTableLabel={dsaState.hashTableLabel} />
-        : dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
+        : dsaState.type === 'array' && <ArrayView nodes={dsaState.nodes} auxiliaryData={dsaState.auxiliaryData} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} rangeStart={dsaState.rangeStart} rangeEnd={dsaState.rangeEnd} pivotIndex={dsaState.pivotIndex} />}
       {dsaState.type === 'string' && dsaState.hashTable !== undefined
         ? <StringHashMapView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} pointer={dsaState.pointer} pointerName={dsaState.pointerName} pointer2={dsaState.pointer2} pointer2Name={dsaState.pointer2Name} stringName={dsaState.arrayName} hashTableName={dsaState.hashTableName} hashTableLabel={dsaState.hashTableLabel} />
         : dsaState.type === 'string' && dsaState.stackItems !== undefined

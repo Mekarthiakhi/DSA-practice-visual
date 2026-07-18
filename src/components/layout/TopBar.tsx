@@ -48,7 +48,7 @@ export const TopBar: React.FC = () => {
   const [activeCat, setActiveCat]               = useState('Sorting')
   const [isPlaying, setIsPlaying]               = useState(false)
   const [isRunning, setIsRunning]               = useState(false)
-  const playRef = useRef<ReturnType<typeof setInterval>|null>(null)
+  const playRef = useRef<ReturnType<typeof setTimeout>|null>(null)
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
@@ -63,7 +63,10 @@ export const TopBar: React.FC = () => {
   }, [])
 
   const stopPlay = () => {
-    if (playRef.current) { clearTimeout(playRef.current as unknown as ReturnType<typeof setTimeout>); playRef.current = null }
+    if (playRef.current !== null) {
+      clearTimeout(playRef.current)
+      playRef.current = null
+    }
     setIsPlaying(false)
   }
 
@@ -116,26 +119,34 @@ export const TopBar: React.FC = () => {
   const handlePlayPause = () => {
     if (isPlaying) {
       stopPlay(); setExecutionStatus('paused')
-    } else {
-      setIsPlaying(true); setExecutionStatus('running')
+      return
+    }
 
-      const tick = () => {
-        const store = useIDEStore.getState()
-        const { currentStepIndex: idx, executionSteps: steps } = store
-        if (idx >= steps.length - 1) {
-          stopPlay(); setExecutionStatus('completed')
-          store.addOutput('✅ Playback complete!')
-        } else {
-          store.setCurrentStepIndex(idx + 1)
-          // Re-schedule with possibly updated speed
-          const delay = Math.round(1200 / useIDEStore.getState().playbackSpeed)
-          playRef.current = setTimeout(tick, delay) as unknown as ReturnType<typeof setInterval>
-        }
+    setIsPlaying(true); setExecutionStatus('running')
+
+    const tick = () => {
+      // Always read fresh state — avoids stale closure captures
+      const store = useIDEStore.getState()
+      const idx = store.currentStepIndex
+      const totalSteps = store.executionSteps.length
+
+      if (idx >= totalSteps - 1) {
+        // Clear ref BEFORE calling stopPlay so we don't double-clear
+        playRef.current = null
+        setIsPlaying(false)
+        setExecutionStatus('completed')
+        store.addOutput('✅ Playback complete!')
+        return
       }
 
-      const initialDelay = Math.round(1200 / useIDEStore.getState().playbackSpeed)
-      playRef.current = setTimeout(tick, initialDelay) as unknown as ReturnType<typeof setInterval>
+      store.setCurrentStepIndex(idx + 1)
+      // Re-read speed each tick so speed changes take immediate effect
+      const delay = Math.round(1200 / useIDEStore.getState().playbackSpeed)
+      playRef.current = setTimeout(tick, delay)
     }
+
+    const initialDelay = Math.round(1200 / useIDEStore.getState().playbackSpeed)
+    playRef.current = setTimeout(tick, initialDelay)
   }
 
   const handleReset = () => { stopPlay(); resetExecution() }

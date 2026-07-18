@@ -147,21 +147,30 @@ function makeFrame(name: string, line: number, vars: Variable[], isActive = true
 // ─── SORTING ALGORITHMS ─────────────────────────────────────────────────────
 
 export function genBubbleSort(arr: number[]): ExecutionStep[] {
-  // ✅ ADD VALIDATION
   const validation = validateNumberArray(arr)
-  if (!validation.valid) {
-    return [createErrorStep(validation.error)]
-  }
+  if (!validation.valid) return [createErrorStep(validation.error)]
 
   const steps: ExecutionStep[] = []
-  const a = [...arr]
+  // Stable IDs: each element carries its original slot so Framer Motion
+  // can animate the physical swap (not just value teleportation).
+  const a = arr.map((v, i) => ({ id: `bs${i}-${v}`, value: v }))
   const n = a.length
   let comps = 0, swaps = 0
 
-  const snap = (line: number, desc: string, hl: Record<number, DSANode['highlight']>, changed?: string): ExecutionStep => ({
+  const sortedHL = (firstSorted: number): Record<number, DSANode['highlight']> => {
+    const h: Record<number, DSANode['highlight']> = {}
+    for (let k = firstSorted; k < n; k++) h[k] = 'sorted'
+    return h
+  }
+
+  const snap = (
+    line: number, desc: string,
+    hl: Record<number, DSANode['highlight']>,
+    changed?: string, iPtr?: number, jPtr?: number
+  ): ExecutionStep => ({
     line, description: desc,
     variables: [
-      { name: 'arr', value: [...a], type: 'Array', scope: 'bubbleSort', changed: changed === 'arr' },
+      { name: 'arr', value: a.map(el => el.value), type: 'Array', scope: 'bubbleSort', changed: changed === 'arr' },
       { name: 'n', value: n, type: 'number', scope: 'bubbleSort' },
       { name: 'comparisons', value: comps, type: 'number', scope: 'bubbleSort', changed: changed === 'comps' },
       { name: 'swaps', value: swaps, type: 'number', scope: 'bubbleSort', changed: changed === 'swaps' },
@@ -169,287 +178,471 @@ export function genBubbleSort(arr: number[]): ExecutionStep[] {
     callStack: [makeFrame('main', line, []), makeFrame('bubbleSort', line, [], true)],
     heap: [], output: '',
     dsaState: {
-      type: 'array', nodes: a.map((v, i) => ({ id: `n${i}`, value: v, highlight: hl[i] || 'none' })),
-      comparisons: comps, swaps, message: desc
+      type: 'array',
+      nodes: a.map((el, i) => ({ id: el.id, value: el.value, highlight: hl[i] || 'none' })),
+      comparisons: comps, swaps, message: desc,
+      pointer: iPtr, pointerName: 'i',
+      pointer2: jPtr, pointer2Name: 'j',
     }
   })
 
-  steps.push(snap(2, `Starting Bubble Sort on [${arr.join(', ')}]`, {}))
+  steps.push(snap(2, '🚀 Bubble Sort: compare adjacent pairs and "bubble" the largest value to the end each pass', {}))
+
   for (let i = 0; i < n - 1; i++) {
+    const sortedBase = sortedHL(n - i)
+
+    steps.push(snap(3, `Pass ${i + 1}/${n - 1}: scanning arr[0..${n - i - 2}], will bubble max to index ${n - i - 1}`,
+      sortedBase, undefined, i))
+
     for (let j = 0; j < n - i - 1; j++) {
       comps++
-      const h1: Record<number, DSANode['highlight']> = {}
-      for (let k = n - i; k < n; k++) h1[k] = 'sorted'
-      h1[j] = 'comparing'; h1[j + 1] = 'comparing'
-      steps.push(snap(4, `Compare arr[${j}]=${a[j]} vs arr[${j+1}]=${a[j+1]}`, h1, 'comps'))
-      if (a[j] > a[j + 1]) {
+      const hCompare: Record<number, DSANode['highlight']> = {
+        ...sortedBase, [j]: 'comparing', [j + 1]: 'comparing'
+      }
+      steps.push(snap(4, `🔍 Compare arr[${j}]=${a[j].value} vs arr[${j + 1}]=${a[j + 1].value}`,
+        hCompare, 'comps', i, j))
+
+      if (a[j].value > a[j + 1].value) {
         swaps++
-        const h2: Record<number, DSANode['highlight']> = { ...h1, [j]: 'swapping', [j + 1]: 'swapping' }
-        steps.push(snap(5, `Swap ${a[j]} ↔ ${a[j+1]}`, h2, 'swaps'));
-        [a[j], a[j + 1]] = [a[j + 1], a[j]]
-        steps.push(snap(5, `After swap: ${a[j]} ↔ ${a[j+1]}`, h2, 'arr'))
+        const hSwap: Record<number, DSANode['highlight']> = {
+          ...sortedBase, [j]: 'swapping', [j + 1]: 'swapping'
+        }
+        steps.push(snap(6,
+          `🔄 Swap! ${a[j].value} > ${a[j + 1].value} → swap arr[${j}] and arr[${j + 1}]`,
+          hSwap, 'swaps', i, j))
+        ;[a[j], a[j + 1]] = [a[j + 1], a[j]]
+        steps.push(snap(6,
+          `✅ After swap: arr[${j}]=${a[j].value}, arr[${j + 1}]=${a[j + 1].value} — larger value moved right`,
+          { ...sortedBase, [j]: 'active', [j + 1]: 'active' }, 'arr', i, j))
+      } else {
+        steps.push(snap(5,
+          `⏭ No swap: ${a[j].value} ≤ ${a[j + 1].value} → already in order, move pointer right`,
+          { ...sortedBase, [j]: 'visited', [j + 1]: 'none' }, undefined, i, j))
       }
     }
-    const hSorted: Record<number, DSANode['highlight']> = {}
-    for (let k = n - i - 1; k < n; k++) hSorted[k] = 'sorted'
-    steps.push(snap(3, `Pass ${i + 1} done — ${i + 1} element(s) in place`, hSorted))
+
+    const hPassDone = sortedHL(n - i - 1)
+    steps.push(snap(3,
+      `Pass ${i + 1} done → arr[${n - i - 1}]=${a[n - i - 1].value} is in its FINAL sorted position ✅`,
+      hPassDone, undefined, i))
   }
+
   const hAll: Record<number, DSANode['highlight']> = {}
   a.forEach((_, i) => { hAll[i] = 'found' })
-  steps.push(snap(8, `✅ Sorted! [${a.join(', ')}] | ${comps} comparisons, ${swaps} swaps`, hAll, 'arr'))
+  steps.push(snap(10, `✅ Bubble Sort complete! [${a.map(el => el.value).join(', ')}] | ${comps} comparisons, ${swaps} swaps`, hAll, 'arr'))
   return steps
 }
 
 export function genSelectionSort(arr: number[]): ExecutionStep[] {
-  // ✅ ADD VALIDATION
   const validation = validateNumberArray(arr)
-  if (!validation.valid) {
-    return [createErrorStep(validation.error)]
-  }
+  if (!validation.valid) return [createErrorStep(validation.error)]
 
   const steps: ExecutionStep[] = []
-  const a = [...arr]
+  const a = arr.map((v, i) => ({ id: `ss${i}-${v}`, value: v }))
   const n = a.length
   let comps = 0, swaps = 0
 
-  const snap = (line: number, desc: string, hl: Record<number, DSANode['highlight']>): ExecutionStep => ({
+  const snap = (
+    line: number, desc: string,
+    hl: Record<number, DSANode['highlight']>,
+    iPtr?: number, jPtr?: number
+  ): ExecutionStep => ({
     line, description: desc,
     variables: [
-      { name: 'arr', value: [...a], type: 'Array', scope: 'selectionSort' },
+      { name: 'arr', value: a.map(el => el.value), type: 'Array', scope: 'selectionSort' },
       { name: 'comparisons', value: comps, type: 'number', scope: 'selectionSort' },
       { name: 'swaps', value: swaps, type: 'number', scope: 'selectionSort' },
     ],
     callStack: [makeFrame('main', line, []), makeFrame('selectionSort', line, [], true)],
     heap: [], output: '',
-    dsaState: { type: 'array', nodes: a.map((v, i) => ({ id: `n${i}`, value: v, highlight: hl[i] || 'none' })), comparisons: comps, swaps, message: desc }
+    dsaState: {
+      type: 'array',
+      nodes: a.map((el, i) => ({ id: el.id, value: el.value, highlight: hl[i] || 'none' })),
+      comparisons: comps, swaps, message: desc,
+      pointer: iPtr, pointerName: 'i',
+      pointer2: jPtr, pointer2Name: 'j',
+    }
   })
 
-  steps.push(snap(1, `Selection Sort on [${arr.join(', ')}]`, {}))
+  steps.push(snap(1, '🚀 Selection Sort: scan for the minimum each pass and place it at the start of unsorted region', {}))
+
   for (let i = 0; i < n - 1; i++) {
     let minIdx = i
-    const h1: Record<number, DSANode['highlight']> = {}
-    for (let k = 0; k < i; k++) h1[k] = 'sorted'
-    h1[i] = 'active'
-    steps.push(snap(3, `Find minimum in arr[${i}..${n-1}], current min = arr[${i}]=${a[i]}`, h1))
+    const sortedBase: Record<number, DSANode['highlight']> = {}
+    for (let k = 0; k < i; k++) sortedBase[k] = 'sorted'
+
+    steps.push(snap(3,
+      `Pass ${i + 1}: find minimum in arr[${i}..${n - 1}]. Assume arr[${i}]=${a[i].value} is min for now`,
+      { ...sortedBase, [i]: 'active' }, i))
+
     for (let j = i + 1; j < n; j++) {
       comps++
-      const h2 = { ...h1, [minIdx]: 'comparing' as const, [j]: 'comparing' as const }
-      steps.push(snap(5, `Compare arr[${j}]=${a[j]} with current min arr[${minIdx}]=${a[minIdx]}`, h2))
-      if (a[j] < a[minIdx]) {
+      const hCompare: Record<number, DSANode['highlight']> = {
+        ...sortedBase, [minIdx]: 'comparing', [j]: 'comparing'
+      }
+      steps.push(snap(5,
+        `🔍 Compare arr[${j}]=${a[j].value} with current min arr[${minIdx}]=${a[minIdx].value}`,
+        hCompare, i, j))
+
+      if (a[j].value < a[minIdx].value) {
         minIdx = j
-        steps.push(snap(6, `New minimum found: arr[${minIdx}]=${a[minIdx]}`, { ...h2, [minIdx]: 'active' }))
+        steps.push(snap(6,
+          `✅ New minimum! arr[${j}]=${a[j].value} < ${a[minIdx].value} → update minIdx = ${j}`,
+          { ...sortedBase, [minIdx]: 'active' }, i, j))
+      } else {
+        steps.push(snap(6,
+          `⏭ arr[${j}]=${a[j].value} ≥ current min=${a[minIdx].value} → no change, minIdx stays ${minIdx}`,
+          { ...sortedBase, [minIdx]: 'active' }, i, j))
       }
     }
+
     if (minIdx !== i) {
       swaps++
-      const h3 = { ...h1, [i]: 'swapping' as const, [minIdx]: 'swapping' as const }
-      steps.push(snap(9, `Swap arr[${i}]=${a[i]} with min arr[${minIdx}]=${a[minIdx]}`, h3));
-      [a[i], a[minIdx]] = [a[minIdx], a[i]]
+      const hSwap: Record<number, DSANode['highlight']> = {
+        ...sortedBase, [i]: 'swapping', [minIdx]: 'swapping'
+      }
+      steps.push(snap(9,
+        `🔄 Swap arr[${i}]=${a[i].value} ↔ arr[${minIdx}]=${a[minIdx].value} — minimum goes to position ${i}`,
+        hSwap, i))
+      ;[a[i], a[minIdx]] = [a[minIdx], a[i]]
+      steps.push(snap(9,
+        `✅ After swap → arr[${i}]=${a[i].value} is now in its FINAL sorted position`,
+        { ...sortedBase, [i]: 'sorted' }, i))
+    } else {
+      steps.push(snap(9,
+        `ℹ️ arr[${i}]=${a[i].value} is already the minimum — no swap needed, it's in place ✅`,
+        { ...sortedBase, [i]: 'sorted' }, i))
     }
-    const hS = { ...h1, [i]: 'sorted' as const }
-    steps.push(snap(3, `Position ${i} sorted: ${a[i]}`, hS))
   }
+
   const hAll: Record<number, DSANode['highlight']> = {}
   a.forEach((_, i) => { hAll[i] = 'found' })
-  steps.push(snap(12, `✅ Selection Sort complete! [${a.join(', ')}]`, hAll))
+  steps.push(snap(12,
+    `✅ Selection Sort complete! [${a.map(el => el.value).join(', ')}] | ${comps} comparisons, ${swaps} swaps`,
+    hAll))
   return steps
 }
 
 export function genInsertionSort(arr: number[]): ExecutionStep[] {
-  // ✅ VALIDATION: Check input array
   const validation = validateNumberArray(arr)
-  if (!validation.valid) {
-    return [createErrorStep(validation.error)]
-  }
+  if (!validation.valid) return [createErrorStep(validation.error)]
 
   const steps: ExecutionStep[] = []
-  const a = [...arr]
+  const a = arr.map((v, i) => ({ id: `is${i}-${v}`, value: v }))
   const n = a.length
   let comps = 0, shifts = 0
 
-  const snap = (line: number, desc: string, hl: Record<number, DSANode['highlight']>): ExecutionStep => ({
+  const snap = (
+    line: number, desc: string,
+    hl: Record<number, DSANode['highlight']>,
+    iPtr?: number, jPtr?: number
+  ): ExecutionStep => ({
     line, description: desc,
     variables: [
-      { name: 'arr', value: [...a], type: 'Array', scope: 'insertionSort' },
+      { name: 'arr', value: a.map(el => el.value), type: 'Array', scope: 'insertionSort' },
       { name: 'comparisons', value: comps, type: 'number', scope: 'insertionSort' },
       { name: 'shifts', value: shifts, type: 'number', scope: 'insertionSort' },
     ],
     callStack: [makeFrame('main', line, []), makeFrame('insertionSort', line, [], true)],
     heap: [], output: '',
-    dsaState: { type: 'array', nodes: a.map((v, i) => ({ id: `n${i}`, value: v, highlight: hl[i] || 'none' })), comparisons: comps, swaps: shifts, message: desc }
+    dsaState: {
+      type: 'array',
+      nodes: a.map((el, i) => ({ id: el.id, value: el.value, highlight: hl[i] || 'none' })),
+      comparisons: comps, swaps: shifts, message: desc,
+      pointer: iPtr, pointerName: 'i',
+      pointer2: jPtr, pointer2Name: 'j',
+    }
   })
 
-  steps.push(snap(1, `Insertion Sort: [${arr.join(', ')}]`, { 0: 'sorted' }))
+  steps.push(snap(1, '🚀 Insertion Sort: grow the sorted portion left-to-right by inserting each element at the right place', { 0: 'sorted' }))
+
   for (let i = 1; i < n; i++) {
-    const key = a[i]
-    const h1: Record<number, DSANode['highlight']> = {}
-    for (let k = 0; k <= i; k++) h1[k] = k < i ? 'sorted' : 'active'
-    steps.push(snap(3, `Pick key = ${key} (index ${i})`, h1))
+    const keyId = a[i].id
+    const keyVal = a[i].value
+
+    const hlPick: Record<number, DSANode['highlight']> = {}
+    for (let k = 0; k < i; k++) hlPick[k] = 'sorted'
+    hlPick[i] = 'active'
+
+    steps.push(snap(3,
+      `Pick key = arr[${i}] = ${keyVal}. Sorted portion so far: arr[0..${i - 1}]`,
+      hlPick, i))
+
     let j = i - 1
-    while (j >= 0 && a[j] > key) {
-      comps++; shifts++
-      const h2: Record<number, DSANode['highlight']> = { ...h1, [j]: 'comparing', [j + 1]: 'swapping' }
-      steps.push(snap(5, `${a[j]} > ${key}, shift ${a[j]} right`, h2))
-      a[j + 1] = a[j]; j--
+    let didShift = false
+
+    while (j >= 0) {
+      comps++
+      const hlCmp: Record<number, DSANode['highlight']> = {}
+      for (let k = 0; k < i; k++) hlCmp[k] = 'sorted'
+      hlCmp[j] = 'comparing'
+      hlCmp[j + 1] = 'active'
+
+      if (a[j].value > keyVal) {
+        shifts++
+        steps.push(snap(5,
+          `🔍 arr[${j}]=${a[j].value} > key=${keyVal} → shift arr[${j}] right to make room`,
+          { ...hlCmp, [j + 1]: 'swapping' }, i, j))
+        a[j + 1] = a[j]
+        steps.push(snap(5,
+          `↪ Shifted ${a[j + 1].value} from index ${j} → ${j + 1}`,
+          { ...hlCmp, [j + 1]: 'swapping' }, i, j))
+        j--
+        didShift = true
+      } else {
+        steps.push(snap(6,
+          `✅ arr[${j}]=${a[j].value} ≤ key=${keyVal} → found insertion point at index ${j + 1}`,
+          { ...hlCmp, [j]: 'visited', [j + 1]: 'active' }, i, j))
+        break
+      }
     }
-    a[j + 1] = key
-    const h3: Record<number, DSANode['highlight']> = {}
-    for (let k = 0; k <= i; k++) h3[k] = 'sorted'
-    steps.push(snap(7, `Insert ${key} at position ${j + 1}`, { ...h3, [j + 1]: 'found' }))
+
+    a[j + 1] = { id: keyId, value: keyVal }
+    const hlInsert: Record<number, DSANode['highlight']> = {}
+    for (let k = 0; k <= i; k++) hlInsert[k] = 'sorted'
+    hlInsert[j + 1] = 'found'
+
+    steps.push(snap(7,
+      didShift
+        ? `📌 Insert key=${keyVal} at index ${j + 1} — sorted portion now arr[0..${i}]`
+        : `📌 key=${keyVal} already in correct spot at index ${i} — no shifts needed ✅`,
+      hlInsert, i))
   }
+
   const hAll: Record<number, DSANode['highlight']> = {}
   a.forEach((_, i) => { hAll[i] = 'found' })
-  steps.push(snap(10, `✅ Insertion Sort complete! [${a.join(', ')}]`, hAll))
+  steps.push(snap(10,
+    `✅ Insertion Sort complete! [${a.map(el => el.value).join(', ')}] | ${comps} comparisons, ${shifts} shifts`,
+    hAll))
   return steps
 }
 
 export function genMergeSort(arr: number[]): ExecutionStep[] {
-  // ✅ VALIDATION: Check input array
   const validation = validateNumberArray(arr)
-  if (!validation.valid) {
-    return [createErrorStep(validation.error)]
-  }
+  if (!validation.valid) return [createErrorStep(validation.error)]
 
   const steps: ExecutionStep[] = []
-  const a = [...arr]
+  // items carries stable {id, value} pairs through all splits and merges
+  const items = arr.map((v, i) => ({ id: `ms${i}-${v}`, value: v }))
   let comps = 0
 
-  const snap = (desc: string, currentArr: number[], hl: Record<number, DSANode['highlight']>, groups?: number[][]): ExecutionStep => ({
+  const snap = (
+    desc: string,
+    currentItems: typeof items,
+    hl: Record<number, DSANode['highlight']>
+  ): ExecutionStep => ({
     line: 1, description: desc,
     variables: [
-      { name: 'arr', value: [...currentArr], type: 'Array', scope: 'mergeSort' },
+      { name: 'arr', value: currentItems.map(el => el.value), type: 'Array', scope: 'mergeSort' },
       { name: 'comparisons', value: comps, type: 'number', scope: 'mergeSort' },
     ],
     callStack: [makeFrame('main', 1, []), makeFrame('mergeSort', 1, [], true)],
     heap: [], output: '',
     dsaState: {
       type: 'array',
-      nodes: currentArr.map((v, i) => ({ id: `n${i}`, value: v, highlight: hl[i] || 'none' })),
-      comparisons: comps, message: desc, mergeGroups: groups
+      nodes: currentItems.map((el, i) => ({ id: el.id, value: el.value, highlight: hl[i] || 'none' })),
+      comparisons: comps, message: desc,
     }
   })
 
-  function mergeSortHelper(arr2: number[], left: number, right: number): void {
-    if (left >= right) return
+  steps.push(snap('🚀 Merge Sort on [' + arr.join(', ') + '] — DIVIDE until single elements, then MERGE back in sorted order', items, {}))
+
+  function mergeHelper(left: number, right: number): void {
+    if (left >= right) {
+      steps.push(snap(
+        `📌 Single element arr[${left}]=${items[left].value} — a single element is always sorted by definition`,
+        items, { [left]: 'sorted' }))
+      return
+    }
     const mid = Math.floor((left + right) / 2)
-    const h: Record<number, DSANode['highlight']> = {}
-    for (let i = left; i <= right; i++) h[i] = 'active'
-    steps.push(snap(`Divide [${left}..${right}] → [${left}..${mid}] | [${mid+1}..${right}]`, [...arr2], h))
-    mergeSortHelper(arr2, left, mid)
-    mergeSortHelper(arr2, mid + 1, right)
-    // merge
-    const L = arr2.slice(left, mid + 1)
-    const R = arr2.slice(mid + 1, right + 1)
+    const hDiv: Record<number, DSANode['highlight']> = {}
+    for (let i = left; i <= mid; i++) hDiv[i] = 'comparing'
+    for (let i = mid + 1; i <= right; i++) hDiv[i] = 'active'
+
+    steps.push(snap(
+      `✂️ DIVIDE arr[${left}..${right}] → LEFT: arr[${left}..${mid}] | RIGHT: arr[${mid + 1}..${right}]`,
+      items, hDiv))
+
+    mergeHelper(left, mid)
+    mergeHelper(mid + 1, right)
+
+    // Merge the two sorted halves
+    const L = items.slice(left, mid + 1)
+    const R = items.slice(mid + 1, right + 1)
     let i = 0, j = 0, k = left
+
+    const hMerge: Record<number, DSANode['highlight']> = {}
+    for (let x = left; x <= right; x++) hMerge[x] = 'active'
+    steps.push(snap(
+      `🔀 MERGE: L=[${L.map(el => el.value).join(',')}] and R=[${R.map(el => el.value).join(',')}] → compare smallest of each`,
+      items, hMerge))
+
     while (i < L.length && j < R.length) {
       comps++
-      const h2: Record<number, DSANode['highlight']> = {}
-      h2[left + i] = 'comparing'; h2[mid + 1 + j] = 'comparing'
-      steps.push(snap(`Merge: compare ${L[i]} vs ${R[j]}`, [...arr2], h2))
-      if (L[i] <= R[j]) { arr2[k++] = L[i++] } else { arr2[k++] = R[j++] }
-      const h3: Record<number, DSANode['highlight']> = {}
-      for (let x = left; x < k; x++) h3[x] = 'visited'
-      steps.push(snap(`Placed ${arr2[k-1]} at index ${k-1}`, [...arr2], h3))
+      const hCmp: Record<number, DSANode['highlight']> = {}
+      for (let x = left; x < k; x++) hCmp[x] = 'visited'
+      for (let x = k; x <= right; x++) hCmp[x] = 'active'
+
+      if (L[i].value <= R[j].value) {
+        steps.push(snap(
+          `🔍 L[${i}]=${L[i].value} ≤ R[${j}]=${R[j].value} → take from LEFT, place at index ${k}`,
+          items, { ...hCmp, [left + i]: 'comparing', [mid + 1 + j]: 'comparing' }))
+        items[k] = L[i++]
+        steps.push(snap(
+          `↙ Placed ${items[k].value} at index ${k}`,
+          items, { ...hCmp, [k]: 'sorted' }))
+      } else {
+        steps.push(snap(
+          `🔍 R[${j}]=${R[j].value} < L[${i}]=${L[i].value} → take from RIGHT, place at index ${k}`,
+          items, { ...hCmp, [left + i]: 'comparing', [mid + 1 + j]: 'comparing' }))
+        items[k] = R[j++]
+        steps.push(snap(
+          `↘ Placed ${items[k].value} at index ${k}`,
+          items, { ...hCmp, [k]: 'sorted' }))
+      }
+      k++
     }
-    while (i < L.length) { arr2[k++] = L[i++] }
-    while (j < R.length) { arr2[k++] = R[j++] }
-    const hMerged: Record<number, DSANode['highlight']> = {}
-    for (let x = left; x <= right; x++) hMerged[x] = 'sorted'
-    steps.push(snap(`Merged [${left}..${right}] = [${arr2.slice(left, right+1).join(', ')}]`, [...arr2], hMerged))
+    while (i < L.length) { items[k++] = L[i++] }
+    while (j < R.length) { items[k++] = R[j++] }
+
+    const hDone: Record<number, DSANode['highlight']> = {}
+    for (let x = left; x <= right; x++) hDone[x] = 'sorted'
+    steps.push(snap(
+      `✅ Merged arr[${left}..${right}] = [${items.slice(left, right + 1).map(el => el.value).join(', ')}] — this range is sorted`,
+      items, hDone))
   }
 
-  steps.push(snap(`Merge Sort on [${arr.join(', ')}]`, [...a], {}))
-  mergeSortHelper(a, 0, a.length - 1)
+  mergeHelper(0, items.length - 1)
+
   const hAll: Record<number, DSANode['highlight']> = {}
-  a.forEach((_, i) => { hAll[i] = 'found' })
-  steps.push(snap(`✅ Merge Sort complete! [${a.join(', ')}]`, a, hAll))
+  items.forEach((_, i) => { hAll[i] = 'found' })
+  steps.push(snap(`✅ Merge Sort complete! [${items.map(el => el.value).join(', ')}] | ${comps} comparisons`, items, hAll))
   return steps
 }
 
 export function genQuickSort(arr: number[]): ExecutionStep[] {
-  // ✅ VALIDATION: Check input array
   const validation = validateNumberArray(arr)
-  if (!validation.valid) {
-    return [createErrorStep(validation.error)]
-  }
+  if (!validation.valid) return [createErrorStep(validation.error)]
 
   const steps: ExecutionStep[] = []
-  const a = [...arr]
-  let comps = 0
+  const a = arr.map((v, i) => ({ id: `qs${i}-${v}`, value: v }))
+  const n = a.length
+  let comps = 0, swaps = 0
 
-  const snap = (desc: string, currentArr: number[], hl: Record<number, DSANode['highlight']>, pivot?: number): ExecutionStep => ({
+  const snap = (
+    desc: string,
+    hl: Record<number, DSANode['highlight']>,
+    pivot?: number
+  ): ExecutionStep => ({
     line: 1, description: desc,
     variables: [
-      { name: 'arr', value: [...currentArr], type: 'Array', scope: 'quickSort' },
-      { name: 'pivot', value: pivot !== undefined ? currentArr[pivot] : '—', type: 'number', scope: 'quickSort' },
+      { name: 'arr', value: a.map(el => el.value), type: 'Array', scope: 'quickSort' },
+      { name: 'pivot', value: pivot !== undefined ? a[pivot].value : '—', type: 'number', scope: 'quickSort' },
       { name: 'comparisons', value: comps, type: 'number', scope: 'quickSort' },
+      { name: 'swaps', value: swaps, type: 'number', scope: 'quickSort' },
     ],
     callStack: [makeFrame('main', 1, []), makeFrame('quickSort', 1, [], true)],
     heap: [], output: '',
     dsaState: {
       type: 'array',
-      nodes: currentArr.map((v, i) => ({ id: `n${i}`, value: v, highlight: hl[i] || 'none' })),
-      comparisons: comps, pivotIndex: pivot, message: desc
+      nodes: a.map((el, i) => ({ id: el.id, value: el.value, highlight: hl[i] || 'none' })),
+      comparisons: comps, swaps, pivotIndex: pivot, message: desc,
     }
   })
 
-  function partition(arr2: number[], low: number, high: number): number {
-    const pivot = arr2[high]
+  function partition(low: number, high: number): number {
+    const pivotVal = a[high].value
     const ph: Record<number, DSANode['highlight']> = { [high]: 'pivot' as DSANode['highlight'] }
-    steps.push(snap(`Pivot = ${pivot} at index ${high}`, [...arr2], ph, high))
+
+    steps.push(snap(
+      `🎯 Pivot = arr[${high}]=${pivotVal}. Elements ≤ ${pivotVal} go LEFT, elements > ${pivotVal} go RIGHT`,
+      ph, high))
+
     let i = low - 1
     for (let j = low; j < high; j++) {
       comps++
-      const h1: Record<number, DSANode['highlight']> = { ...ph, [j]: 'comparing' }
-      if (i >= low) h1[i] = 'active'
-      steps.push(snap(`Compare arr[${j}]=${arr2[j]} with pivot ${pivot}`, [...arr2], h1, high))
-      if (arr2[j] <= pivot) {
+      const hCmp: Record<number, DSANode['highlight']> = { ...ph, [j]: 'comparing' }
+      if (i >= low) hCmp[i] = 'active'
+      steps.push(snap(
+        `🔍 Compare arr[${j}]=${a[j].value} with pivot ${pivotVal}`,
+        hCmp, high))
+
+      if (a[j].value <= pivotVal) {
         i++
         if (i !== j) {
-          const h2 = { ...ph, [i]: 'swapping' as const, [j]: 'swapping' as const };
-          [arr2[i], arr2[j]] = [arr2[j], arr2[i]]
-          steps.push(snap(`Swap arr[${i}]=${arr2[i]} with arr[${j}]=${arr2[j]}`, [...arr2], h2, high))
+          swaps++
+          const hSwap: Record<number, DSANode['highlight']> = {
+            ...ph, [i]: 'swapping', [j]: 'swapping'
+          }
+          steps.push(snap(
+            `🔄 arr[${j}]=${a[j].value} ≤ pivot → swap arr[${i}] and arr[${j}] (move into left partition)`,
+            hSwap, high))
+          ;[a[i], a[j]] = [a[j], a[i]]
+          steps.push(snap(
+            `✅ Swapped → arr[${i}]=${a[i].value} now in left partition`,
+            { ...ph, [i]: 'visited', [j]: 'none' }, high))
+        } else {
+          steps.push(snap(
+            `↩ arr[${j}]=${a[j].value} ≤ pivot and already at boundary → no swap needed (i=j=${i})`,
+            { ...ph, [j]: 'visited' }, high))
         }
+      } else {
+        steps.push(snap(
+          `⏭ arr[${j}]=${a[j].value} > pivot ${pivotVal} → stays in right partition, no move`,
+          { ...ph, [j]: 'none' }, high))
       }
     }
-    const h3: Record<number, DSANode['highlight']> = { [i + 1]: 'found' as const };
-    [arr2[i + 1], arr2[high]] = [arr2[high], arr2[i + 1]]
-    steps.push(snap(`Place pivot ${pivot} at index ${i + 1}`, [...arr2], h3))
+
+    swaps++
+    const hFinal: Record<number, DSANode['highlight']> = { [i + 1]: 'found' }
+    steps.push(snap(
+      `📌 Place pivot ${pivotVal} at index ${i + 1} — this is its FINAL correct position!`,
+      { [high]: 'swapping', [i + 1]: 'swapping' }))
+    ;[a[i + 1], a[high]] = [a[high], a[i + 1]]
+    steps.push(snap(
+      `✅ Pivot ${pivotVal} placed at index ${i + 1} — everything left is ≤ ${pivotVal}, everything right is >`,
+      hFinal))
     return i + 1
   }
 
-  function quickSortHelper(arr2: number[], low: number, high: number): void {
-    if (low < high) {
-      const h: Record<number, DSANode['highlight']> = {}
-      for (let i = low; i <= high; i++) h[i] = 'active'
-      steps.push(snap(`QuickSort range [${low}..${high}]`, [...arr2], h))
-      const pi = partition(arr2, low, high)
-      quickSortHelper(arr2, low, pi - 1)
-      quickSortHelper(arr2, pi + 1, high)
+  function quickHelper(low: number, high: number): void {
+    if (low >= high) {
+      if (low === high)
+        steps.push(snap(`📌 arr[${low}]=${a[low].value} is alone in its partition → already sorted`, { [low]: 'sorted' }))
+      return
     }
+    const hRange: Record<number, DSANode['highlight']> = {}
+    for (let i = low; i <= high; i++) hRange[i] = 'active'
+    steps.push(snap(
+      `🔀 QuickSort range arr[${low}..${high}] = [${a.slice(low, high + 1).map(el => el.value).join(', ')}]`,
+      hRange))
+
+    const pi = partition(low, high)
+    quickHelper(low, pi - 1)
+    quickHelper(pi + 1, high)
   }
 
-  steps.push(snap(`Quick Sort on [${arr.join(', ')}]`, [...a], {}))
-  quickSortHelper(a, 0, a.length - 1)
+  steps.push(snap('🚀 Quick Sort — pick a pivot, partition around it, then recursively sort each side', {}))
+  quickHelper(0, n - 1)
+
   const hAll: Record<number, DSANode['highlight']> = {}
   a.forEach((_, i) => { hAll[i] = 'found' })
-  steps.push(snap(`✅ Quick Sort complete! [${a.join(', ')}]`, a, hAll))
+  steps.push(snap(`✅ Quick Sort complete! [${a.map(el => el.value).join(', ')}] | ${comps} comparisons, ${swaps} swaps`, hAll))
   return steps
 }
 
 // ─── SEARCHING ──────────────────────────────────────────────────────────────
 
 export function genBinarySearch(arr: number[], target: number): ExecutionStep[] {
-  // ✅ VALIDATION: Check input array and target
   const validation = validateBinarySearchInput(arr, target)
-  if (!validation.valid) {
-    return [createErrorStep(validation.error)]
-  }
+  if (!validation.valid) return [createErrorStep(validation.error)]
 
   const steps: ExecutionStep[] = []
   let left = 0, right = arr.length - 1, comps = 0
 
-  const snap = (desc: string, l: number, r: number, mid: number | null, found: boolean): ExecutionStep => ({
+  const snap = (
+    desc: string, l: number, r: number, mid: number | null, found: boolean
+  ): ExecutionStep => ({
     line: 1, description: desc,
     variables: [
       { name: 'left', value: l, type: 'number', scope: 'binarySearch', changed: true },
@@ -463,38 +656,55 @@ export function genBinarySearch(arr: number[], target: number): ExecutionStep[] 
     dsaState: {
       type: 'array',
       nodes: arr.map((v, i) => ({
-        id: `n${i}`, value: v,
-        highlight: i < l || i > r ? 'visited' : mid !== null && i === mid ? (found ? 'found' : 'comparing') : i >= l && i <= r ? 'active' : 'none'
+        id: `bn${i}`, value: v,
+        highlight: i < l || i > r
+          ? 'visited'
+          : mid !== null && i === mid
+            ? (found ? 'found' : 'comparing')
+            : i >= l && i <= r ? 'active' : 'none'
       })),
-      comparisons: comps, rangeStart: l, rangeEnd: r, pointer: mid ?? undefined, message: desc
+      comparisons: comps,
+      rangeStart: l, rangeEnd: r,
+      pointer: mid ?? undefined, pointerName: 'mid',
+      pointer2: l, pointer2Name: 'L',
+      message: desc,
     }
   })
 
-  steps.push(snap(`Binary Search for target=${target}`, left, right, null, false))
+  steps.push(snap(`🚀 Binary Search for target=${target} in sorted array [${arr.join(', ')}]`, left, right, null, false))
+  steps.push(snap('💡 KEY INSIGHT: Works ONLY on sorted arrays! Each step eliminates HALF the remaining elements → O(log n)', left, right, null, false))
+
   while (left <= right) {
-    const mid = Math.floor((left + right) / 2); comps++
-    steps.push(snap(`mid=(${left}+${right})/2=${mid}, arr[mid]=${arr[mid]}`, left, right, mid, false))
+    const mid = Math.floor((left + right) / 2)
+    comps++
+    steps.push(snap(
+      `🔍 Search range [${left}..${right}] → mid=((${left}+${right})÷2)=${mid}, arr[mid]=${arr[mid]}`,
+      left, right, mid, false))
+
     if (arr[mid] === target) {
-      steps.push(snap(`✅ Found ${target} at index ${mid}!`, left, right, mid, true))
+      steps.push(snap(`🎉 arr[${mid}]=${arr[mid]} === target=${target} → FOUND at index ${mid}! ✅`,
+        left, right, mid, true))
       return steps
     } else if (arr[mid] < target) {
-      steps.push(snap(`${arr[mid]} < ${target}: search right half`, mid + 1, right, mid, false))
+      steps.push(snap(
+        `➡ arr[mid]=${arr[mid]} < target=${target} → target must be in RIGHT half → set left = ${mid + 1} (eliminate left half)`,
+        mid + 1, right, mid, false))
       left = mid + 1
     } else {
-      steps.push(snap(`${arr[mid]} > ${target}: search left half`, left, mid - 1, mid, false))
+      steps.push(snap(
+        `⬅ arr[mid]=${arr[mid]} > target=${target} → target must be in LEFT half → set right = ${mid - 1} (eliminate right half)`,
+        left, mid - 1, mid, false))
       right = mid - 1
     }
   }
-  steps.push(snap(`❌ ${target} not found in array`, left, right, null, false))
+  steps.push(snap(`❌ left(${left}) > right(${right}) — search space empty. target ${target} is NOT in this array.`,
+    left, right, null, false))
   return steps
 }
 
 export function genLinearSearch(arr: number[], target: number): ExecutionStep[] {
-  // ✅ VALIDATION: Check input array and target
   const validation = validateBinarySearchInput(arr, target)
-  if (!validation.valid) {
-    return [createErrorStep(validation.error)]
-  }
+  if (!validation.valid) return [createErrorStep(validation.error)]
 
   const steps: ExecutionStep[] = []
   let comps = 0
@@ -512,23 +722,29 @@ export function genLinearSearch(arr: number[], target: number): ExecutionStep[] 
     dsaState: {
       type: 'array',
       nodes: arr.map((v, i) => ({
-        id: `n${i}`, value: v,
+        id: `ln${i}`, value: v,
         highlight: i < idx ? 'visited' : i === idx ? (found ? 'found' : 'comparing') : 'none'
       })),
-      comparisons: comps, pointer: idx, message: desc
+      comparisons: comps, pointer: idx, pointerName: 'i', message: desc,
     }
   })
 
-  steps.push(snap(`Linear Search for ${target} in [${arr.join(', ')}]`, -1, false))
+  steps.push(snap(`🚀 Linear Search for target=${target} — scan left to right, checking every element (O(n))`, -1, false))
+
   for (let i = 0; i < arr.length; i++) {
     comps++
-    steps.push(snap(`Check arr[${i}]=${arr[i]} == ${target}?`, i, arr[i] === target))
-    if (arr[i] === target) {
-      steps.push(snap(`✅ Found ${target} at index ${i}!`, i, true))
+    const isMatch = arr[i] === target
+    steps.push(snap(
+      isMatch
+        ? `🎉 arr[${i}]=${arr[i]} === target=${target} → FOUND!`
+        : `🔍 arr[${i}]=${arr[i]} ≠ target=${target} → not a match, move to next`,
+      i, isMatch))
+    if (isMatch) {
+      steps.push(snap(`✅ Found target=${target} at index ${i} after ${comps} comparison${comps === 1 ? '' : 's'}!`, i, true))
       return steps
     }
   }
-  steps.push(snap(`❌ ${target} not found after ${comps} comparisons`, arr.length, false))
+  steps.push(snap(`❌ Checked all ${arr.length} elements — target ${target} is NOT in the array (took ${comps} comparisons)`, arr.length, false))
   return steps
 }
 
@@ -1779,42 +1995,40 @@ function extractHeapOps(code: string): Array<{ op: 'insert' | 'extract'; val?: n
 }
 
 export function generateExecutionSteps(code: string): ExecutionStep[] {
-  // 1. ALWAYS try dynamic interpreter first — run the user's actual code
-  try {
-    const result = interpretCode(code)
-    if (result.steps && result.steps.length > 1 && !result.error) {
-      // Only prefer dynamic steps if they have meaningful dsaState visualization
-      const hasDSA = result.steps.some(s => s.dsaState && s.dsaState.nodes && s.dsaState.nodes.length > 0)
-      if (hasDSA) {
-        return result.steps
-      }
-    }
-  } catch (err) {
-    console.warn('Dynamic interpreter failed, falling back to static simulator:', err)
-  }
+  // ─────────────────────────────────────────────────────────────────────────
+  // PRIORITY ORDER:
+  //  1. Detect algorithm → run the hand-crafted static visualizer (correct,
+  //     beginner-friendly, stable IDs, swap animation)
+  //  2. For truly GENERIC / unknown code → fall back to dynamic interpreter
+  //     which traces actual JS execution line-by-line
+  //
+  // WHY: the interpreter runs real JS and can tell WHEN variables change, but
+  // it does NOT know about the algorithm's logic so it produces incorrect DSA
+  // highlights (e.g. marks 3 bars as "swapping" instead of 2).
+  // ─────────────────────────────────────────────────────────────────────────
 
   const algo = detectAlgorithm(code)
   const arr = extractArray(code)
 
-  // 2. Otherwise run static visualizers
+  // 1. Static visualizers for all known algorithms (highest quality output)
   if (algo !== 'generic') {
     switch (algo) {
-      case 'bubbleSort': return genBubbleSort(arr)
+      case 'bubbleSort':    return genBubbleSort(arr)
       case 'selectionSort': return genSelectionSort(arr)
       case 'insertionSort': return genInsertionSort(arr)
-      case 'mergeSort': return genMergeSort(arr)
-      case 'quickSort': return genQuickSort(arr)
-      case 'heapSort': return genHeapSort(arr)
+      case 'mergeSort':     return genMergeSort(arr)
+      case 'quickSort':     return genQuickSort(arr)
+      case 'heapSort':      return genHeapSort(arr)
       case 'binarySearch': {
         const bsArr = arr.length ? [...arr].sort((a, b) => a - b) : [2,5,8,12,16,23,38,56,72,91]
         return genBinarySearch(bsArr, extractTarget(code))
       }
-      case 'linearSearch': return genLinearSearch(arr, extractTarget(code))
-      case 'fibonacci': return genFibonacci(extractNumber(code))
-      case 'factorial': return genFactorial(extractNumber(code))
-      case 'linkedList': return genLinkedList(arr.length ? arr : [10,20,30,40,50])
+      case 'linearSearch':   return genLinearSearch(arr, extractTarget(code))
+      case 'fibonacci':      return genFibonacci(extractNumber(code))
+      case 'factorial':      return genFactorial(extractNumber(code))
+      case 'linkedList':     return genLinkedList(arr.length ? arr : [10,20,30,40,50])
       case 'doublyLinkedList': return genLinkedList(arr.length ? arr : [5,15,25,35,45])
-      case 'bst': return genBST(arr.length ? arr : [50,30,70,20,40,60,80])
+      case 'bst':            return genBST(arr.length ? arr : [50,30,70,20,40,60,80])
       case 'bfs': {
         const g = extractGraph(code)
         return genBFS(g.nodes, g.adj, g.start)

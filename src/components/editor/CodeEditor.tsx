@@ -63,7 +63,7 @@ export const CodeEditor: React.FC = () => {
       }
     ])
 
-    editorRef.current.revealLineInCenter(step.line)
+    editorRef.current.revealLineInCenterIfOutsideViewport(step.line, 1)
   }, [currentStepIndex, executionSteps])
 
   const handleCopy = () => navigator.clipboard?.writeText(code)

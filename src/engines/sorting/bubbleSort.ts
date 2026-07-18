@@ -1,6 +1,7 @@
 /**
  * Bubble Sort Implementation
- * PHASE 2: Split from monolithic executionEngine.ts
+ * FIXED: Swap visualization now correctly updates the array before snapping,
+ *        sorted-region highlights are accurate, and pointer labels are shown.
  */
 
 import { ExecutionStep, DSANode } from '../../store/ideStore'
@@ -17,17 +18,27 @@ function makeFrame(name: string, line: number) {
 
 export function genBubbleSort(arr: number[]): ExecutionStep[] {
   const steps: ExecutionStep[] = []
-  // Track original IDs to allow Framer Motion to animate physical swaps
+
+  // Stable IDs so Framer Motion can animate physical movement between positions
   const a = arr.map((v, i) => ({ id: `n${i}-${v}`, value: v }))
   const n = a.length
   let comps = 0,
     swaps = 0
 
+  // Helper: build sorted highlight map for indices [firstSorted .. n-1]
+  const sortedHL = (firstSorted: number): Record<number, DSANode['highlight']> => {
+    const h: Record<number, DSANode['highlight']> = {}
+    for (let k = firstSorted; k < n; k++) h[k] = 'sorted'
+    return h
+  }
+
   const snap = (
     line: number,
     desc: string,
     hl: Record<number, DSANode['highlight']>,
-    changed?: string
+    changed?: string,
+    iPtr?: number,
+    jPtr?: number
   ): ExecutionStep => ({
     line,
     description: desc,
@@ -46,39 +57,119 @@ export function genBubbleSort(arr: number[]): ExecutionStep[] {
       comparisons: comps,
       swaps,
       message: desc,
+      // Pass i and j as pointer labels so the visualizer can render them
+      pointer: iPtr,
+      pointerName: 'i',
+      pointer2: jPtr,
+      pointer2Name: 'j',
     },
   })
 
+  // ── Initial state ──────────────────────────────────────────────────────────
   steps.push(snap(2, `Starting Bubble Sort on [${arr.join(', ')}]`, {}))
 
   for (let i = 0; i < n - 1; i++) {
+    // Sorted region for this pass: indices already in final position
+    const sortedBase = sortedHL(n - i)   // [n-i .. n-1] are sorted from previous passes
+
     for (let j = 0; j < n - i - 1; j++) {
       comps++
-      const h1: Record<number, DSANode['highlight']> = {}
-      for (let k = n - i; k < n; k++) h1[k] = 'sorted'
-      h1[j] = 'comparing'
-      h1[j + 1] = 'comparing'
-      steps.push(snap(4, `Compare arr[${j}]=${a[j].value} vs arr[${j + 1}]=${a[j + 1].value}`, h1, 'comps'))
+
+      // ── Compare step ──────────────────────────────────────────────────────
+      const hCompare: Record<number, DSANode['highlight']> = {
+        ...sortedBase,
+        [j]: 'comparing',
+        [j + 1]: 'comparing',
+      }
+      steps.push(
+        snap(
+          5,
+          `Compare arr[${j}]=${a[j].value} vs arr[${j + 1}]=${a[j + 1].value}`,
+          hCompare,
+          'comps',
+          i,
+          j
+        )
+      )
 
       if (a[j].value > a[j + 1].value) {
+        // ── Pre-swap highlight (bars turn red BEFORE moving) ─────────────────
         swaps++
-        const h2: Record<number, DSANode['highlight']> = { ...h1, [j]: 'swapping', [j + 1]: 'swapping' }
-        steps.push(snap(5, `Swap ${a[j].value} ↔ ${a[j + 1].value}`, h2, 'swaps'))
+        const hSwapping: Record<number, DSANode['highlight']> = {
+          ...sortedBase,
+          [j]: 'swapping',
+          [j + 1]: 'swapping',
+        }
+        steps.push(
+          snap(
+            6,
+            `Need to swap: ${a[j].value} > ${a[j + 1].value}`,
+            hSwapping,
+            'swaps',
+            i,
+            j
+          )
+        )
+
+        // ── Perform the physical swap ─────────────────────────────────────────
         ;[a[j], a[j + 1]] = [a[j + 1], a[j]]
-        steps.push(snap(5, `After swap: ${a[j].value} ↔ ${a[j + 1].value}`, h2, 'arr'))
+
+        // ── Post-swap snapshot — bars now show updated positions ──────────────
+        steps.push(
+          snap(
+            6,
+            `Swapped → arr[${j}]=${a[j].value}, arr[${j + 1}]=${a[j + 1].value}`,
+            hSwapping,
+            'arr',
+            i,
+            j
+          )
+        )
+      } else {
+        // ── No-swap step (optional, helps show "no swap needed") ─────────────
+        const hNoSwap: Record<number, DSANode['highlight']> = {
+          ...sortedBase,
+          [j]: 'active',
+          [j + 1]: 'active',
+        }
+        steps.push(
+          snap(
+            5,
+            `No swap: ${a[j].value} ≤ ${a[j + 1].value}`,
+            hNoSwap,
+            undefined,
+            i,
+            j
+          )
+        )
       }
     }
 
-    const hSorted: Record<number, DSANode['highlight']> = {}
-    for (let k = n - i - 1; k < n; k++) hSorted[k] = 'sorted'
-    steps.push(snap(3, `Pass ${i + 1} done — ${i + 1} element(s) in place`, hSorted))
+    // ── End of pass: mark newly sorted element ────────────────────────────────
+    // After pass i, index (n-i-1) is now in its final position
+    const hPassDone = sortedHL(n - i - 1)
+    steps.push(
+      snap(
+        3,
+        `Pass ${i + 1} done — element ${a[n - i - 1].value} is in its final position`,
+        hPassDone,
+        undefined,
+        i
+      )
+    )
   }
 
+  // ── Fully sorted ──────────────────────────────────────────────────────────
   const hAll: Record<number, DSANode['highlight']> = {}
-  a.forEach((_, i) => {
-    hAll[i] = 'found'
-  })
-  steps.push(snap(8, `✅ Sorted! [${a.map(item => item.value).join(', ')}] | ${comps} comparisons, ${swaps} swaps`, hAll, 'arr'))
+  a.forEach((_, idx) => { hAll[idx] = 'found' })
+  steps.push(
+    snap(
+      10,
+      `✅ Sorted! [${a.map(item => item.value).join(', ')}] | ${comps} comparisons, ${swaps} swaps`,
+      hAll,
+      'arr'
+    )
+  )
 
   return steps
 }

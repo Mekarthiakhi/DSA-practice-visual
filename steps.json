@@ -1,0 +1,3861 @@
+[
+  {
+    "line": 13,
+    "description": "const result = bubbleSort([5, 2, 8, 1, 9]);",
+    "variables": [
+      {
+        "name": "n",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "i",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "j",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "arr",
+        "value": [
+          5,
+          2,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": true
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 13,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 13,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "message": "arr: [5, 2, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 0,
+      "comparisons": 0
+    }
+  },
+  {
+    "line": 2,
+    "description": "function bubbleSort(arr) {",
+    "variables": [
+      {
+        "name": "n",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          5,
+          2,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 2,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 2,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "message": "arr: [5, 2, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 0,
+      "comparisons": 0
+    }
+  },
+  {
+    "line": 3,
+    "description": "n = 5",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "j",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          5,
+          2,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 3,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 3,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "message": "arr: [5, 2, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 0,
+      "comparisons": 1
+    }
+  },
+  {
+    "line": 4,
+    "description": "i = 0; i < n - 1; i++) {  →  0; 0 < 5 - 1; 0++ = 0",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          5,
+          2,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 4,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 4,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [5, 2, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 0,
+      "comparisons": 2
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 0 < 5 - 0 - 1; 0++ = 0",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          5,
+          2,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [5, 2, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 0,
+      "comparisons": 2
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  5 > 2 (true)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          5,
+          2,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 5,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [5, 2, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 0,
+      "comparisons": 2
+    }
+  },
+  {
+    "line": 7,
+    "description": "[arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": true
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 7,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 7,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 1,
+      "comparisons": 2
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 1 < 5 - 0 - 1; 1++ = 1",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 1,
+      "comparisons": 2
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  8 > 1 (true)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 2,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 1,
+      "comparisons": 3
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 2 < 5 - 0 - 1; 2++ = 2",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "active"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 2,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 1,
+      "comparisons": 3
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  8 > 1 (true)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          8,
+          1,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 8,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n3",
+          "value": 1,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 2,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 8, 1, 9]",
+      "arrayName": "arr",
+      "swaps": 1,
+      "comparisons": 3
+    }
+  },
+  {
+    "line": 7,
+    "description": "[arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 3,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": true
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 7,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 7,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "swapping"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 3,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 3
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 3 < 5 - 0 - 1; 3++ = 3",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 3,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "active"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 3,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 3
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  9 > arr[4 + 1]",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 4,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "comparing"
+        }
+      ],
+      "pointer": 0,
+      "pointerName": "i",
+      "pointer2": 4,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 4
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 4 < 5 - 1 - 1; 4++ = 4",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "j",
+        "value": 4,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "active"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 4,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 5
+    }
+  },
+  {
+    "line": 4,
+    "description": "i = 0; i < n - 1; i++) {  →  0; 1 < 5 - 1; 1++ = 1",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 4,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 4,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 6
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 0 < 5 - 1 - 1; 0++ = 0",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 6
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  5 > 1 (true)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 7
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 1 < 5 - 1 - 1; 1++ = 1",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 7
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  5 > 1 (true)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          5,
+          1,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 5,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n2",
+          "value": 1,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [2, 5, 1, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 2,
+      "comparisons": 7
+    }
+  },
+  {
+    "line": 7,
+    "description": "[arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          1,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": true
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 7,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 7,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 1,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 2,
+      "pointer2Name": "j",
+      "message": "arr: [2, 1, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 3,
+      "comparisons": 7
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 2 < 5 - 1 - 1; 2++ = 2",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          1,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 1,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 2,
+      "pointer2Name": "j",
+      "message": "arr: [2, 1, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 3,
+      "comparisons": 7
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  8 > 9 (false)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 3,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          1,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 1,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "comparing"
+        }
+      ],
+      "pointer": 1,
+      "pointerName": "i",
+      "pointer2": 3,
+      "pointer2Name": "j",
+      "message": "arr: [2, 1, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 3,
+      "comparisons": 8
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 3 < 5 - 2 - 1; 3++ = 3",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "j",
+        "value": 3,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          1,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "active"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 2,
+      "pointerName": "i",
+      "pointer2": 3,
+      "pointer2Name": "j",
+      "message": "arr: [2, 1, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 3,
+      "comparisons": 9
+    }
+  },
+  {
+    "line": 4,
+    "description": "i = 0; i < n - 1; i++) {  →  0; 2 < 5 - 1; 2++ = 2",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          1,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 4,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 4,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 2,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [2, 1, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 3,
+      "comparisons": 10
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 0 < 5 - 2 - 1; 0++ = 0",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          1,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 2,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [2, 1, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 3,
+      "comparisons": 10
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  2 > 1 (true)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          2,
+          1,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 2,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n1",
+          "value": 1,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 2,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [2, 1, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 3,
+      "comparisons": 10
+    }
+  },
+  {
+    "line": 7,
+    "description": "[arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": true
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 7,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 7,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "swapping"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 2,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 10
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 1 < 5 - 2 - 1; 1++ = 1",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 2,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 10
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  5 > 8 (false)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 2,
+      "pointerName": "i",
+      "pointer2": 2,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 11
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 2 < 5 - 3 - 1; 2++ = 2",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 3,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "j",
+        "value": 2,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "active"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "active"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 3,
+      "pointerName": "i",
+      "pointer2": 2,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 12
+    }
+  },
+  {
+    "line": 4,
+    "description": "i = 0; i < n - 1; i++) {  →  0; 3 < 5 - 1; 3++ = 3",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 3,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 4,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 4,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "active"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 3,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 13
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 0 < 5 - 3 - 1; 0++ = 0",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 3,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 0,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "active"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "none"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "active"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 3,
+      "pointerName": "i",
+      "pointer2": 0,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 13
+    }
+  },
+  {
+    "line": 6,
+    "description": "Check: arr[j] > arr[j + 1]  →  2 > 5 (false)",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 3,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 6,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 6,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "comparing"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "active"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "none"
+        }
+      ],
+      "pointer": 3,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 14
+    }
+  },
+  {
+    "line": 5,
+    "description": "j = 0; j < n - i - 1; j++) {  →  0; 1 < 5 - 4 - 1; 1++ = 1",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 4,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": true
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 5,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 5,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "active"
+        }
+      ],
+      "pointer": 4,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 15
+    }
+  },
+  {
+    "line": 4,
+    "description": "i = 0; i < n - 1; i++) {  →  0; 4 < 5 - 1; 4++ = 4",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 4,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "type": "undefined",
+        "scope": "bubbleSort",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "bubbleSort",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 4,
+        "variables": [],
+        "isActive": false
+      },
+      {
+        "id": "f1",
+        "name": "bubbleSort",
+        "line": 4,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "active"
+        }
+      ],
+      "pointer": 4,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 15
+    }
+  },
+  {
+    "line": 11,
+    "description": "Return: arr",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "main",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 4,
+        "type": "number",
+        "scope": "main",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "main",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "main",
+        "changed": true
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "main",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 11,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "none"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "active"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "none"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "none"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "active"
+        }
+      ],
+      "pointer": 4,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 15
+    }
+  },
+  {
+    "line": 14,
+    "description": "Executing...",
+    "variables": [
+      {
+        "name": "n",
+        "value": 5,
+        "type": "number",
+        "scope": "main",
+        "changed": false
+      },
+      {
+        "name": "i",
+        "value": 4,
+        "type": "number",
+        "scope": "main",
+        "changed": false
+      },
+      {
+        "name": "j",
+        "value": 1,
+        "type": "number",
+        "scope": "main",
+        "changed": false
+      },
+      {
+        "name": "result",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "main",
+        "changed": false
+      },
+      {
+        "name": "arr",
+        "value": [
+          1,
+          2,
+          5,
+          8,
+          9
+        ],
+        "type": "Array",
+        "scope": "main",
+        "changed": false
+      }
+    ],
+    "callStack": [
+      {
+        "id": "f0",
+        "name": "main",
+        "line": 14,
+        "variables": [],
+        "isActive": true
+      }
+    ],
+    "heap": [],
+    "output": "",
+    "dsaState": {
+      "type": "array",
+      "nodes": [
+        {
+          "id": "n0",
+          "value": 1,
+          "highlight": "sorted"
+        },
+        {
+          "id": "n1",
+          "value": 2,
+          "highlight": "sorted"
+        },
+        {
+          "id": "n2",
+          "value": 5,
+          "highlight": "sorted"
+        },
+        {
+          "id": "n3",
+          "value": 8,
+          "highlight": "sorted"
+        },
+        {
+          "id": "n4",
+          "value": 9,
+          "highlight": "sorted"
+        }
+      ],
+      "pointer": 4,
+      "pointerName": "i",
+      "pointer2": 1,
+      "pointer2Name": "j",
+      "message": "arr: [1, 2, 5, 8, 9]",
+      "arrayName": "arr",
+      "swaps": 4,
+      "comparisons": 15
+    }
+  }
+]

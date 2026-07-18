@@ -58,7 +58,7 @@ export interface DSANode {
   right?: string
   next?: string
   prev?: string
-  highlight?: 'active' | 'visited' | 'comparing' | 'swapping' | 'found' | 'none' | 'current' | 'pivot' | 'sorted' | 'processing' | 'heapifying'
+  highlight?: 'active' | 'visited' | 'comparing' | 'swapping' | 'found' | 'none' | 'current' | 'pivot' | 'sorted' | 'processing' | 'heapifying' | 'skipped'
   color?: string
   depth?: number
   parent?: string
@@ -105,6 +105,9 @@ export interface DSAState {
   arrayName?: string
   hashTableName?: string
   hashTableLabel?: string
+  // Secondary string nodes (for dual-string comparison, e.g. word vs target)
+  secondaryNodes?: DSANode[]
+  secondaryName?: string
 }
 
 export interface AIMessage {

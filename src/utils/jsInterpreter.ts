@@ -180,7 +180,7 @@ function buildCaptureStr(names: Set<string>): string {
 function buildCaptureExpr(names: Set<string>): string {
   if (names.size === 0) return 'void 0'
   const parts = [...names].map(n => `__v__.${n}=(() => { try { return ${n}; } catch { return __v__.${n}; } })()`)
-  return `(${parts.join(',')})`
+  return `void (${parts.join(',')})`
 }
 
 // ─── Tokenizer & Recursive Bracer ─────────────────────────────────────────────
@@ -816,6 +816,11 @@ function filterSwapEvents(events: TraceEvent[], activeArrayName: string): TraceE
               
               if (isSwapped) {
                 // Check if curArr is an intermediate copy-over state
+                // During a destructuring swap [a[i], a[j]] = [a[j], a[i]], JS may create
+                // an intermediate state where one value is duplicated:
+                //   prev: [5, 2, 1, 8, 9]
+                //   cur:  [5, 5, 1, 8, 9]  ← intermediate: a[1] was overwritten with a[0]
+                //   next: [2, 5, 1, 8, 9]  ← final: swap complete
                 let isIntermediate = true
                 for (let k = 0; k < curArr.length; k++) {
                   if (k !== idx1 && k !== idx2) {
@@ -827,21 +832,57 @@ function filterSwapEvents(events: TraceEvent[], activeArrayName: string): TraceE
                 }
                 
                 if (isIntermediate) {
-                  const val1 = curArr[idx1]
-                  const val2 = curArr[idx2]
-                  const expectedVal1 = prevArr[idx1]
-                  const expectedVal2 = prevArr[idx2]
-                  
-                  if (
-                    (val1 === expectedVal2 && val2 === expectedVal2) ||
-                    (val1 === expectedVal1 && val2 === expectedVal1)
-                  ) {
-                    // Instead of deleting the event, patch the array to hide the intermediate state
-                    // This keeps the line trace intact but prevents visual glitches
+                  // Make sure cur is actually an intermediate state (has a duplicate value)
+                  // and NOT the final swap state (curArr === nextArr)
+                  if (curArr.join(',') !== nextArr.join(',')) {
+                    // Patch: show prev state instead of intermediate to avoid visual glitch
                     cur.vars[activeArrayName] = [...prevArr]
                   }
                 }
               }
+            }
+            
+            // Also detect intermediate states when prev→cur shows a partial swap
+            // (one index changed to create a duplicate, but full swap not yet complete)
+            if (diffIndices.length === 0) {
+              // prev and next are same — check if cur is an intermediate glitch
+              const curDiffs: number[] = []
+              for (let k = 0; k < curArr.length; k++) {
+                if (curArr[k] !== prevArr[k]) curDiffs.push(k)
+              }
+              if (curDiffs.length > 0 && curDiffs.length <= 2) {
+                // cur differs from both prev and next which are the same — patch it
+                cur.vars[activeArrayName] = [...prevArr]
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Also check current vs previous for 2-event swap sequences (no intermediate)
+    // where two consecutive events on the same line show partial states
+    if (filtered.length >= 1) {
+      const prev = filtered[filtered.length - 1]
+      if (cur.type === 'line' && prev.type === 'line' && cur.line === prev.line) {
+        const prevArr = prev.vars[activeArrayName]
+        const curArr = cur.vars[activeArrayName]
+        if (Array.isArray(prevArr) && Array.isArray(curArr) && prevArr.length === curArr.length) {
+          // Count differences
+          const diffs: number[] = []
+          for (let k = 0; k < prevArr.length; k++) {
+            if (prevArr[k] !== curArr[k]) diffs.push(k)
+          }
+          // If only 1 position changed and it created a duplicate value, it's an intermediate
+          if (diffs.length === 1) {
+            const idx = diffs[0]
+            const newVal = curArr[idx]
+            // Check if this value now appears one extra time (duplicate)
+            const prevCount = prevArr.filter((v: unknown) => v === newVal).length
+            const curCount = curArr.filter((v: unknown) => v === newVal).length
+            if (curCount > prevCount) {
+              // This is a partial swap — patch to show prev state
+              cur.vars[activeArrayName] = [...prevArr]
             }
           }
         }
@@ -931,12 +972,12 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
     }))
 
     const lineCode = codeLines[lineForStep - 1]?.trim() || ''
-    const changedArray = currentVars.find(v => v.changed && v.type === 'Array' && Array.isArray(v.value) && typeof v.value[0] === 'number')
+    const changedArray = currentVars.find(v => v.changed && v.type === 'Array' && Array.isArray(v.value) && (typeof v.value[0] === 'number' || typeof v.value[0] === 'string'))
     if (changedArray) activeArrayName = changedArray.name
     
     // Dynamically switch active array/string based on which one is accessed in the current line
     const accessedStructures = currentVars.filter(v => 
-      (v.type === 'Array' && Array.isArray(v.value) && typeof v.value[0] === 'number') || 
+      (v.type === 'Array' && Array.isArray(v.value) && (typeof v.value[0] === 'number' || typeof v.value[0] === 'string')) || 
       (v.type === 'string' && typeof v.value === 'string' && v.value.length > 0)
     ).filter(v => new RegExp(`\\b${v.name}\\b`).test(lineCode))
 
@@ -970,10 +1011,44 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
 
       dsaState.swaps = swaps
       dsaState.comparisons = comparisons
+      dsaState.auxiliaryData = dsaState.auxiliaryData || {}
+      dsaState.auxiliaryData.isGeneric = true
 
-      if (isSwap) {
+      if (isSwap && prevArrState.length > 0) {
+        // Find exactly which indices changed between previous and current array
+        const changedIndices: number[] = []
+        for (let ci = 0; ci < currentArr.length; ci++) {
+          if (prevArrState[ci] !== undefined && currentArr[ci] !== prevArrState[ci]) {
+            changedIndices.push(ci)
+          }
+        }
+        
+        // Only highlight exactly 2 indices for a proper swap
+        // If we detect more than 2 (intermediate state leak), try to find the true swap pair
+        let swapIndices: number[] = changedIndices
+        
+        if (changedIndices.length > 2) {
+          // Find the pair where values are actually exchanged
+          const swapPairs: number[][] = []
+          for (let ci = 0; ci < changedIndices.length; ci++) {
+            for (let cj = ci + 1; cj < changedIndices.length; cj++) {
+              const a = changedIndices[ci]
+              const b = changedIndices[cj]
+              if (prevArrState[a] === currentArr[b] && prevArrState[b] === currentArr[a]) {
+                swapPairs.push([a, b])
+              }
+            }
+          }
+          if (swapPairs.length > 0) {
+            swapIndices = swapPairs[0]
+          } else {
+            // Fallback: just take the first 2
+            swapIndices = changedIndices.slice(0, 2)
+          }
+        }
+        
         dsaState.nodes.forEach((n, idx) => {
-          if (prevArrState[idx] !== undefined && Number(n.value) !== prevArrState[idx]) {
+          if (swapIndices.includes(idx)) {
             n.highlight = 'swapping'
           }
         })
@@ -1236,8 +1311,8 @@ function detectDataType(code: string, vars: Record<string, unknown>): Interprete
 
   if (Object.values(vars).some(v => v instanceof Map) || lower.includes('hashmap') || lower.includes('hash map')) return 'hashmap'
 
-  const numArrays = Object.values(vars).filter(v => Array.isArray(v) && (v as unknown[]).length > 1 && typeof (v as unknown[])[0] === 'number')
-  if (numArrays.length > 0) return 'array'
+  const arrays = Object.values(vars).filter(v => Array.isArray(v) && (v as unknown[]).length > 1 && (typeof (v as unknown[])[0] === 'number' || typeof (v as unknown[])[0] === 'string'))
+  if (arrays.length > 0) return 'array'
 
   const strs = Object.values(vars).filter(v => typeof v === 'string' && (v as string).length > 1)
   if (strs.length > 0 && (lower.includes('reverse') || lower.includes('palindrome') || lower.includes('char'))) return 'string'
@@ -1298,7 +1373,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
   // 1. STACK DETECTOR
   const stackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
   const strEntriesForStack = Object.entries(vars).filter(([k, v]) => !k.startsWith('__') && typeof v === 'string' && (v as string).length > 0 && k !== 'type')
-  const hasArrayForStack = Object.entries(vars).some(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && typeof (v as unknown[])[0] === 'number')
+  const hasArrayForStack = Object.entries(vars).some(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && (typeof (v as unknown[])[0] === 'number' || typeof (v as unknown[])[0] === 'string'))
 
   if (stackVar && strEntriesForStack.length === 0 && !hasArrayForStack) {
     const [name, arr] = stackVar
@@ -1582,7 +1657,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
 
   // 6. ARRAY DETECTOR
   const numArrays = Object.entries(vars)
-    .filter(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && typeof (v as unknown[])[0] === 'number')
+    .filter(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && (typeof (v as unknown[])[0] === 'number' || typeof (v as unknown[])[0] === 'string'))
 
   if (numArrays.length > 0) {
     let target = numArrays[0]
@@ -1595,7 +1670,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       )
     }
     const [name, arr] = target
-    const values = (arr as number[]).slice(0, 24)
+    const values = (arr as (number|string)[]).slice(0, 24)
 
     // Range pointers
     let rangeStart: number | undefined
@@ -1635,7 +1710,9 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
       'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
       'key', 'depth', 'level', 'step', 'steps', 'windowSum',
-      'formed', 'required', 'minLen', 'start', 'minLength', 'minStart'
+      'formed', 'required', 'minLen', 'start', 'minLength', 'minStart',
+      'matches', 'maxMatches', 'maxmatches', 'best', 'bestWord', 'bestword',
+      'maxVal', 'minVal', 'maxval', 'minval', 'score', 'bestScore'
     ]);
 
     const validIndices = Object.entries(vars)
@@ -1744,9 +1821,19 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       (/\[.*\]\s*=/.test(lineCode) && accessedIndices.size >= 2)
     )
 
+    // Detect if this is a string array
+    const isStringArr = values.length > 0 && typeof values[0] === 'string'
+
     const nodes: DSANode[] = values.map((v, idx) => {
       let highlight: DSANode['highlight'] = 'none'
-      if (isWindow && rangeStart !== undefined && rangeEnd !== undefined) {
+      if (isStringArr) {
+        // String array mode: highlight based on pointer position
+        if (idx === pointer) {
+          highlight = 'active'
+        } else if (pointer !== undefined && idx < pointer) {
+          highlight = 'skipped'
+        }
+      } else if (isWindow && rangeStart !== undefined && rangeEnd !== undefined) {
         // Window mode: elements in window are 'active', elements accessed on this line are 'comparing'
         if (idx >= rangeStart && idx <= rangeEnd) highlight = 'active'
         // Elements outside the window that were previously inside are 'visited'
@@ -1758,7 +1845,7 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
           highlight = 'pivot'
         } else if (accessedIndices.has(idx)) {
           highlight = isSwapLine ? 'swapping' : 'comparing'
-        } else if (idx === pointer) {
+        } else if (idx === pointer || idx === pointer2) {
           highlight = 'active'
         } else if (rangeStart !== undefined && rangeEnd !== undefined && (idx < rangeStart || idx > rangeEnd)) {
           highlight = 'visited'
@@ -1774,6 +1861,53 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     const hashInfo = detectHashTableInfo(vars, name, lineCode)
     const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
     const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
+
+    // ── Secondary String Comparison Detection ──
+    // Show character-by-character comparison when two strings exist
+    let stringCompare: Record<string, any> | undefined;
+    const stringVars = Object.entries(vars).filter(([k, v]) => !k.startsWith('__') && typeof v === 'string' && (v as string).length > 0)
+    
+    if (stringVars.length >= 2) {
+      // Sort strings by length descending to pick the two most substantial strings (e.g. target and word)
+      stringVars.sort((a, b) => (b[1] as string).length - (a[1] as string).length)
+      const str1 = stringVars[0]
+      const str2 = stringVars[1]
+      
+      // Only show string comparison if both strings are present on the line
+      if (lineCode.includes(str1[0]) && lineCode.includes(str2[0])) {
+        // Find a j-like index variable that could be the character index
+      const jCandidates = ['j', 'k', 'idx', 'index', 'charIdx', 'ci']
+      let matchIdx: number | undefined
+      for (const jName of jCandidates) {
+        if (typeof vars[jName] === 'number') {
+          const val = vars[jName] as number;
+          if (val >= 0 && val < Math.max((str1[1] as string).length, (str2[1] as string).length)) {
+            matchIdx = val
+            break
+          }
+        }
+      }
+      
+      // Fallback: look for any index-like var accessed in bracket notation on the line
+      if (matchIdx === undefined) {
+        const bracketMatch = /\[(\w+)\]/.exec(lineCode)
+        if (bracketMatch && typeof vars[bracketMatch[1]] === 'number') {
+          const val = vars[bracketMatch[1]] as number
+          if (val >= 0 && val < Math.max((str1[1] as string).length, (str2[1] as string).length)) {
+            matchIdx = val
+          }
+        }
+      }
+      
+        stringCompare = {
+          str1Name: str1[0],
+          str1Val: str1[1],
+          str2Name: str2[0],
+          str2Val: str2[1],
+          idx: matchIdx
+        }
+      }
+    }
 
     return {
       type: 'array',
@@ -1791,7 +1925,8 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       hashTableName: hashInfo?.name,
       hashTableLabel: hashInfo?.label,
       stackItems,
-      stackName: detectedStackVar ? detectedStackVar[0] : undefined
+      stackName: detectedStackVar ? detectedStackVar[0] : undefined,
+      auxiliaryData: stringCompare ? { stringCompare } : undefined
     }
   }
 
