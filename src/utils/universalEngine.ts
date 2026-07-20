@@ -77,6 +77,35 @@ export function runCode(
   // ============================================
   // DSA VISUALIZER MODE — also tried in 'auto' when a known algo is detected
   // ============================================
+  // Execute the current editor source before considering a canonical demo.
+  // Runtime-derived steps keep source lines, variables, and canvas data aligned.
+  try {
+    const result = interpretCode(code)
+    if (result.steps.length > 0 || result.error) {
+      const steps = result.steps.length > 0 ? result.steps : generateFallbackSteps(code, result.output)
+      return {
+        steps,
+        output: result.output,
+        mode: steps.some(step => !!step.dsaState) ? 'dsa' : 'interpreter',
+        algo: algo !== 'generic' ? algo : undefined,
+        error: result.error,
+        visualization: {
+          type: result.detectedType,
+          synchronized: true,
+        },
+      }
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return {
+      steps: generateFallbackSteps(code, []),
+      output: [`Error: ${msg}`],
+      mode: 'interpreter',
+      error: msg,
+    }
+  }
+
+  // Only reached when real execution produced no trace at all.
   if (mode === 'dsa' || (mode === 'auto' && algo !== 'generic')) {
     try {
       const steps = genDSA(code)

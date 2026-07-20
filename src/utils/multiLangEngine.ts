@@ -1,28 +1,30 @@
 /**
  * Multi-Language Execution Engine
  *
- * JavaScript/TypeScript  → real in-browser JS interpreter (Proxy tracing)
- * Python / Java / C / C++ / C# → AI-powered simulation via Anthropic API
- *   The AI returns a structured JSON trace that matches our ExecutionStep format,
- *   so the visualizer, variable panel, call stack all work identically.
+ * JavaScript/TypeScript → real local browser execution
+ * Python → real CPython execution through Pyodide/WebAssembly
+ * Compiled languages → configured isolated trace API, or labelled AI simulation
  */
 
 import { ExecutionStep, Variable, StackFrame, DSAState, DSANode } from '../store/ideStore'
-import { interpretCode } from './jsInterpreter'
+import { buildDSAState, interpretCode, resetDynamicVisualizationState } from './jsInterpreter'
 import { callAI } from './aiService'
+import { PythonTraceEvent, PythonTraceResult, runPythonDynamic } from './pythonRuntime'
 
 export type SupportedLang = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust'
 
 export interface LangRunResult {
   steps: ExecutionStep[]
   output: string[]
-  mode: 'browser' | 'ai-simulated' | 'dsa'
+  mode: 'browser' | 'ai-simulated' | 'runtime-api' | 'dsa'
   language: SupportedLang
   error?: string
 }
 
-// Languages that run natively in-browser
-const BROWSER_LANGS: SupportedLang[] = ['javascript', 'typescript']
+function getExecutionApiUrl(): string {
+  return (globalThis as typeof globalThis & { __ALGOVISION_EXECUTION_API_URL__?: string })
+    .__ALGOVISION_EXECUTION_API_URL__ || ''
+}
 
 // ─── Main dispatcher ──────────────────────────────────────────────────────────
 
@@ -32,8 +34,7 @@ export async function runMultiLang(
   apiKey?: string
 ): Promise<LangRunResult> {
 
-  // 1. JS/TS: run natively in browser
-  if (BROWSER_LANGS.includes(language)) {
+  if (language === 'javascript') {
     const result = interpretCode(code)
     return {
       steps: result.steps.length > 0 ? result.steps : makeFallbackSteps(code),
@@ -44,16 +45,263 @@ export async function runMultiLang(
     }
   }
 
-  // 2. Other languages: AI simulation
+  if (language === 'typescript') {
+    return runTypeScriptDynamic(code)
+  }
+
+  if (language === 'python') {
+    return runPythonInBrowser(code)
+  }
+
+  if (getExecutionApiUrl()) {
+    return runWithExecutionAPI(code, language)
+  }
+
+  // AI is an explicitly labelled simulation fallback for compiled languages.
   if (apiKey) {
     return simulateWithAI(code, language, apiKey)
   }
 
-  // 3. No API key — return syntax-highlighted static trace
+  // Without a runtime, return an actionable diagnostic rather than fake steps.
   return staticTrace(code, language)
 }
 
 // ─── AI Simulation ────────────────────────────────────────────────────────────
+
+async function runTypeScriptDynamic(code: string): Promise<LangRunResult> {
+  try {
+    const ts = await import('typescript')
+    const transpiled = ts.transpileModule(code, {
+      fileName: 'algorithm.ts',
+      reportDiagnostics: true,
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.None,
+        removeComments: false,
+        newLine: ts.NewLineKind.LineFeed,
+      },
+    })
+    const errorDiagnostic = transpiled.diagnostics?.find(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error)
+    if (errorDiagnostic) {
+      const location = errorDiagnostic.file && errorDiagnostic.start !== undefined
+        ? errorDiagnostic.file.getLineAndCharacterOfPosition(errorDiagnostic.start)
+        : { line: 0, character: 0 }
+      const message = ts.flattenDiagnosticMessageText(errorDiagnostic.messageText, '\n')
+      return makeRuntimeError(code, 'typescript', 'TypeScriptError', message, location.line + 1, location.character + 1)
+    }
+    const result = interpretCode(transpiled.outputText)
+    return {
+      steps: result.steps.length > 0 ? result.steps : makeFallbackSteps(code),
+      output: result.output,
+      mode: 'browser',
+      language: 'typescript',
+      error: result.error,
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return makeRuntimeError(code, 'typescript', 'TypeScriptRuntimeError', message, 1)
+  }
+}
+
+function pythonVariableWritten(name: string, line: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (new RegExp(`^\\s*${escaped}\\s*(?:[+\\-*/%]?=|:)`).test(line)) return true
+  if (new RegExp(`^\\s*(?:for|with)\\s+${escaped}\\b`).test(line)) return true
+  if (new RegExp(`\\b${escaped}\\s*\\.(?:append|extend|insert|pop|remove|clear|sort|reverse|update|add|discard)\\s*\\(`).test(line)) return true
+  const assignment = /(^|[^=!<>:])=(?!=)/.exec(line)
+  if (assignment) {
+    const lhs = line.slice(0, assignment.index + assignment[1].length)
+    if (new RegExp(`\\b${escaped}\\s*(?:\\[|\\.)`).test(lhs)) return true
+  }
+  return false
+}
+
+function mergePythonVariables(current: PythonTraceEvent, next: PythonTraceEvent, line: string): Record<string, unknown> {
+  const merged: Record<string, unknown> = {}
+  const names = new Set([...Object.keys(current.variables), ...Object.keys(next.variables)])
+  for (const name of names) {
+    merged[name] = pythonVariableWritten(name, line) && name in next.variables
+      ? next.variables[name]
+      : name in current.variables ? current.variables[name] : next.variables[name]
+  }
+  return merged
+}
+
+function describePythonLine(line: string, variables: Record<string, unknown>): string {
+  const trimmed = line.trim()
+  if (trimmed.startsWith('if ')) return `Check: ${trimmed.slice(3).replace(/:$/, '')}`
+  if (trimmed.startsWith('elif ')) return `Check: ${trimmed.slice(5).replace(/:$/, '')}`
+  if (trimmed.startsWith('for ')) return `Loop: ${trimmed.replace(/:$/, '')}`
+  if (trimmed.startsWith('while ')) return `Loop condition: ${trimmed.slice(6).replace(/:$/, '')}`
+  if (trimmed.startsWith('return')) return `Return ${trimmed.slice(6).trim()}`
+  const assignment = trimmed.match(/^([A-Za-z_]\w*)\s*(?:[+\-*/%]?=)/)
+  if (assignment && assignment[1] in variables) {
+    const value = JSON.stringify(variables[assignment[1]])
+    return `${assignment[1]} = ${value?.slice(0, 80) ?? 'undefined'}`
+  }
+  return trimmed.slice(0, 100) || 'Execute line'
+}
+
+function explainPythonError(type: string, message: string): string {
+  if (type === 'ExecutionLimitError') return `${message}. Check for an infinite loop or a condition that never becomes false.`
+  if (type === 'NameError') return `${message}. Check the variable name and make sure it is assigned before this line.`
+  if (type === 'TypeError') return `${message}. Check the value and data type used on this line.`
+  if (type === 'IndexError') return `${message}. Check the index against the list or string length.`
+  if (type === 'SyntaxError' || type === 'IndentationError') return `${message}. Check indentation, colons, brackets, and operators near this line.`
+  return message
+}
+
+export function pythonTraceToSteps(trace: PythonTraceResult, code: string): ExecutionStep[] {
+  resetDynamicVisualizationState()
+  const lines = code.split('\n')
+  const steps: ExecutionStep[] = []
+  for (let index = 0; index < trace.events.length; index++) {
+    const current = trace.events[index]
+    const next = trace.events[index + 1] || current
+    const line = Math.max(1, Math.min(current.line, lines.length))
+    const lineCode = lines[line - 1] || ''
+    const values = mergePythonVariables(current, next, lineCode)
+    const previousVariables = steps[steps.length - 1]?.variables || []
+    const variables: Variable[] = Object.entries(values).map(([name, value]) => {
+      const previous = previousVariables.find(variable => variable.name === name)
+      return {
+        name,
+        value,
+        type: Array.isArray(value) ? 'Array' : value === null ? 'null' : typeof value,
+        scope: current.callStack[current.callStack.length - 1] || 'main',
+        changed: !previous || JSON.stringify(previous.value) !== JSON.stringify(value),
+      }
+    })
+    const preferredName = Object.entries(values).find(([name, value]) =>
+      (Array.isArray(value) || typeof value === 'string') && new RegExp(`\\b${name}\\b`).test(lineCode)
+    )?.[0]
+    const dsaState = buildDSAState(values, preferredName, lineCode)
+    const callStack: StackFrame[] = current.callStack.map((name, frameIndex, stack) => ({
+      id: `py-${index}-${frameIndex}`,
+      name,
+      line,
+      variables: [],
+      isActive: frameIndex === stack.length - 1,
+    }))
+    steps.push({
+      line,
+      description: describePythonLine(lineCode, values),
+      variables,
+      callStack,
+      heap: [],
+      output: '',
+      dsaState,
+    })
+  }
+
+  if (trace.error) {
+    const previous = steps[steps.length - 1]
+    const errorLine = Math.max(1, Math.min(trace.error.line, lines.length))
+    const message = explainPythonError(trace.error.type, trace.error.message)
+    steps.push({
+      line: errorLine,
+      description: `${trace.error.type} on line ${errorLine}: ${message}`,
+      variables: previous?.variables || [],
+      callStack: previous?.callStack || [],
+      heap: previous?.heap || [],
+      output: message,
+      dsaState: previous?.dsaState,
+      diagnostic: {
+        severity: 'error',
+        type: trace.error.type,
+        message,
+        line: errorLine,
+        column: trace.error.column,
+      },
+      maxStepsWarning: trace.error.type === 'ExecutionLimitError',
+    })
+  } else {
+    const functionMatch = code.match(/^\s*def\s+([A-Za-z_]\w*)\s*\(/m)
+    const functionWasCalled = functionMatch && trace.events.some(event => event.callStack.includes(functionMatch[1]))
+    if (functionMatch && !functionWasCalled) {
+      const line = lines.findIndex(sourceLine => new RegExp(`^\\s*def\\s+${functionMatch[1]}\\b`).test(sourceLine)) + 1 || 1
+      const message = `${functionMatch[1]} is defined but was never called. Add an example call with test input to generate a complete execution flow.`
+      const previous = steps[steps.length - 1]
+      steps.push({
+        line,
+        description: `Waiting for input: ${message}`,
+        variables: previous?.variables || [],
+        callStack: previous?.callStack || [],
+        heap: previous?.heap || [],
+        output: '',
+        dsaState: previous?.dsaState,
+        diagnostic: { severity: 'warning', type: 'NoTestInput', message, line, column: 1 },
+      })
+    }
+  }
+  return steps
+}
+
+async function runPythonInBrowser(code: string): Promise<LangRunResult> {
+  try {
+    const trace = await runPythonDynamic(code)
+    const steps = pythonTraceToSteps(trace, code)
+    return {
+      steps: steps.length > 0 ? steps : makeFallbackSteps(code),
+      output: trace.output,
+      mode: 'browser',
+      language: 'python',
+      error: trace.error?.message,
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return makeRuntimeError(code, 'python', 'PythonRuntimeError', message, 1)
+  }
+}
+
+async function runWithExecutionAPI(code: string, language: SupportedLang): Promise<LangRunResult> {
+  try {
+    const response = await fetch(getExecutionApiUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, language, trace: true, maxSteps: 3000 }),
+    })
+    const payload = await response.json() as Partial<LangRunResult> & { error?: string }
+    if (!response.ok) throw new Error(payload.error || `Execution service returned ${response.status}`)
+    if (!Array.isArray(payload.steps)) throw new Error('Execution service did not return a step trace')
+    return {
+      steps: payload.steps,
+      output: Array.isArray(payload.output) ? payload.output : [],
+      mode: 'runtime-api',
+      language,
+      error: payload.error,
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return makeRuntimeError(code, language, 'RuntimeServiceError', message, 1)
+  }
+}
+
+function makeRuntimeError(
+  code: string,
+  language: SupportedLang,
+  type: string,
+  message: string,
+  line: number,
+  column = 1,
+): LangRunResult {
+  const boundedLine = Math.max(1, Math.min(line, code.split('\n').length))
+  return {
+    steps: [{
+      line: boundedLine,
+      description: `${type}: ${message}`,
+      variables: [],
+      callStack: [],
+      heap: [],
+      output: message,
+      diagnostic: { severity: 'error', type, message, line: boundedLine, column },
+    }],
+    output: [`${type}: ${message}`],
+    mode: type === 'RuntimeUnavailable' || type === 'RuntimeServiceError' ? 'runtime-api' : 'browser',
+    language,
+    error: message,
+  }
+}
 
 async function simulateWithAI(
   code: string,
@@ -80,12 +328,11 @@ Return ONLY valid JSON, no markdown, no explanation.`
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    const failure = makeRuntimeError(code, language, 'AISimulationError', msg, 1)
     return {
-      steps: makeFallbackSteps(code),
-      output: [`⚠️ AI simulation failed: ${msg}`, 'Showing static trace instead.'],
+      ...failure,
+      output: [`AI simulation failed: ${msg}`],
       mode: 'ai-simulated',
-      language,
-      error: msg,
     }
   }
 }
@@ -241,70 +488,16 @@ function buildDSAFromHint(
   return undefined
 }
 
-// ─── Static trace (no API key) ────────────────────────────────────────────────
+// ─── Missing runtime diagnostic ───────────────────────────────────────────────
 
 function staticTrace(code: string, language: SupportedLang): LangRunResult {
-  const lines = code.split('\n')
-  const steps: ExecutionStep[] = []
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line || line.startsWith('//') || line.startsWith('#') || line.startsWith('*')) continue
-
-    steps.push({
-      line: i + 1,
-      description: describeCodeLine(line, language),
-      variables: [],
-      callStack: [{ id: 'f0', name: 'main', line: i + 1, variables: [], isActive: true }],
-      heap: [],
-      output: '',
-      dsaState: undefined,
-    })
-  }
-
-  if (steps.length === 0) {
-    steps.push({
-      line: 1, description: 'Empty program',
-      variables: [], callStack: [], heap: [], output: '',
-    })
-  }
-
-  return {
-    steps,
-    output: [
-      `ℹ️  ${language.toUpperCase()} code loaded (${lines.length} lines)`,
-      `💡 Add your Anthropic API key in the AI panel for live execution tracing`,
-      `   DSA algorithms (sort, search, etc.) will visualize automatically`,
-    ],
-    mode: 'ai-simulated',
+  return makeRuntimeError(
+    code,
     language,
-  }
-}
-
-function describeCodeLine(line: string, lang: SupportedLang): string {
-  // Python
-  if (lang === 'python') {
-    if (line.startsWith('def ')) return `Define function ${line.slice(4).split('(')[0]}`
-    if (line.startsWith('class ')) return `Define class ${line.slice(6).split(':')[0]}`
-    if (line.startsWith('for ')) return `Loop: ${line}`
-    if (line.startsWith('while ')) return `While loop`
-    if (line.startsWith('if ')) return `Condition: ${line.slice(3)}`
-    if (line.startsWith('return ')) return `Return ${line.slice(7)}`
-    if (line.startsWith('print(')) return `Print output`
-    if (line.includes('=') && !line.includes('==')) return `Assign: ${line}`
-  }
-  // Java / C++ / C
-  if (['java','cpp','c','csharp'].includes(lang)) {
-    if (line.includes('System.out.println') || line.includes('printf') || line.includes('cout'))
-      return 'Print output'
-    if (line.match(/^\w+\s+\w+\s*=/)) return `Declare: ${line}`
-    if (line.startsWith('for ') || line.startsWith('for(')) return `For loop: ${line.substring(0, 40)}`
-    if (line.startsWith('while')) return 'While loop iteration'
-    if (line.startsWith('if ') || line.startsWith('if(')) return `Check: ${line.substring(3, 40)}`
-    if (line.startsWith('return')) return `Return: ${line.substring(7, 40)}`
-    if (line.includes('(') && line.endsWith(';')) return `Call: ${line.split('(')[0].trim()}`
-  }
-  return line.substring(0, 60)
+    'RuntimeUnavailable',
+    `True dynamic ${language.toUpperCase()} tracing requires an isolated execution service. Configure VITE_EXECUTION_API_URL, or add an AI key for clearly labelled simulation.`,
+    1,
+  )
 }
 
 function makeFallbackSteps(code: string): ExecutionStep[] {

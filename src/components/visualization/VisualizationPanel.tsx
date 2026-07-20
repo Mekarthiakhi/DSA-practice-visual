@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Layers, GitBranch, Layout, Terminal, Activity, Code } from 'lucide-react'
+import { BarChart3, Layers, GitBranch, Layout, Terminal, Activity, Code, AlertTriangle } from 'lucide-react'
 import { useIDEStore, VisualizationTab } from '../../store/ideStore'
 import { DSAVisualizer } from '../dsa/DSAVisualizer'
 import { VariablesPanel } from './VariablesPanel'
@@ -18,6 +18,8 @@ const TABS: { id: VisualizationTab; label: string; icon: React.ReactNode }[] = [
 export const VisualizationPanel: React.FC = () => {
   const { activeVizTab, setActiveVizTab, executionSteps, currentStepIndex, consoleOutput } = useIDEStore()
   const currentStep = executionSteps[currentStepIndex]
+  const diagnostic = currentStep?.diagnostic
+  const isDiagnosticError = diagnostic?.severity === 'error'
   const hasDSA = !!currentStep?.dsaState
   const isGenericMode = executionSteps.length > 0 && !hasDSA
 
@@ -61,6 +63,18 @@ export const VisualizationPanel: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {diagnostic && (
+        <div className={`flex-shrink-0 flex items-start gap-2 px-3 py-2 border-b ${isDiagnosticError ? 'border-red-500/25 bg-red-500/10' : 'border-amber-500/25 bg-amber-500/10'}`}>
+          <AlertTriangle size={14} className={`${isDiagnosticError ? 'text-red-400' : 'text-amber-400'} mt-0.5 flex-shrink-0`} />
+          <div className="min-w-0">
+            <div className={`text-[11px] font-mono font-bold ${isDiagnosticError ? 'text-red-300' : 'text-amber-300'}`}>
+              {diagnostic.type} at line {diagnostic.line}{diagnostic.column ? `:${diagnostic.column}` : ''}
+            </div>
+            <div className={`text-[11px] leading-relaxed ${isDiagnosticError ? 'text-red-200/80' : 'text-amber-100/80'}`}>{diagnostic.message}</div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-hidden grid-bg relative" style={{ minHeight: 0 }}>
@@ -115,16 +129,20 @@ const StepsView: React.FC<{ steps: ExecutionStep[]; current: number; onJump: (i:
       {steps.map((step, i) => (
         <button key={i} data-step={i} onClick={() => onJump(i)}
           className={`w-full text-left flex items-start gap-2 px-2 py-1.5 rounded-lg transition-all text-xs font-mono ${
+            step.diagnostic?.severity === 'error' && i === current ? 'bg-red-500/10 border border-red-500/30' :
+            step.diagnostic && i === current ? 'bg-amber-500/10 border border-amber-500/30' :
             i === current ? 'bg-cyan-500/8 border border-cyan-500/20' :
             i < current  ? 'text-gray-600 hover:bg-white/3' :
                            'text-gray-700 hover:bg-white/3'
           }`}
         >
           <span className={`flex-shrink-0 w-5 h-5 rounded text-center leading-5 text-[10px] font-bold ${
+            step.diagnostic?.severity === 'error' && i === current ? 'bg-red-500 text-white' :
+            step.diagnostic && i === current ? 'bg-amber-500 text-black' :
             i === current ? 'bg-cyan-500 text-black' :
             i < current  ? 'bg-green-500/20 text-green-400' : 'bg-[#1e2130] text-gray-600'
           }`}>{i + 1}</span>
-          <span className={`truncate flex-1 ${i === current ? 'text-cyan-300' : ''}`}>{step.description}</span>
+          <span className={`truncate flex-1 ${step.diagnostic?.severity === 'error' && i === current ? 'text-red-300' : step.diagnostic && i === current ? 'text-amber-300' : i === current ? 'text-cyan-300' : ''}`}>{step.description}</span>
           <span className="flex-shrink-0 text-[10px] text-gray-700 ml-auto">L{step.line}</span>
         </button>
       ))}

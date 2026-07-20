@@ -47,24 +47,59 @@ export const CodeEditor: React.FC = () => {
       return
     }
 
+    const model = editorRef.current.getModel()
+    const line = Math.max(1, Math.min(step.line, model?.getLineCount() || 1))
+    const isError = step.diagnostic?.severity === 'error'
+    const isWarning = step.diagnostic?.severity === 'warning'
+
     decorationsRef.current = editorRef.current.deltaDecorations(decorationsRef.current, [
       {
-        range: new monaco.Range(step.line, 1, step.line, 1),
+        range: new monaco.Range(line, 1, line, 1),
         options: {
           isWholeLine: true,
-          className: 'execution-line-highlight',
-          glyphMarginClassName: 'execution-glyph',
-          linesDecorationsClassName: 'execution-line-decoration',
+          className: isError ? 'execution-error-line-highlight' : isWarning ? 'execution-warning-line-highlight' : 'execution-line-highlight',
+          glyphMarginClassName: isError ? 'execution-error-glyph' : isWarning ? 'execution-warning-glyph' : 'execution-glyph',
+          linesDecorationsClassName: isError ? 'execution-error-line-decoration' : isWarning ? 'execution-warning-line-decoration' : 'execution-line-decoration',
           overviewRuler: {
-            color: '#00d4ff',
+            color: isError ? '#ef4444' : isWarning ? '#f59e0b' : '#00d4ff',
             position: monaco.editor.OverviewRulerLane.Left
           }
         }
       }
     ])
 
-    editorRef.current.revealLineInCenterIfOutsideViewport(step.line, 1)
+    editorRef.current.revealLineInCenterIfOutsideViewport(line, 1)
   }, [currentStepIndex, executionSteps])
+
+  React.useEffect(() => {
+    const editor = editorRef.current
+    const monaco = monacoRef.current
+    const model = editor?.getModel()
+    if (!editor || !monaco || !model) return
+
+    const maxLine = model.getLineCount()
+    const markers = executionSteps
+      .filter(step => !!step.diagnostic)
+      .map(step => {
+        const diagnostic = step.diagnostic!
+        const line = Math.max(1, Math.min(diagnostic.line, maxLine))
+        const column = Math.max(1, Math.min(diagnostic.column || 1, model.getLineMaxColumn(line)))
+        return {
+          startLineNumber: line,
+          startColumn: column,
+          endLineNumber: line,
+          endColumn: model.getLineMaxColumn(line),
+          message: `${diagnostic.type}: ${diagnostic.message}`,
+          severity: diagnostic.severity === 'error'
+            ? monaco.MarkerSeverity.Error
+            : monaco.MarkerSeverity.Warning,
+          source: 'AlgoVision execution',
+        }
+      })
+
+    monaco.editor.setModelMarkers(model, 'algovision-execution', markers)
+    return () => monaco.editor.setModelMarkers(model, 'algovision-execution', [])
+  }, [executionSteps])
 
   const handleCopy = () => navigator.clipboard?.writeText(code)
 
@@ -113,6 +148,26 @@ export const CodeEditor: React.FC = () => {
             content: '▶';
             color: #00d4ff;
             font-size: 10px;
+          }
+          .execution-error-line-highlight {
+            background: rgba(239, 68, 68, 0.12) !important;
+            border-left: 2px solid #ef4444 !important;
+          }
+          .execution-error-glyph::before {
+            content: '!';
+            color: #ef4444;
+            font-size: 12px;
+            font-weight: 800;
+          }
+          .execution-warning-line-highlight {
+            background: rgba(245, 158, 11, 0.10) !important;
+            border-left: 2px solid #f59e0b !important;
+          }
+          .execution-warning-glyph::before {
+            content: '?';
+            color: #f59e0b;
+            font-size: 12px;
+            font-weight: 800;
           }
         `}</style>
         <Editor

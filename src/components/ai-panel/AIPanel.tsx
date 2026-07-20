@@ -8,7 +8,7 @@ import { explainCode, analyzeComplexity, generateFlowchart, suggestOptimizations
 const LANG_INFO: Record<string, { label: string; color: string; canBrowser: boolean }> = {
   javascript: { label: 'JavaScript', color: '#f7df1e', canBrowser: true  },
   typescript: { label: 'TypeScript', color: '#3178c6', canBrowser: true  },
-  python:     { label: 'Python',     color: '#3776ab', canBrowser: false },
+  python:     { label: 'Python',     color: '#3776ab', canBrowser: true  },
   java:       { label: 'Java',       color: '#ed8b00', canBrowser: false },
   cpp:        { label: 'C++',        color: '#00599c', canBrowser: false },
   c:          { label: 'C',          color: '#a8b9cc', canBrowser: false },
@@ -148,7 +148,7 @@ export const AIPanel: React.FC = () => {
               <Key size={12} className="text-amber-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] text-amber-300 font-semibold">{langInfo.label} needs an API key</p>
-                <p className="text-[10px] text-amber-700 mt-0.5">Without it, you'll see a static trace. Click 🔑 to add your key for live AI simulation.</p>
+                <p className="text-[10px] text-amber-700 mt-0.5">Local execution does not require a key. Add one only for AI explanations or labelled simulation fallbacks.</p>
               </div>
             </div>
           </motion.div>

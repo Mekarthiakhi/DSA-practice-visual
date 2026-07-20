@@ -15,6 +15,11 @@ import { ExecutionStep, Variable, StackFrame, DSAState, DSANode, DSAEdge } from 
 let _lastWindowStart: number | undefined
 let _lastWindowEnd: number | undefined
 
+export function resetDynamicVisualizationState(): void {
+  _lastWindowStart = undefined
+  _lastWindowEnd = undefined
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TraceEvent {
@@ -119,6 +124,9 @@ export interface InterpreterResult {
   steps: ExecutionStep[]
   output: string[]
   error?: string
+  errorLine?: number
+  errorColumn?: number
+  errorType?: string
   detectedType: 'array' | 'linkedlist' | 'tree' | 'graph' | 'stack' | 'queue' | 'hashmap' | 'string' | 'generic'
 }
 
@@ -502,6 +510,7 @@ function instrumentCode(code: string, names: Set<string>): string {
   let braceDepth = 0
   let parenDepth = 0
   let bracketDepth = 0
+  let objectLiteralDepth = 0
   let classDepths: number[] = []
 
   for (let i = 0; i < lines.length; i++) {
@@ -562,7 +571,12 @@ function instrumentCode(code: string, names: Set<string>): string {
       classDepths.push(braceDepth + 1)
     }
 
-    const inExpressionContinuation = parenDepth > 0 || bracketDepth > 0
+    const startsObjectLiteral = objectLiteralDepth === 0 && (
+      /^(?:const|let|var)\b[^=]*=\s*\{\s*$/.test(trimmed)
+      || /^return\s+\{\s*$/.test(trimmed)
+      || /[=(:,\[]\s*\{\s*$/.test(trimmed)
+    )
+    const inExpressionContinuation = parenDepth > 0 || bracketDepth > 0 || objectLiteralDepth > 0
 
     if (inExpressionContinuation) {
       out.push(raw)
@@ -627,6 +641,10 @@ function instrumentCode(code: string, names: Set<string>): string {
       } else {
         out.push(raw)
       }
+    } else if (startsObjectLiteral) {
+      // An opening object-literal brace is part of an expression, not a block.
+      // Trace before the declaration/return and leave its property lines intact.
+      out.push(`${captureExpr}; __trace__(${ln}); ${raw}`)
     } else if (trimmed.endsWith('{') && !trimmed.startsWith('}')) {
       const braceIdx = raw.lastIndexOf('{')
       out.push(`${raw.substring(0, braceIdx + 1)} ${captureExpr}; __trace__(${ln}); ${raw.substring(braceIdx + 1)}`)
@@ -646,6 +664,9 @@ function instrumentCode(code: string, names: Set<string>): string {
     }
     parenDepth += parenOpens - parenCloses
     bracketDepth += bracketOpens - bracketCloses
+    if (objectLiteralDepth > 0 || startsObjectLiteral) {
+      objectLiteralDepth = Math.max(0, objectLiteralDepth + opens - closes)
+    }
 
     if (classDepths.length > 0 && braceDepth < classDepths[classDepths.length - 1]) {
       classDepths.pop()
@@ -657,10 +678,61 @@ function instrumentCode(code: string, names: Set<string>): string {
 
 // ─── Core interpret function ──────────────────────────────────────────────────
 
+function findErrorLocation(err: unknown, code: string, events: TraceEvent[]): { line: number; column: number; type: string } {
+  const error = err instanceof Error ? err : new Error(String(err))
+  const lines = code.split('\n')
+  const lastLineEvent = [...events].reverse().find(event => event.type === 'line')
+
+  // The trace hook runs immediately before a statement. For runtime failures,
+  // the last captured source line is therefore the most reliable location.
+  if (lastLineEvent) {
+    return { line: Math.max(1, Math.min(lastLineEvent.line, lines.length)), column: 1, type: error.name || 'Error' }
+  }
+
+  // `new Function` wraps source differently between browser engines. Try the
+  // common offsets, accepting only a location that belongs to the user's code.
+  const stack = error.stack || ''
+  const locations = [...stack.matchAll(/(?:<anonymous>|Function):(\d+):(\d+)/g)]
+  for (const match of locations) {
+    const generatedLine = Number(match[1])
+    for (const offset of [2, 1, 0, 3]) {
+      const line = generatedLine - offset
+      if (line >= 1 && line <= lines.length) {
+        return { line, column: Math.max(1, Number(match[2]) || 1), type: error.name || 'Error' }
+      }
+    }
+  }
+
+  // SyntaxError stacks can omit a location. Prefer a likely unexpected token,
+  // then the final non-empty line, rather than misleadingly highlighting line 1.
+  const token = error.message.match(/Unexpected token ['"]?(.+?)['"]?(?:\s|$)/)?.[1]
+  if (token && token.length === 1) {
+    const tokenLine = lines.findIndex(line => line.includes(token))
+    if (tokenLine >= 0) {
+      return { line: tokenLine + 1, column: Math.max(1, lines[tokenLine].indexOf(token) + 1), type: error.name || 'SyntaxError' }
+    }
+  }
+  const lastNonEmpty = lines.reduce((found, line, index) => line.trim() ? index + 1 : found, 1)
+  return { line: lastNonEmpty, column: 1, type: error.name || 'Error' }
+}
+
+function explainError(type: string, message: string): string {
+  if (message === '__MAX_STEPS__') {
+    return 'Execution stopped after 3,000 steps. Check for an infinite loop or a condition that never becomes false.'
+  }
+  if (type === 'ReferenceError') return `${message}. Check the variable name and make sure it is declared before this line.`
+  if (type === 'TypeError') return `${message}. Check the value and data type used on this line.`
+  if (type === 'SyntaxError') return `${message}. Check brackets, parentheses, commas, and operators near this line.`
+  return message
+}
+
 export function interpretCode(code: string): InterpreterResult {
   const events: TraceEvent[] = []
   const consoleLines: string[] = []
   let hasError = ''
+  let errorLine: number | undefined
+  let errorColumn: number | undefined
+  let errorType: string | undefined
 
   // Shared vars object — inline captures write into this
   const __v__: Record<string, unknown> = {}
@@ -705,7 +777,7 @@ export function interpretCode(code: string): InterpreterResult {
   }
 
   function __trace__(line: number) {
-    if (stepCount++ > MAX_STEPS) throw new Error('__MAX_STEPS__')
+    if (stepCount++ >= MAX_STEPS) throw new Error('__MAX_STEPS__')
     
     const callStack = getCallStack()
 
@@ -767,16 +839,74 @@ export function interpretCode(code: string): InterpreterResult {
     fn(...vals)
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    if (msg !== '__MAX_STEPS__') {
-      hasError = msg
-      consoleLines.push(`❌ Runtime Error: ${msg}`)
-    }
+    const location = findErrorLocation(err, code, events)
+    errorLine = location.line
+    errorColumn = location.column
+    errorType = msg === '__MAX_STEPS__' ? 'ExecutionLimitError' : location.type
+    hasError = explainError(errorType, msg)
+    consoleLines.push(`Error at line ${errorLine}: ${hasError}`)
   }
 
   const steps = eventsToSteps(events, code)
   const detectedType = detectDataType(code, __v__)
 
-  return { steps, output: consoleLines, error: hasError || undefined, detectedType }
+  if (hasError) {
+    const previous = steps[steps.length - 1]
+    steps.push({
+      line: errorLine || 1,
+      description: `Error on line ${errorLine || 1}: ${hasError}`,
+      variables: previous?.variables || [],
+      callStack: previous?.callStack || [],
+      heap: previous?.heap || [],
+      output: hasError,
+      dsaState: previous?.dsaState ? {
+        ...previous.dsaState,
+        message: `Error: ${hasError}`,
+      } : undefined,
+      diagnostic: {
+        severity: 'error',
+        type: errorType || 'Error',
+        message: hasError,
+        line: errorLine || 1,
+        column: errorColumn,
+      },
+      maxStepsWarning: errorType === 'ExecutionLimitError',
+    })
+  } else if (functionNames.size > 0 && steps.length <= 1 && consoleLines.length === 0) {
+    const functionName = [...functionNames][0]
+    const sourceLines = code.split('\n')
+    const definitionLine = sourceLines.findIndex(line =>
+      new RegExp(`(?:function\\s+${functionName}\\b|(?:const|let|var)\\s+${functionName}\\s*=)`).test(line)
+    ) + 1 || 1
+    const message = `${functionName} is defined but was never called. Add an example call with test input to generate a complete execution flow.`
+    const previous = steps[steps.length - 1]
+    steps.push({
+      line: definitionLine,
+      description: `Waiting for input: ${message}`,
+      variables: previous?.variables || [],
+      callStack: previous?.callStack || [],
+      heap: previous?.heap || [],
+      output: '',
+      dsaState: previous?.dsaState,
+      diagnostic: {
+        severity: 'warning',
+        type: 'NoTestInput',
+        message,
+        line: definitionLine,
+        column: 1,
+      },
+    })
+  }
+
+  return {
+    steps,
+    output: consoleLines,
+    error: hasError || undefined,
+    errorLine,
+    errorColumn,
+    errorType,
+    detectedType,
+  }
 }
 
 // ─── Filter intermediate swap states ──────────────────────────────────────────
@@ -897,9 +1027,38 @@ function filterSwapEvents(events: TraceEvent[], activeArrayName: string): TraceE
 
 // ─── Events → Steps ──────────────────────────────────────────────────────────
 
+function isVariableWrittenOnLine(name: string, lineCode: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (new RegExp(`\\b(?:let|const|var)\\s+${escaped}\\b`).test(lineCode)) return true
+  if (new RegExp(`(?:\\+\\+|--)\\s*${escaped}\\b|\\b${escaped}\\s*(?:\\+\\+|--|[+\\-*/%]?=(?!=))`).test(lineCode)) return true
+  if (new RegExp(`\\b${escaped}\\s*\\.(?:push|pop|shift|unshift|splice|sort|reverse|fill|copyWithin|set|add|delete|clear)\\s*\\(`).test(lineCode)) return true
+
+  // Destructuring and indexed writes, e.g. [arr[j], arr[j + 1]] = [...]
+  const assignment = /(^|[^=!<>])=(?!=)/.exec(lineCode)
+  if (assignment) {
+    const lhsEnd = assignment.index + assignment[1].length
+    const lhs = lineCode.slice(0, lhsEnd)
+    if (new RegExp(`\\b${escaped}\\s*(?:\\[|\\.)`).test(lhs)) return true
+  }
+  return false
+}
+
+function mergeStepVariables(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+  lineCode: string,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = {}
+  const names = new Set([...Object.keys(before), ...Object.keys(after)])
+  for (const name of names) {
+    const written = isVariableWrittenOnLine(name, lineCode)
+    merged[name] = written && name in after ? after[name] : name in before ? before[name] : after[name]
+  }
+  return merged
+}
+
 function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
-  _lastWindowStart = undefined
-  _lastWindowEnd = undefined
+  resetDynamicVisualizationState()
 
   // 1. Detect active array name first to guide the filter
   let activeArrayName = ''
@@ -940,10 +1099,12 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
     const nextIdx = k + 1 < lineEventIndices.length ? lineEventIndices[k + 1] : -1
     const nextEv = nextIdx !== -1 ? filteredEvents[nextIdx] : curEv
     
-    // The variables, callstack, and scope for this step come from the next event (representing post-execution state of current line)
-    const varsForStep = nextEv.vars
-    const callStackForStep = nextEv.callStack
     const lineForStep = curEv.line
+    const lineCode = codeLines[lineForStep - 1]?.trim() || ''
+    // Keep pointer/control values from this exact event. Only variables written
+    // by the line receive their post-execution values from the next event.
+    const varsForStep = mergeStepVariables(curEv.vars, nextEv.vars, lineCode)
+    const callStackForStep = curEv.callStack
     
     // Collect all outputs between current line event and next line event
     const limitIdx = nextIdx !== -1 ? nextIdx : filteredEvents.length
@@ -971,7 +1132,6 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
       id: `f${idx}`, name, line: lineForStep, variables: [], isActive: idx === callStackForStep.length - 1,
     }))
 
-    const lineCode = codeLines[lineForStep - 1]?.trim() || ''
     const changedArray = currentVars.find(v => v.changed && v.type === 'Array' && Array.isArray(v.value) && (typeof v.value[0] === 'number' || typeof v.value[0] === 'string'))
     if (changedArray) activeArrayName = changedArray.name
     
@@ -1204,9 +1364,20 @@ function substituteVars(expr: string, vars: Record<string, unknown>): string {
 
 function tryEvaluateBoolean(substituted: string): boolean | null {
   try {
-    if (/^-?\d+(?:\s*[-+*/%]\s*-?\d+)*\s*(?:==|===|!=|!==|>|>=|<|<=)\s*-?\d+(?:\s*[-+*/%]\s*-?\d+)*$/.test(substituted.trim())) {
-      // eslint-disable-next-line no-eval
-      return !!eval(substituted)
+    const match = substituted.trim().match(/^(-?\d+(?:\s*[-+*/%]\s*-?\d+)*)\s*(===|!==|==|!=|>=|<=|>|<)\s*(-?\d+(?:\s*[-+*/%]\s*-?\d+)*)$/)
+    if (!match) return null
+    const calculate = (expression: string): number => Function(`"use strict"; return (${expression});`)()
+    const left = calculate(match[1])
+    const right = calculate(match[3])
+    switch (match[2]) {
+      case '===':
+      case '==': return left === right
+      case '!==':
+      case '!=': return left !== right
+      case '>=': return left >= right
+      case '<=': return left <= right
+      case '>': return left > right
+      case '<': return left < right
     }
   } catch {
     // ignore
@@ -1368,7 +1539,36 @@ function detectHashTableInfo(vars: Record<string, unknown>, excludeName: string,
   return undefined
 }
 
-function buildDSAState(vars: Record<string, unknown>, preferredName?: string, lineCode = ''): DSAState | undefined {
+function resolveIndexExpression(
+  expression: string,
+  vars: Record<string, unknown>,
+  collectionName: string,
+  collectionLength: number,
+): number | null {
+  let resolved = expression.replace(
+    new RegExp(`\\b${collectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.length\\b`, 'g'),
+    String(collectionLength),
+  )
+  let valid = true
+  resolved = resolved.replace(/\b[A-Za-z_$][\w$]*\b/g, token => {
+    const value = vars[token]
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+    valid = false
+    return '0'
+  })
+  if (!valid || !/^[\d\s()+\-*/%<>&|^.]+$/.test(resolved)) return null
+
+  try {
+    // The expression is restricted to numbers and arithmetic/bitwise tokens.
+    // eslint-disable-next-line no-new-func
+    const value = Function(`"use strict"; return (${resolved});`)()
+    return typeof value === 'number' && Number.isInteger(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+export function buildDSAState(vars: Record<string, unknown>, preferredName?: string, lineCode = ''): DSAState | undefined {
 
   // 1. STACK DETECTOR
   const stackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
@@ -1712,11 +1912,29 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       'key', 'depth', 'level', 'step', 'steps', 'windowSum',
       'formed', 'required', 'minLen', 'start', 'minLength', 'minStart',
       'matches', 'maxMatches', 'maxmatches', 'best', 'bestWord', 'bestword',
-      'maxVal', 'minVal', 'maxval', 'minval', 'score', 'bestScore'
+      'maxVal', 'minVal', 'maxval', 'minval', 'score', 'bestScore',
+      'average', 'avarage', 'avg', 'mean', 'median', 'ratio', 'percentage', 'pct',
+      'gap', 'distance', 'cost', 'weight', 'capacity', 'threshold', 'limit',
+      'maxsum', 'minsum', 'cursum', 'runsum', 'runningsum', 'prefixsum', 'suffixsum',
+      'maxavg', 'minavg', 'curavg',
+      'counter', 'freq', 'frequency', 'occurrence', 'occurrences'
     ]);
 
+    // Also ignore variables whose names contain common non-pointer substrings
+    // (catches typos and variations like sildWindow, slidWindow, windowCount, etc.)
+    const ignoredSubstrings = ['window', 'avg', 'average', 'avarage', 'sum', 'count', 'total', 'profit', 'price', 'cost', 'freq', 'score'];
+
     const validIndices = Object.entries(vars)
-      .filter(([k, v]) => !k.startsWith('__') && !ignoredNumNames.has(k.toLowerCase()) && typeof v === 'number' && (v as number) >= 0 && (v as number) <= values.length)
+      .filter(([k, v]) => {
+        if (k.startsWith('__')) return false;
+        const lower = k.toLowerCase();
+        if (ignoredNumNames.has(lower)) return false;
+        // Substring-based fuzzy matching for common non-pointer patterns
+        if (ignoredSubstrings.some(sub => lower.includes(sub))) return false;
+        if (typeof v !== 'number') return false;
+        const num = v as number;
+        return num >= 0 && num <= values.length;
+      })
       .map(([k, v]) => ({ name: k, val: v as number }));
 
     // Priority naming list for pointers
@@ -1737,48 +1955,34 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart;
     if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd;
 
-    const pointerName = validIndices.length > 0 ? validIndices[0].name : foundStart || undefined
-    const pointer2Name = validIndices.length > 1 ? validIndices[1].name : foundEnd || undefined
+    let pointerName = validIndices.length > 0 ? validIndices[0].name : foundStart || undefined
+    let pointer2Name = validIndices.length > 1 ? validIndices[1].name : foundEnd || undefined
 
     // ── Array access parser (resolve arr[j], arr[j+1], arr[j-k], etc.) ──
     const accessedIndices = new Set<number>()
+    const accessedPointers: Array<{ index: number; label: string }> = []
     const arrayAccessRegex = new RegExp(`\\b${name}\\s*\\[([^\\]]+)\\]`, 'g')
     let match;
     while ((match = arrayAccessRegex.exec(lineCode)) !== null) {
       const indexExpr = match[1].trim()
-      let idx: number | null = null
-      if (/^\d+$/.test(indexExpr)) {
-        // Literal number: arr[0]
-        idx = parseInt(indexExpr)
-      } else if (vars[indexExpr] !== undefined && typeof vars[indexExpr] === 'number') {
-        // Single variable: arr[j]
-        idx = vars[indexExpr] as number
-      } else {
-        // Arithmetic: arr[j + 1] or arr[j - k]
-        const arith = indexExpr.match(/^(\w+)\s*([+\-*])\s*(\w+)$/)
-        if (arith) {
-          const leftName = arith[1]
-          const op = arith[2]
-          const rightName = arith[3]
-          // Resolve left operand
-          let leftVal: number | null = null
-          if (/^\d+$/.test(leftName)) leftVal = parseInt(leftName)
-          else if (vars[leftName] !== undefined && typeof vars[leftName] === 'number') leftVal = vars[leftName] as number
-          // Resolve right operand
-          let rightVal: number | null = null
-          if (/^\d+$/.test(rightName)) rightVal = parseInt(rightName)
-          else if (vars[rightName] !== undefined && typeof vars[rightName] === 'number') rightVal = vars[rightName] as number
-
-          if (leftVal !== null && rightVal !== null) {
-            if (op === '+') idx = leftVal + rightVal
-            else if (op === '-') idx = leftVal - rightVal
-            else if (op === '*') idx = leftVal * rightVal
-          }
-        }
-      }
+      const idx = resolveIndexExpression(indexExpr, vars, name, values.length)
       if (idx !== null && idx >= 0 && idx < values.length) {
         accessedIndices.add(idx)
+        if (!accessedPointers.some(access => access.index === idx)) {
+          const label = indexExpr.replace(/\s*([+\-*/%])\s*/g, ' $1 ').replace(/\s+/g, ' ').trim()
+          accessedPointers.push({ index: idx, label })
+        }
       }
+    }
+
+    // Access expressions on this source line are authoritative. This prevents
+    // an outer loop counter such as `i` from becoming a third highlighted item
+    // when the operation only compares arr[j] with arr[j + 1].
+    if (accessedPointers.length > 0) {
+      pointer = accessedPointers[0].index
+      pointerName = accessedPointers[0].label
+      pointer2 = accessedPointers[1]?.index
+      pointer2Name = accessedPointers[1]?.label
     }
 
     // ── Sliding window detection ──
@@ -1972,11 +2176,24 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
       'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
       'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
       'key', 'depth', 'level', 'step', 'steps',
-      'formed', 'required', 'minLen', 'start', 'minLength', 'minStart'
+      'formed', 'required', 'minLen', 'start', 'minLength', 'minStart',
+      'average', 'avarage', 'avg', 'mean', 'median', 'ratio', 'percentage', 'pct',
+      'gap', 'distance', 'cost', 'weight', 'capacity', 'threshold', 'limit',
+      'counter', 'freq', 'frequency', 'occurrence', 'occurrences'
     ]);
 
+    const ignoredSubstrings = ['window', 'avg', 'average', 'avarage', 'sum', 'count', 'total', 'profit', 'price', 'cost', 'freq', 'score'];
+
     const validIndices = Object.entries(vars)
-      .filter(([k, v]) => !k.startsWith('__') && !ignoredNumNames.has(k.toLowerCase()) && typeof v === 'number' && (v as number) >= 0 && (v as number) <= chars.length)
+      .filter(([k, v]) => {
+        if (k.startsWith('__')) return false;
+        const lower = k.toLowerCase();
+        if (ignoredNumNames.has(lower)) return false;
+        if (ignoredSubstrings.some(sub => lower.includes(sub))) return false;
+        if (typeof v !== 'number') return false;
+        const num = v as number;
+        return num >= 0 && num <= chars.length;
+      })
       .map(([k, v]) => ({ name: k, val: v as number }));
 
     // Priority naming list for pointers
@@ -1997,8 +2214,26 @@ function buildDSAState(vars: Record<string, unknown>, preferredName?: string, li
     if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart;
     if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd;
 
-    const pointerName = validIndices.length > 0 ? validIndices[0].name : foundStart || undefined
-    const pointer2Name = validIndices.length > 1 ? validIndices[1].name : foundEnd || undefined
+    let pointerName = validIndices.length > 0 ? validIndices[0].name : foundStart || undefined
+    let pointer2Name = validIndices.length > 1 ? validIndices[1].name : foundEnd || undefined
+
+    const stringAccesses: Array<{ index: number; label: string }> = []
+    const stringAccessRegex = new RegExp(`\\b${name}\\s*\\[([^\\]]+)\\]`, 'g')
+    let stringAccessMatch: RegExpExecArray | null
+    while ((stringAccessMatch = stringAccessRegex.exec(lineCode)) !== null) {
+      const expression = stringAccessMatch[1].trim()
+      const index = resolveIndexExpression(expression, vars, name, chars.length)
+      if (index !== null && index >= 0 && index < chars.length && !stringAccesses.some(access => access.index === index)) {
+        const label = expression.replace(/\s*([+\-*/%])\s*/g, ' $1 ').replace(/\s+/g, ' ').trim()
+        stringAccesses.push({ index, label })
+      }
+    }
+    if (stringAccesses.length > 0) {
+      pointer = stringAccesses[0].index
+      pointerName = stringAccesses[0].label
+      pointer2 = stringAccesses[1]?.index
+      pointer2Name = stringAccesses[1]?.label
+    }
 
     const isWindow = rangeStart !== undefined && rangeEnd !== undefined && rangeEnd >= rangeStart
 

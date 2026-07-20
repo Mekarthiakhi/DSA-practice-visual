@@ -1,18 +1,16 @@
-version: '3.8'
-
 services:
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: ""
+        VITE_EXECUTION_API_URL: /api/execute
     ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:3001
-    volumes:
-      - ./src:/app/src
+      - "5173:80"
     depends_on:
       - backend
+    restart: unless-stopped
 
   backend:
     build:
@@ -22,27 +20,9 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - NODE_ENV=development
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - EXECUTION_SERVICE_URL=${EXECUTION_SERVICE_URL:-}
+      - EXECUTION_SERVICE_TOKEN=${EXECUTION_SERVICE_TOKEN:-}
+      - CORS_ORIGINS=http://localhost:5173
+      - NODE_ENV=production
     restart: unless-stopped
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: algovision
-      POSTGRES_USER: algovision
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
-
-volumes:
-  pgdata:

@@ -20,7 +20,7 @@ const ALL_CATS = [
 const LANGS: { value: Language; label: string; color: string; monacoId: string; canBrowser: boolean }[] = [
   { value: 'javascript', label: 'JavaScript', color: '#f7df1e', monacoId: 'javascript', canBrowser: true  },
   { value: 'typescript', label: 'TypeScript', color: '#3178c6', monacoId: 'typescript', canBrowser: true  },
-  { value: 'python',     label: 'Python',     color: '#3776ab', monacoId: 'python',     canBrowser: false },
+  { value: 'python',     label: 'Python',     color: '#3776ab', monacoId: 'python',     canBrowser: true  },
   { value: 'java',       label: 'Java',       color: '#ed8b00', monacoId: 'java',       canBrowser: false },
   { value: 'cpp',        label: 'C++',        color: '#00599c', monacoId: 'cpp',        canBrowser: false },
   { value: 'c',          label: 'C',          color: '#a8b9cc', monacoId: 'c',          canBrowser: false },
@@ -41,6 +41,7 @@ export const TopBar: React.FC = () => {
     aiApiKey,
     showLeetCodePanel, setShowLeetCodePanel,
     execMode, setExecMode,
+    setDetectedAlgorithm,
   } = useIDEStore()
 
   const [showLangPicker, setShowLangPicker]     = useState(false)
@@ -49,6 +50,7 @@ export const TopBar: React.FC = () => {
   const [isPlaying, setIsPlaying]               = useState(false)
   const [isRunning, setIsRunning]               = useState(false)
   const playRef = useRef<ReturnType<typeof setTimeout>|null>(null)
+  const runRequestRef = useRef(0)
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
@@ -70,36 +72,44 @@ export const TopBar: React.FC = () => {
     setIsPlaying(false)
   }
 
-  const handleVisualize = async () => {
+  const handleVisualize = async (isLiveUpdate = false) => {
+    const requestId = ++runRequestRef.current
     stopPlay()
     clearOutput()
     setIsRunning(true)
-    addOutput('▶  Starting visualization…')
+    setExecutionStatus('running')
+    addOutput(isLiveUpdate ? 'Updating live execution...' : 'Starting visualization...')
 
     const currentLang = language as SupportedLang
-    const isBrowser = ['javascript', 'typescript'].includes(currentLang)
+    const isDirectJavaScript = currentLang === 'javascript'
 
     try {
-      if (isBrowser) {
+      if (isDirectJavaScript) {
         // Use existing browser engine for JS/TS
         const result = runCode(code, execMode === 'trace' ? 'interpreter' : execMode === 'dsa' ? 'dsa' : 'auto')
         setExecutionSteps(result.steps)
-        setCurrentStepIndex(0)
+        const diagnosticStep = result.steps.findIndex(step => !!step.diagnostic)
+        setCurrentStepIndex(diagnosticStep >= 0 ? diagnosticStep : 0)
         setExecutionStatus(result.error ? 'error' : 'paused')
+        if (result.algo) setDetectedAlgorithm(result.algo)
         addOutput(`📊 Mode: ${result.mode === 'dsa' ? 'DSA Visualizer' : 'Live Tracer'}${result.algo ? ` (${result.algo})` : ''}`)
         addOutput(`📋 ${result.steps.length} steps`)
         addOutput('──────────────────────────')
         result.output.forEach(l => addOutput(l))
         if (result.error) addOutput(`❌ ${result.error}`)
       } else {
-        // Use multi-lang engine (AI simulation) for Python, Java, C, C++, etc.
+        // Use local WASM/transpilation or the configured isolated runtime service.
         const result = await runMultiLang(code, currentLang, aiApiKey || undefined)
+        if (requestId !== runRequestRef.current) return
         setExecutionSteps(result.steps)
-        setCurrentStepIndex(0)
+        const diagnosticStep = result.steps.findIndex(step => !!step.diagnostic)
+        setCurrentStepIndex(diagnosticStep >= 0 ? diagnosticStep : 0)
         setExecutionStatus(result.error ? 'error' : 'paused')
 
         const modeLabel = result.mode === 'dsa' ? 'DSA Visualizer'
-          : result.mode === 'browser' ? 'Browser Tracer'
+          : result.mode === 'runtime-api' ? 'Dynamic Runtime Service'
+          : result.mode === 'browser' && currentLang === 'python' ? 'Python WASM Tracer'
+          : result.mode === 'browser' ? 'Local Runtime Tracer'
           : 'AI-Simulated Trace'
         addOutput(`📊 Mode: ${modeLabel} | Language: ${currentLang.toUpperCase()}`)
         addOutput(`📋 ${result.steps.length} execution steps`)
@@ -108,13 +118,31 @@ export const TopBar: React.FC = () => {
         if (result.error) addOutput(`❌ ${result.error}`)
       }
     } catch (err) {
+      if (requestId !== runRequestRef.current) return
       const msg = err instanceof Error ? err.message : String(err)
       addOutput(`❌ Error: ${msg}`)
       setExecutionStatus('error')
     } finally {
-      setIsRunning(false)
+      if (requestId === runRequestRef.current) setIsRunning(false)
     }
   }
+
+  // Re-run JavaScript after the learner pauses typing. Editing clears the old
+  // trace immediately, so the canvas never presents stale execution state.
+  useEffect(() => {
+    stopPlay()
+    runRequestRef.current += 1
+    setIsRunning(false)
+    if (!['javascript', 'typescript', 'python'].includes(language) || !code.trim()) return
+
+    const timer = setTimeout(() => {
+      void handleVisualize(true)
+    }, 700)
+
+    return () => clearTimeout(timer)
+    // Zustand actions are stable; source controls are the only rerun triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, language, execMode])
 
   const handlePlayPause = () => {
     if (isPlaying) {
@@ -156,7 +184,9 @@ export const TopBar: React.FC = () => {
 
   const curLang = LANGS.find(l => l.value === language) || LANGS[0]
   const samplesForCat = Object.entries(ALL_SAMPLES_MERGED).filter(([, s]) => s.category === activeCat)
-  const nonBrowser = !curLang.canBrowser
+  const hasExecutionService = !!(globalThis as typeof globalThis & { __ALGOVISION_EXECUTION_API_URL__?: string })
+    .__ALGOVISION_EXECUTION_API_URL__
+  const nonBrowser = !curLang.canBrowser && !hasExecutionService
 
   return (
     <header className="h-12 bg-bg-secondary border-b border-border-subtle flex items-center gap-2 px-3 flex-shrink-0 relative z-[100] select-none">
@@ -196,15 +226,15 @@ export const TopBar: React.FC = () => {
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: lang.color }} />
                   <span className="flex-1 text-left">{lang.label}</span>
                   {lang.canBrowser
-                    ? <span className="text-[9px] text-green-500/60 font-mono">browser</span>
-                    : <span className="text-[9px] text-amber-500/60 font-mono">AI sim</span>
+                    ? <span className="text-[9px] text-green-500/60 font-mono">local runtime</span>
+                    : <span className="text-[9px] text-amber-500/60 font-mono">runtime service</span>
                   }
                 </button>
               ))}
               <div className="mt-1 pt-1 border-t border-border-subtle px-2 py-1">
                 <p className="text-[9px] text-gray-700 font-mono leading-relaxed">
-                  🟢 browser = runs instantly<br/>
-                  🟡 AI sim = uses Anthropic API
+                  🟢 local = real browser/WASM execution<br/>
+                  🟡 service = runtime API or AI simulation
                 </p>
               </div>
             </motion.div>
@@ -302,12 +332,12 @@ export const TopBar: React.FC = () => {
       {nonBrowser && !aiApiKey && (
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/8 border border-amber-500/20 flex-shrink-0">
           <Key size={9} className="text-amber-400" />
-          <span className="text-[10px] font-mono text-amber-400">API key needed for {curLang.label}</span>
+          <span className="text-[10px] font-mono text-amber-400">Runtime service or AI key needed for {curLang.label}</span>
         </div>
       )}
 
       {/* ▶ Visualize */}
-      <button onClick={handleVisualize} disabled={isRunning}
+      <button onClick={() => void handleVisualize()} disabled={isRunning}
         className="flex-shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
         style={{ background: isRunning ? '#1e2130' : 'linear-gradient(135deg,#00b4d8,#0077b6)', color: isRunning ? '#6b7280' : 'white', boxShadow: isRunning ? 'none' : '0 0 14px rgba(0,180,216,.3)' }}
       >

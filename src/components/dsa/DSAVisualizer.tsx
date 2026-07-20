@@ -147,6 +147,12 @@ const ArrayView: React.FC<{ nodes: DSANode[]; auxiliaryData?: Record<string, any
                       <div className="px-1.5 py-0.5 bg-cyan-900/60 border border-cyan-500/50 rounded text-[9px] text-cyan-300 font-mono mt-0.5">{pointerName || 'i'}</div>
                     </div>
                   )}
+                  {pointer2 === idx && (
+                    <div className="absolute -bottom-7 flex flex-col items-center z-10">
+                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent border-b-purple-400" />
+                      <div className="px-1.5 py-0.5 bg-purple-900/60 border border-purple-500/50 rounded text-[9px] text-purple-300 font-mono mt-0.5">{pointer2Name || 'j'}</div>
+                    </div>
+                  )}
                 </motion.div>
               )
             })}

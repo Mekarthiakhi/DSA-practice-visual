@@ -20,7 +20,7 @@ export interface AIResponse {
 
 // Backend proxy URL — in dev it's localhost:3001, in production set via env
 // @ts-ignore
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 // @ts-ignore
 const DEFAULT_GEMINI_KEY: string = import.meta.env.VITE_GEMINI_API_KEY || ''
 const MAX_RETRIES = 2

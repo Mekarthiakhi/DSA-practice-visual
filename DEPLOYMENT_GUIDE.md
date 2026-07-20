@@ -1,5 +1,7 @@
 # AlgoVision IDE - Vercel Deployment Guide
 
+> Historical guide. The canonical deployment configuration and current runtime limitations are in `README.md`; do not copy the older `/api` environment values below unchanged.
+
 ## Overview
 Complete guide to deploy AlgoVision IDE to Vercel with AI backend support.
 

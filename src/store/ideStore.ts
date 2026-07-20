@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-// Support all languages — JS/TS run in-browser, others use AI simulation
+// JS/TS/Python run locally; compiled languages use a configured runtime service or labelled AI simulation.
 export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust'
 export type VisualizationTab = 'variables' | 'callstack' | 'heap' | 'flow' | 'dsa'
 export type ExecutionStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error'
@@ -47,6 +47,15 @@ export interface ExecutionStep {
   description: string
   codeHighlight?: number[]
   maxStepsWarning?: boolean // PHASE 1 FIX: Track if execution was truncated
+  diagnostic?: ExecutionDiagnostic
+}
+
+export interface ExecutionDiagnostic {
+  severity: 'error' | 'warning'
+  type: string
+  message: string
+  line: number
+  column?: number
 }
 
 export interface DSANode {
@@ -209,19 +218,62 @@ export const useIDEStore = create<IDEState>((set) => ({
 const result = bubbleSort([5, 2, 8, 1, 9]);`,
   language: 'javascript',
   fileName: 'algorithm',
-  setCode: (code: string) => set({ code }),
-  setLanguage: (lang: Language) => set({ language: lang }),
+  // Never leave an old trace attached to new source code. A fresh trace is
+  // produced by the live runner after the editor debounce.
+  setCode: (code: string) => set((state) => state.code === code ? state : ({
+    code,
+    executionSteps: [],
+    currentStepIndex: 0,
+    currentLine: 1,
+    executionStatus: 'idle',
+    consoleOutput: [],
+    detectedAlgorithm: undefined,
+  })),
+  setLanguage: (lang: Language) => set((state) => state.language === lang ? state : ({
+    language: lang,
+    executionSteps: [],
+    currentStepIndex: 0,
+    currentLine: 1,
+    executionStatus: 'idle',
+    consoleOutput: [],
+    detectedAlgorithm: undefined,
+  })),
   setFileName: (name: string) => set({ fileName: name }),
 
   executionSteps: [],
   currentStepIndex: 0,
   executionStatus: 'idle',
-  setExecutionSteps: (steps: ExecutionStep[]) => set({ executionSteps: steps, currentStepIndex: 0 }),
-  setCurrentStepIndex: (index: number) => set({ currentStepIndex: index }),
+  setExecutionSteps: (steps: ExecutionStep[]) => set({
+    executionSteps: steps,
+    currentStepIndex: 0,
+    currentLine: steps[0]?.line || 1,
+  }),
+  setCurrentStepIndex: (index: number) => set((state) => {
+    if (state.executionSteps.length === 0) return { currentStepIndex: 0 }
+    const bounded = Math.max(0, Math.min(index, state.executionSteps.length - 1))
+    return {
+      currentStepIndex: bounded,
+      currentLine: state.executionSteps[bounded]?.line || state.currentLine,
+    }
+  }),
   setExecutionStatus: (status: ExecutionStatus) => set({ executionStatus: status }),
-  nextStep: () => set((s) => ({ currentStepIndex: Math.min(s.currentStepIndex + 1, s.executionSteps.length - 1) })),
-  prevStep: () => set((s) => ({ currentStepIndex: Math.max(s.currentStepIndex - 1, 0) })),
-  resetExecution: () => set({ executionSteps: [], currentStepIndex: 0, executionStatus: 'idle', consoleOutput: [] }),
+  nextStep: () => set((s) => {
+    if (s.executionSteps.length === 0) return { currentStepIndex: 0 }
+    const index = Math.min(s.currentStepIndex + 1, s.executionSteps.length - 1)
+    return { currentStepIndex: index, currentLine: s.executionSteps[index]?.line || s.currentLine }
+  }),
+  prevStep: () => set((s) => {
+    const index = Math.max(s.currentStepIndex - 1, 0)
+    return { currentStepIndex: index, currentLine: s.executionSteps[index]?.line || s.currentLine }
+  }),
+  resetExecution: () => set({
+    executionSteps: [],
+    currentStepIndex: 0,
+    currentLine: 1,
+    executionStatus: 'idle',
+    consoleOutput: [],
+    detectedAlgorithm: undefined,
+  }),
 
   leftPanelWidth: 35,
   rightPanelWidth: 25,

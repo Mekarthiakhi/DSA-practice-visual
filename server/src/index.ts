@@ -1,37 +1,42 @@
 import express from 'express'
 import cors from 'cors'
-import { createServer } from 'http'
-import { Server } from 'socket.io'
 import dotenv from 'dotenv'
 
 dotenv.config()
 
 const app = express()
-const httpServer = createServer(app)
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1)
 
 const allowedOrigins = process.env.CORS_ORIGINS 
   ? process.env.CORS_ORIGINS.split(',') 
   : ['http://localhost:5173', 'http://localhost:3000']
 
-const io = new Server(httpServer, {
-  cors: {
-    origin: allowedOrigins,
-    methods: ['GET', 'POST']
-  }
-})
-
 app.use(cors({
   origin: allowedOrigins
 }))
+app.disable('x-powered-by')
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  next()
+})
 app.use(express.json({ limit: '10mb' }))
 
 // ─── Simple in-memory rate limiter ────────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT_WINDOW = 60_000 // 1 minute
-const RATE_LIMIT_MAX = 30        // 30 requests per minute
+const configuredRateWindow = Number(process.env.RATE_LIMIT_WINDOW)
+const configuredRateMax = Number(process.env.RATE_LIMIT_MAX)
+const RATE_LIMIT_WINDOW = Number.isFinite(configuredRateWindow) && configuredRateWindow > 0 ? configuredRateWindow : 60_000
+const RATE_LIMIT_MAX = Number.isFinite(configuredRateMax) && configuredRateMax > 0 ? configuredRateMax : 30
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now()
+  if (rateLimitMap.size > 10_000) {
+    for (const [key, value] of rateLimitMap) {
+      if (now > value.resetAt) rateLimitMap.delete(key)
+    }
+  }
   const entry = rateLimitMap.get(ip)
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW })
@@ -45,6 +50,10 @@ function checkRateLimit(ip: string): boolean {
 // ─── OpenRouter proxy helper ──────────────────────────────────────────────────
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ''
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const EXECUTION_SERVICE_URL = process.env.EXECUTION_SERVICE_URL || ''
+const EXECUTION_SERVICE_TOKEN = process.env.EXECUTION_SERVICE_TOKEN || ''
+const EXECUTION_TIMEOUT_MS = 20_000
+const TRACE_LANGUAGES = new Set(['java', 'cpp', 'c', 'csharp', 'go', 'rust'])
 
 async function callOpenRouter(prompt: string, maxTokens = 1024): Promise<string> {
   if (!OPENROUTER_API_KEY) {
@@ -80,6 +89,7 @@ app.get('/health', (_req, res) => {
     version: '2.0.0',
     service: 'AlgoVision IDE Backend',
     aiConfigured: !!OPENROUTER_API_KEY,
+    executionRuntimeConfigured: !!EXECUTION_SERVICE_URL,
   })
 })
 
@@ -143,56 +153,88 @@ app.post('/api/chat', async (req, res) => {
 
 // ─── Code execution endpoint (sandbox) ────────────────────────────────────────
 app.post('/api/execute', async (req, res) => {
-  const { code, language } = req.body
+  const clientIp = req.ip || 'unknown'
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({ error: 'Rate limit exceeded. Try again in a minute.' })
+  }
 
-  if (!code) {
+  const { code, language, maxSteps } = req.body
+
+  if (typeof code !== 'string' || !code.trim()) {
     return res.status(400).json({ error: 'Code is required' })
   }
 
-  // Security check
-  const dangerous = ['process.exit', 'require(', '__dirname', 'fs.', 'child_process']
-  const hasDangerous = dangerous.some(d => code.includes(d))
-
-  if (hasDangerous) {
-    return res.status(403).json({ error: 'Code contains restricted operations' })
+  if (code.length > 100_000) {
+    return res.status(413).json({ error: 'Code exceeds the 100 KB execution limit' })
   }
 
-  // In production: run in Docker sandbox
-  res.json({
-    success: true,
-    output: ['Execution simulated in demo mode', `Language: ${language || 'unknown'}`],
-    executionTime: 42,
-    memoryUsed: 1024
-  })
+  if (typeof language !== 'string' || !TRACE_LANGUAGES.has(language)) {
+    return res.status(400).json({ error: 'Unsupported compiled language' })
+  }
+
+  if (!EXECUTION_SERVICE_URL) {
+    return res.status(503).json({
+      error: 'Compiled-language tracing is unavailable. Configure EXECUTION_SERVICE_URL with an isolated trace runner.'
+    })
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), EXECUTION_TIMEOUT_MS)
+
+  try {
+    const runtimeResponse = await fetch(EXECUTION_SERVICE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(EXECUTION_SERVICE_TOKEN ? { Authorization: `Bearer ${EXECUTION_SERVICE_TOKEN}` } : {}),
+      },
+      body: JSON.stringify({
+        code,
+        language,
+        trace: true,
+        maxSteps: Math.max(1, Math.min(Number(maxSteps) || 3000, 5000)),
+      }),
+      signal: controller.signal,
+    })
+    const payload = await runtimeResponse.json() as { steps?: unknown; output?: unknown; error?: string }
+
+    if (!runtimeResponse.ok) {
+      return res.status(502).json({ error: payload.error || `Execution runner returned ${runtimeResponse.status}` })
+    }
+    if (!Array.isArray(payload.steps)) {
+      return res.status(502).json({ error: 'Execution runner did not return a step trace' })
+    }
+
+    return res.json({
+      steps: payload.steps,
+      output: Array.isArray(payload.output) ? payload.output : [],
+      error: payload.error,
+    })
+  } catch (error) {
+    const message = error instanceof Error && error.name === 'AbortError'
+      ? 'Execution runner timed out'
+      : error instanceof Error ? error.message : 'Execution runner failed'
+    return res.status(502).json({ error: message })
+  } finally {
+    clearTimeout(timeout)
+  }
 })
 
 // ─── WebSocket for real-time execution updates ────────────────────────────────
-io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`)
-
-  socket.on('execute:start', (data) => {
-    console.log('Execution started:', data.language)
-    socket.emit('execute:status', { status: 'running' })
-
-    setTimeout(() => {
-      socket.emit('execute:step', { line: 1, description: 'Starting execution' })
-    }, 200)
-  })
-
-  socket.on('execute:stop', () => {
-    socket.emit('execute:status', { status: 'stopped' })
-  })
-
-  socket.on('disconnect', () => {
-    console.log(`Client disconnected: ${socket.id}`)
-  })
+app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const message = error instanceof Error ? error.message : 'Internal server error'
+  console.error('Unhandled request error:', message)
+  res.status(500).json({ error: 'Internal server error' })
 })
 
 const PORT = process.env.PORT || 3001
 
-httpServer.listen(PORT, () => {
-  console.log(`🚀 AlgoVision Server running on port ${PORT}`)
-  console.log(`📡 WebSocket ready`)
-  console.log(`🔗 Health: http://localhost:${PORT}/health`)
-  console.log(`🔑 AI: ${OPENROUTER_API_KEY ? 'Configured ✓' : 'NOT configured ✗'}`)
-})
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`AlgoVision Server running on port ${PORT}`)
+    console.log(`Health: http://localhost:${PORT}/health`)
+    console.log(`AI: ${OPENROUTER_API_KEY ? 'configured' : 'not configured'}`)
+  })
+}
+
+export default app

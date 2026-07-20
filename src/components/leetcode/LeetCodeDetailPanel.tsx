@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Code, Play } from 'lucide-react';
 import { useIDEStore } from '../../store/ideStore';
 import { LeetCodeProblem } from '../../data/leetcodeProblems';
+import { createLeetCodeHarness, LeetCodeHarnessLanguage } from '../../utils/leetcodeHarness';
 
 export const LeetCodeDetailPanel: React.FC = () => {
   const { 
@@ -12,6 +13,14 @@ export const LeetCodeDetailPanel: React.FC = () => {
     setFileName,
     setExecMode
   } = useIDEStore();
+
+  const [visualizationInput, setVisualizationInput] = React.useState('');
+  const [loadMessage, setLoadMessage] = React.useState('');
+
+  React.useEffect(() => {
+    setVisualizationInput(activeLeetCodeProblem?.examples[0]?.input || '');
+    setLoadMessage('');
+  }, [activeLeetCodeProblem?.id]);
 
   if (!activeLeetCodeProblem) return null;
 
@@ -24,28 +33,39 @@ export const LeetCodeDetailPanel: React.FC = () => {
     setActiveLeetCodeProblem(undefined);
   };
 
-  const handleLoadStarterCode = (problem: LeetCodeProblem, lang: 'javascript' | 'python') => {
-    const code = problem.starterCode[lang];
-    if (code) {
-      setCode(code);
-      setLanguage(lang);
-      setFileName(problem.title.replace(/\s+/g, '-').toLowerCase());
-      setExecMode('trace');
-    }
+  const loadIntoEditor = (problem: LeetCodeProblem, source: string, lang: LeetCodeHarnessLanguage) => {
+    const harness = createLeetCodeHarness(problem, source, lang, visualizationInput);
+    setCode(harness.code);
+    setLanguage(lang);
+    setFileName(problem.title.replace(/\s+/g, '-').toLowerCase());
+    setExecMode('auto');
+    setLoadMessage(harness.added
+      ? `Runnable ${lang === 'javascript' ? 'JavaScript' : 'Python'} input added.`
+      : harness.message || 'Add a test call before visualizing.');
   };
 
-  const handleLoadSolution = (problem: LeetCodeProblem, lang: 'javascript' | 'python') => {
-    const code = problem.solution?.[lang];
-    if (code) {
-      setCode(code);
-      setLanguage(lang);
-      setFileName(problem.title.replace(/\s+/g, '-').toLowerCase());
-      setExecMode('dsa');
+  const handleLoadStarterCode = (problem: LeetCodeProblem, lang: LeetCodeHarnessLanguage) => {
+    const source = problem.starterCode[lang];
+    if (source) loadIntoEditor(problem, source, lang);
+  };
+
+  const handleLoadSolution = (problem: LeetCodeProblem, lang: LeetCodeHarnessLanguage) => {
+    const solution = problem.solution?.[lang];
+    if (solution) {
+      const alreadyRunnable = lang === 'javascript'
+        ? /console\.log\s*\(/.test(solution)
+        : /print\s*\(/.test(solution);
+      if (alreadyRunnable) {
+        setCode(solution);
+        setLanguage(lang);
+        setFileName(problem.title.replace(/\s+/g, '-').toLowerCase());
+        setExecMode('auto');
+        setLoadMessage('Runnable solution loaded.');
+      } else {
+        loadIntoEditor(problem, solution, lang);
+      }
     } else {
-      setCode(`// Optimal Solution not available yet for ${problem.title}\n// Try writing your own and using '🪄 Auto' trace!`);
-      setLanguage('javascript');
-      setFileName(problem.title.replace(/\s+/g, '-').toLowerCase());
-      setExecMode('trace');
+      handleLoadStarterCode(problem, lang);
     }
   };
 
@@ -117,6 +137,32 @@ export const LeetCodeDetailPanel: React.FC = () => {
           </ul>
         </div>
 
+        {/* Runnable visualization input */}
+        <div className="space-y-2 pt-4 border-t border-[#1e2130]">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="leetcode-visualization-input" className="text-sm font-semibold text-white">
+              Visualization input
+            </label>
+            <span className="text-[10px] text-gray-500">Use parameter assignments</span>
+          </div>
+          <textarea
+            id="leetcode-visualization-input"
+            value={visualizationInput}
+            onChange={(event) => { setVisualizationInput(event.target.value); setLoadMessage(''); }}
+            rows={3}
+            placeholder={'Example: nums = [2,7,11,15], target = 9'}
+            className="w-full resize-y rounded-lg border border-[#2a2d3e] bg-[#13151f] px-3 py-2 font-mono text-xs text-gray-200 placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none"
+          />
+          <p className="text-[10px] leading-relaxed text-gray-500">
+            Arrays, strings, numbers, linked lists, and standard binary-tree arrays get an automatic test harness. Custom graph/node classes may still need fixture code in the editor.
+          </p>
+          {loadMessage && (
+            <p role="status" className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2.5 py-1.5 text-[10px] text-cyan-300">
+              {loadMessage}
+            </p>
+          )}
+        </div>
+
         {/* Action Buttons */}
         <div className="space-y-3 pt-4 border-t border-[#1e2130]">
           <h3 className="text-sm font-semibold text-white">JavaScript</h3>
@@ -131,9 +177,29 @@ export const LeetCodeDetailPanel: React.FC = () => {
               onClick={() => handleLoadSolution(activeLeetCodeProblem, 'javascript')}
               className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-medium shadow-lg shadow-cyan-500/20 transition-all"
             >
-              <Play size={14} fill="currentColor" /> Load Solution
+              <Play size={14} fill="currentColor" /> {activeLeetCodeProblem.solution?.javascript ? 'Load Solution' : 'Start Practice'}
             </button>
           </div>
+
+          {activeLeetCodeProblem.starterCode.python && (
+            <>
+              <h3 className="pt-2 text-sm font-semibold text-white">Python</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleLoadStarterCode(activeLeetCodeProblem, 'python')}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-[#13151f] border border-[#2a2d3e] hover:bg-[#1e2130] hover:border-blue-500/30 text-gray-300 text-xs font-medium transition-all"
+                >
+                  <Code size={14} /> Starter Code
+                </button>
+                <button
+                  onClick={() => handleLoadSolution(activeLeetCodeProblem, 'python')}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white text-xs font-medium shadow-lg shadow-blue-500/10 transition-all"
+                >
+                  <Play size={14} fill="currentColor" /> {activeLeetCodeProblem.solution?.python ? 'Load Solution' : 'Start Practice'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

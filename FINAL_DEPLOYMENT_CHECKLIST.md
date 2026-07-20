@@ -1,5 +1,7 @@
 # AlgoVision IDE - Final Deployment Checklist
 
+> Historical checklist. Its test totals and production-ready rating are no longer authoritative; use the verified checklist in `README.md`.
+
 **Project:** dsa-practice-visual  
 **Status:** ✅ Ready for Production  
 **Quality Score:** 9.2/10  

@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { X, Search, ChevronRight } from 'lucide-react';
 import { useIDEStore } from '../../store/ideStore';
 import { LEETCODE_PROBLEMS, LEETCODE_CATEGORIES, LeetCodeProblem, Difficulty } from '../../data/leetcodeProblems';
+import { createLeetCodeHarness } from '../../utils/leetcodeHarness';
+
+function hasAutomaticInput(problem: LeetCodeProblem): boolean {
+  const javascript = problem.starterCode.javascript;
+  if (javascript && createLeetCodeHarness(problem, javascript, 'javascript').added) return true;
+  const python = problem.starterCode.python;
+  return !!python && createLeetCodeHarness(problem, python, 'python').added;
+}
 
 export const LeetCodePanel: React.FC = () => {
   const { 
@@ -23,7 +31,9 @@ export const LeetCodePanel: React.FC = () => {
 
   // Filter problems
   const filteredProblems = LEETCODE_PROBLEMS.filter(p => {
-    const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) || p.id.includes(searchQuery);
+    const query = searchQuery.trim().toLowerCase();
+    const searchable = `${p.id} ${p.title} ${p.category} ${p.difficulty} ${p.description}`.toLowerCase();
+    const matchesSearch = !query || searchable.includes(query);
     const matchesDiff = selectedDifficulty === 'All' || p.difficulty === selectedDifficulty;
     const matchesCat = selectedCategory === 'All' || p.category === selectedCategory;
     return matchesSearch && matchesDiff && matchesCat;
@@ -37,6 +47,7 @@ export const LeetCodePanel: React.FC = () => {
       <div className="h-12 border-b border-[#1e2130] flex items-center justify-between px-4 flex-shrink-0 bg-[#0f1117]">
         <div className="flex items-center gap-2">
           <h2 className="text-white font-semibold text-sm">LeetCode Problems</h2>
+          <span className="text-[10px] font-mono text-gray-500">{LEETCODE_PROBLEMS.length} catalogued</span>
         </div>
           <button 
             onClick={() => setShowLeetCodePanel(false)}
@@ -86,8 +97,9 @@ export const LeetCodePanel: React.FC = () => {
 
           {/* Problem List */}
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#2a2d3e transparent' }}>
-            {filteredProblems.map((problem) => (
-              <button
+            {filteredProblems.map((problem) => {
+              const autoInput = hasAutomaticInput(problem);
+              return <button
                 key={problem.id}
                 onClick={() => handleSelectProblem(problem)}
                 className="w-full text-left p-4 border-b border-[#1e2130] hover:bg-[#13151f] transition-colors group flex items-center justify-between"
@@ -105,11 +117,18 @@ export const LeetCodePanel: React.FC = () => {
                       {problem.difficulty}
                     </span>
                     <span className="text-[10px] text-gray-500 font-mono">{problem.category}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                      autoInput
+                        ? 'text-cyan-400 bg-cyan-400/10'
+                        : 'text-gray-500 bg-white/5'
+                    }`}>
+                      {autoInput ? 'Auto input' : 'Needs fixture'}
+                    </span>
                   </div>
                 </div>
                 <ChevronRight size={14} className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
               </button>
-            ))}
+            })}
             
             {filteredProblems.length === 0 && (
               <div className="text-center py-8 text-gray-500 text-sm">

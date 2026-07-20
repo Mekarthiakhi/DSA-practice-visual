@@ -1,5 +1,7 @@
 # Vercel Environment Setup - Quick Guide
 
+> Historical guide. Use the current Vercel section in `README.md`; `VITE_API_URL` must be the backend origin without a trailing `/api`.
+
 ## 🔑 Step 1: Get Your OpenRouter API Key
 
 1. Visit **https://openrouter.ai**

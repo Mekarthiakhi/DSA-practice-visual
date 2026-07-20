@@ -1,5 +1,7 @@
 # 🚀 AlgoVision IDE - Deployment & Setup Guide
 
+> Historical snapshot from June 2026. It predates dynamic Python, the compiled-runtime proxy, and the current LeetCode audit. Use `README.md` for deployment.
+
 **Project Status:** ✅ **PRODUCTION READY**  
 **Quality Score:** 9.2/10  
 **All Fixes Implemented:** 18/18 ✅  
