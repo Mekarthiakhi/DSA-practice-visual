@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Search, ChevronRight } from 'lucide-react';
+import { X, Search, ChevronRight, Bookmark, CircleCheck } from 'lucide-react';
 import { useIDEStore } from '../../store/ideStore';
 import { LEETCODE_PROBLEMS, LEETCODE_CATEGORIES, LeetCodeProblem, Difficulty } from '../../data/leetcodeProblems';
 import { createLeetCodeHarness } from '../../utils/leetcodeHarness';
+import { useLearningStore } from '../../store/learningStore';
 
 function hasAutomaticInput(problem: LeetCodeProblem): boolean {
   const javascript = problem.starterCode.javascript;
@@ -21,6 +22,8 @@ export const LeetCodePanel: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | 'All'>('All');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const bookmarks = useLearningStore(state => state.bookmarks);
+  const progress = useLearningStore(state => state.progress);
 
   // Navigate to problem detail
   const handleSelectProblem = (problem: LeetCodeProblem) => {
@@ -106,7 +109,11 @@ export const LeetCodePanel: React.FC = () => {
               >
                 <div>
                   <div className="text-sm font-semibold text-gray-200 group-hover:text-white mb-1 transition-colors">
-                    {problem.id}. {problem.title}
+                    <span className="inline-flex items-center gap-1.5">
+                      {problem.id}. {problem.title}
+                      {bookmarks.includes(problem.id) && <Bookmark size={11} className="text-amber-400" fill="currentColor" />}
+                      {progress[problem.id]?.lastScore === 1 && <CircleCheck size={11} className="text-emerald-400" />}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold ${

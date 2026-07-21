@@ -1,5 +1,7 @@
 const PYODIDE_INDEX_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.2/full/'
-const EXECUTION_TIMEOUT_MS = 15_000
+// The first run downloads and initializes Pyodide. Keep its timeout generous
+// enough for normal mobile connections; subsequent runs reuse the same worker.
+const EXECUTION_TIMEOUT_MS = 45_000
 
 export interface PythonTraceEvent {
   line: number
@@ -211,7 +213,7 @@ export function runPythonDynamic(code: string): Promise<PythonTraceResult> {
       pending.delete(id)
       worker?.terminate()
       worker = undefined
-      reject(new Error('Python execution timed out after 15 seconds. Check for blocking code or an infinite loop.'))
+      reject(new Error('Python execution timed out after 45 seconds. Check for blocking code or an infinite loop.'))
     }, EXECUTION_TIMEOUT_MS)
 
     pending.set(id, { resolve, reject, timer })

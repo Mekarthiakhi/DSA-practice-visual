@@ -18,7 +18,7 @@
 
 | Language | Runtime |
 |---|---|
-| JavaScript | Local browser tracer |
+| JavaScript | Disposable module Worker containing the local tracer |
 | TypeScript | Local TypeScript transpilation + browser tracer |
 | Python | Real CPython in a Web Worker through Pyodide/WebAssembly |
 | Java, C, C++, C#, Go, Rust | Isolated trace service configured with `VITE_EXECUTION_API_URL` |
@@ -33,10 +33,16 @@ For compiled languages, set frontend `VITE_EXECUTION_API_URL=http://localhost:30
 - **130** include at least one example input.
 - Automatic runnable harnesses can currently be generated for **122 JavaScript** starters and **111 Python** starters.
 - The catalog includes complete solutions for **10 JavaScript** problems and **1 Python** problem; the remaining entries are practice starters.
-- Primitive values, arrays, matrices, strings, standard linked lists, and level-order binary trees are handled automatically. Design problems, random-pointer nodes, and custom graph-node objects require fixture code in the editor.
+- Primitive values, arrays, matrices, strings, standard linked lists, and level-order binary trees are handled automatically. Structured JSON fixture editors cover graph nodes, random-pointer lists, design-operation sequences, and tries.
 - Every successfully executed program receives a generic variable/call-stack flow. A specialized DSA canvas is shown only when its runtime data structure can be recognized reliably.
 
 The LeetCode panel labels each item as `Auto input` or `Needs fixture` and provides an editable visualization-input field. This prevents an empty starter or malformed catalog example from being presented as a successful visualization.
+
+Every catalog problem also receives an approach overview derived from its problem family. The overview describes the expected canvas, state to watch, milestones, and invariants for arrays/hashing, two pointers, sliding windows, stacks, linked lists, trees, graphs, heaps, tries, dynamic programming, backtracking, intervals, binary search, greedy, bit, math, design, and generic problems. Source-pattern matches are explicitly labelled as heuristic direction guidance; only configured judge results are treated as correctness evidence.
+
+The built-in judge runs every catalog or custom case independently, compares expected and actual values semantically, and jumps to the failing diagnostic/result step. Saved solutions, bookmarks, notes, judge progress, and spaced-review dates remain in the learner's browser. Runtime telemetry is disabled by default; when a learner opts in it sends only anonymous event type, language, timing, and pass counts—never source, input, or output.
+
+JavaScript isolation is a browser safety boundary for the IDE UI, not a hostile-code sandbox: each run uses a fresh Worker with no DOM or local-storage access and is terminated on timeout. Public execution of untrusted shared code still requires an operating-system/container sandbox on the server.
 
 ## Deployment
 
@@ -61,11 +67,11 @@ VITE_EXECUTION_API_URL=https://your-backend.example.com/api/execute
 
 Do not add `/api` to `VITE_API_URL`; the client adds endpoint paths itself. In the backend project set `CORS_ORIGINS` to the frontend origin and configure `OPENROUTER_API_KEY` and optional `EXECUTION_SERVICE_URL`. Vite variables are embedded at build time, so redeploy the frontend after changing them.
 
-Before public launch, test `/health`, JavaScript, Python first-load behavior, editor error markers, and one linked-list/tree fixture from the deployed HTTPS origin.
+Before public launch, run `PLAYWRIGHT_BASE_URL=https://your-site.example npm run test:e2e:deployed`. The smoke suite covers JavaScript, Python first load, linked lists, trees, syntax errors, runtime errors, and the Monaco input-overlay regression.
 
 ### Universal Code Support
-Every JavaScript program can now be visualized — the interpreter:
-- Actually **executes** your code in a controlled browser `Function()` runtime
+JavaScript programs can be traced dynamically — the interpreter:
+- Executes inside a fresh dedicated Worker; the tracer's internal `Function()` never runs in the page/UI realm
 - Tracks **every variable assignment** in real-time via a Proxy
 - Shows **live variable values** with type-aware coloring
 - Renders a **variable timeline** showing when each variable changed

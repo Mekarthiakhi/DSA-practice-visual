@@ -129,10 +129,8 @@ export function genHeapSort(arr: number[]): ExecutionStep[] {
     
     // Heapify subtree rooted at i with recursive comparison
     let current = i
-    let heapifyDepth = 0
     
     while (true) {
-      heapifyDepth++
       const highlights: Record<number, any> = {}
       
       // Mark current node being heapified

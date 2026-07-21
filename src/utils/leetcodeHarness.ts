@@ -8,6 +8,13 @@ export interface LeetCodeHarnessResult {
   message?: string
 }
 
+export type StructuredFixtureKind = 'graph' | 'random-list' | 'operations' | 'trie'
+
+export function stripGeneratedHarness(code: string, language: LeetCodeHarnessLanguage): string {
+  const marker = language === 'javascript' ? '// Visualization input' : '# Visualization input'
+  return code.split(marker)[0].trimEnd()
+}
+
 interface InputAssignment {
   name: string
   value: string
@@ -98,7 +105,24 @@ function findJavaScriptCallable(code: string): CallableInfo | undefined {
 }
 
 function findPythonCallable(code: string): CallableInfo | undefined {
-  const classMethod = code.match(/^\s+def\s+([\w$]+)\s*\(\s*self\s*,?([^)]*)\)/m)
+  const solutionDeclaration = /^class\s+Solution(?:\([^)]*\))?\s*:\s*$/m.exec(code)
+  if (solutionDeclaration?.index !== undefined) {
+    const afterDeclaration = code.slice(solutionDeclaration.index + solutionDeclaration[0].length)
+    const nextTopLevel = afterDeclaration.search(/^\S/m)
+    const solutionBody = nextTopLevel >= 0 ? afterDeclaration.slice(0, nextTopLevel) : afterDeclaration
+    const classMethod = solutionBody.match(/^\s+def\s+(?!__)([\w$]+)\s*\(\s*self\s*,?([^)]*)\)/m)
+    if (classMethod) {
+      return {
+        name: classMethod[1],
+        params: splitLeetCodeInput(classMethod[2]).map(cleanParam).filter(Boolean),
+        classMethod: true,
+      }
+    }
+  }
+  const fn = code.match(/^def\s+(?!__)([\w$]+)\s*\(([^)]*)\)/m)
+  if (fn) return { name: fn[1], params: splitLeetCodeInput(fn[2]).map(cleanParam).filter(Boolean) }
+
+  const classMethod = code.match(/^\s+def\s+(?!__)([\w$]+)\s*\(\s*self\s*,?([^)]*)\)/m)
   if (classMethod) {
     return {
       name: classMethod[1],
@@ -106,9 +130,7 @@ function findPythonCallable(code: string): CallableInfo | undefined {
       classMethod: true,
     }
   }
-  const fn = code.match(/^def\s+([\w$]+)\s*\(([^)]*)\)/m)
-  if (!fn) return undefined
-  return { name: fn[1], params: splitLeetCodeInput(fn[2]).map(cleanParam).filter(Boolean) }
+  return undefined
 }
 
 function ensurePythonFunctionBodies(code: string): string {
@@ -284,5 +306,108 @@ export function createLeetCodeHarness(
   return {
     code: `from __future__ import annotations\n\n${preparedSource}\n\n# Visualization input${helpers ? `\n${helpers}` : ''}\nvisualization_result = ${invocation}\nprint('Result:', visualization_result)`,
     added: true,
+  }
+}
+
+function findDesignClass(code: string, language: LeetCodeHarnessLanguage): string | undefined {
+  if (language === 'javascript') {
+    const executable = stripJavaScriptComments(code)
+    return executable.match(/class\s+([\w$]+)/)?.[1]
+      || executable.match(/(?:var|let|const)\s+([\w$]+)\s*=\s*function\s*\(/)?.[1]
+  }
+  return [...code.matchAll(/^class\s+(\w+)\s*[:(]/gm)].map(match => match[1]).find(name => name !== 'Solution')
+}
+
+function toPythonLiteral(value: unknown): string {
+  if (value === null || value === undefined) return 'None'
+  if (typeof value === 'boolean') return value ? 'True' : 'False'
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'None'
+  if (typeof value === 'string') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(toPythonLiteral).join(', ')}]`
+  if (typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>).map(([key, item]) => `${JSON.stringify(key)}: ${toPythonLiteral(item)}`).join(', ')}}`
+  }
+  return 'None'
+}
+
+export function createStructuredFixtureHarness(
+  source: string,
+  language: LeetCodeHarnessLanguage,
+  kind: StructuredFixtureKind,
+  fixtureJson: string,
+): LeetCodeHarnessResult {
+  const preparedSource = language === 'python' ? ensurePythonFunctionBodies(source) : source
+  let fixture: unknown
+  try {
+    fixture = JSON.parse(fixtureJson)
+  } catch (error) {
+    return {
+      code: preparedSource,
+      added: false,
+      message: `Fixture must be valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+
+  const marker = language === 'javascript' ? '// Visualization input' : '# Visualization input'
+  if (kind === 'operations' || kind === 'trie') {
+    const record = fixture as { operations?: unknown; arguments?: unknown }
+    const operations = record?.operations
+    const args = record?.arguments
+    if (!Array.isArray(operations) || !Array.isArray(args) || operations.length !== args.length || operations.length === 0) {
+      return { code: preparedSource, added: false, message: 'Operations fixture needs equal-length operations and arguments arrays.' }
+    }
+    const className = findDesignClass(preparedSource, language)
+    if (!className) return { code: preparedSource, added: false, message: 'No design class was found in the starter code.' }
+    const serializedOps = JSON.stringify(operations)
+    const serializedArgs = JSON.stringify(args)
+    if (language === 'javascript') {
+      return {
+        added: true,
+        code: `${preparedSource}\n\n${marker}\nconst __operations = ${serializedOps};\nconst __arguments = ${serializedArgs};\nconst __instance = new ${className}(...(__arguments[0] || []));\nconst visualizationResult = [null];\nfor (let i = 1; i < __operations.length; i++) {\n  visualizationResult.push(__instance[__operations[i]](...(__arguments[i] || [])));\n}\nconsole.log('Result:', visualizationResult);`,
+      }
+    }
+    return {
+      added: true,
+      code: `from __future__ import annotations\n\n${preparedSource}\n\n${marker}\n__operations = ${toPythonLiteral(operations)}\n__arguments = ${toPythonLiteral(args)}\n__instance = ${className}(*(__arguments[0] or []))\nvisualization_result = [None]\nfor __index in range(1, len(__operations)):\n    visualization_result.append(getattr(__instance, __operations[__index])(*(__arguments[__index] or [])))\nprint('Result:', visualization_result)`,
+    }
+  }
+
+  const callable = language === 'javascript' ? findJavaScriptCallable(preparedSource) : findPythonCallable(preparedSource)
+  if (!callable) return { code: preparedSource, added: false, message: 'No callable function or Solution method was found.' }
+
+  if (kind === 'graph') {
+    const adjacency = Array.isArray(fixture) ? fixture : (fixture as { adjList?: unknown })?.adjList
+    if (!Array.isArray(adjacency) || !adjacency.every(row => Array.isArray(row))) {
+      return { code: preparedSource, added: false, message: 'Graph fixture needs {"adjList":[[2,4],[1,3],...]}.' }
+    }
+    const data = JSON.stringify(adjacency)
+    if (language === 'javascript') {
+      return {
+        added: true,
+        code: `${preparedSource}\n\n${marker}\n${/class\s+Node\b/.test(stripJavaScriptComments(preparedSource)) ? '' : 'class Node { constructor(val = 0, neighbors = []) { this.val = val; this.neighbors = neighbors; } }\n'}const __adjacency = ${data};\nconst __nodes = __adjacency.map((_, index) => new Node(index + 1));\n__adjacency.forEach((neighbors, index) => { __nodes[index].neighbors = neighbors.map(value => __nodes[value - 1]); });\nconst visualizationResult = ${callable.name}(__nodes[0] || null);\nconsole.log('Result:', visualizationResult);`,
+      }
+    }
+    const invocation = callable.classMethod ? `Solution().${callable.name}` : callable.name
+    return {
+      added: true,
+      code: `from __future__ import annotations\n\n${preparedSource}\n\n${marker}\n${/^class\s+Node\b/m.test(preparedSource) ? '' : 'class Node:\n    def __init__(self, val=0, neighbors=None):\n        self.val = val\n        self.neighbors = neighbors or []\n\n'}__adjacency = ${toPythonLiteral(adjacency)}\n__nodes = [Node(index + 1) for index in range(len(__adjacency))]\nfor __index, __neighbors in enumerate(__adjacency):\n    __nodes[__index].neighbors = [__nodes[value - 1] for value in __neighbors]\nvisualization_result = ${invocation}(__nodes[0] if __nodes else None)\nprint('Result:', visualization_result)`,
+    }
+  }
+
+  const nodes = Array.isArray(fixture) ? fixture : (fixture as { nodes?: unknown })?.nodes
+  if (!Array.isArray(nodes) || !nodes.every(row => Array.isArray(row) && row.length >= 2)) {
+    return { code: preparedSource, added: false, message: 'Random-list fixture needs {"nodes":[[value,randomIndex],...]}.' }
+  }
+  const data = JSON.stringify(nodes)
+  if (language === 'javascript') {
+    return {
+      added: true,
+      code: `${preparedSource}\n\n${marker}\n${/class\s+Node\b/.test(stripJavaScriptComments(preparedSource)) ? '' : 'class Node { constructor(val = 0, next = null, random = null) { this.val = val; this.next = next; this.random = random; } }\n'}const __pairs = ${data};\nconst __nodes = __pairs.map(pair => new Node(pair[0]));\n__nodes.forEach((node, index) => { node.next = __nodes[index + 1] || null; node.random = __pairs[index][1] == null ? null : __nodes[__pairs[index][1]]; });\nconst visualizationResult = ${callable.name}(__nodes[0] || null);\nconsole.log('Result:', visualizationResult);`,
+    }
+  }
+  const invocation = callable.classMethod ? `Solution().${callable.name}` : callable.name
+  return {
+    added: true,
+    code: `from __future__ import annotations\n\n${preparedSource}\n\n${marker}\n${/^class\s+Node\b/m.test(preparedSource) ? '' : 'class Node:\n    def __init__(self, val=0, next=None, random=None):\n        self.val = val\n        self.next = next\n        self.random = random\n\n'}__pairs = ${toPythonLiteral(nodes)}\n__nodes = [Node(pair[0]) for pair in __pairs]\nfor __index, __node in enumerate(__nodes):\n    __node.next = __nodes[__index + 1] if __index + 1 < len(__nodes) else None\n    __random_index = __pairs[__index][1]\n    __node.random = None if __random_index is None else __nodes[__random_index]\nvisualization_result = ${invocation}(__nodes[0] if __nodes else None)\nprint('Result:', visualization_result)`,
   }
 }

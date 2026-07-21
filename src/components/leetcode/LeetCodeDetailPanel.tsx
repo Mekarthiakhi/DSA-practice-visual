@@ -3,6 +3,10 @@ import { X, Code, Play } from 'lucide-react';
 import { useIDEStore } from '../../store/ideStore';
 import { LeetCodeProblem } from '../../data/leetcodeProblems';
 import { createLeetCodeHarness, LeetCodeHarnessLanguage } from '../../utils/leetcodeHarness';
+import { FixtureEditor } from './FixtureEditor';
+import { JudgePanel } from './JudgePanel';
+import { LearningPanel } from './LearningPanel';
+import { ProblemOverviewPanel } from './ProblemOverviewPanel';
 
 export const LeetCodeDetailPanel: React.FC = () => {
   const { 
@@ -20,9 +24,10 @@ export const LeetCodeDetailPanel: React.FC = () => {
   React.useEffect(() => {
     setVisualizationInput(activeLeetCodeProblem?.examples[0]?.input || '');
     setLoadMessage('');
-  }, [activeLeetCodeProblem?.id]);
+  }, [activeLeetCodeProblem]);
 
   if (!activeLeetCodeProblem) return null;
+  const hasBundledSolution = !!(activeLeetCodeProblem.solution?.javascript || activeLeetCodeProblem.solution?.python);
 
   const handleClose = () => {
     setActiveLeetCodeProblem(undefined);
@@ -107,11 +112,16 @@ export const LeetCodeDetailPanel: React.FC = () => {
           <span className="text-[11px] px-2 py-1 rounded-md bg-[#13151f] border border-[#2a2d3e] text-gray-300">
             {activeLeetCodeProblem.category}
           </span>
+          <span className={`text-[10px] px-2 py-1 rounded-md border ${hasBundledSolution ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/25 bg-amber-500/10 text-amber-300'}`}>
+            {hasBundledSolution ? 'Reference solution included' : 'Practice starter · solution not bundled'}
+          </span>
         </div>
 
         <div className="prose prose-invert prose-sm max-w-none mb-8">
           <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{activeLeetCodeProblem.description}</p>
         </div>
+
+        <ProblemOverviewPanel problem={activeLeetCodeProblem} />
 
         <div className="space-y-4 mb-8">
           {activeLeetCodeProblem.examples.map((ex, i) => (
@@ -154,8 +164,9 @@ export const LeetCodeDetailPanel: React.FC = () => {
             className="w-full resize-y rounded-lg border border-[#2a2d3e] bg-[#13151f] px-3 py-2 font-mono text-xs text-gray-200 placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none"
           />
           <p className="text-[10px] leading-relaxed text-gray-500">
-            Arrays, strings, numbers, linked lists, and standard binary-tree arrays get an automatic test harness. Custom graph/node classes may still need fixture code in the editor.
+            Arrays, strings, numbers, linked lists, and standard binary-tree arrays get an automatic test harness. Use Structured fixtures below for graphs, random pointers, operation sequences, and tries.
           </p>
+          <FixtureEditor />
           {loadMessage && (
             <p role="status" className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2.5 py-1.5 text-[10px] text-cyan-300">
               {loadMessage}
@@ -201,6 +212,9 @@ export const LeetCodeDetailPanel: React.FC = () => {
             </>
           )}
         </div>
+
+        <JudgePanel problem={activeLeetCodeProblem} />
+        <LearningPanel problem={activeLeetCodeProblem} />
       </div>
     </div>
   );

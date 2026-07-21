@@ -24,7 +24,7 @@ export const VisualizationPanel: React.FC = () => {
   const isGenericMode = executionSteps.length > 0 && !hasDSA
 
   return (
-    <div className="panel h-full">
+    <div className="panel h-full" data-testid="visualization-panel">
       {/* Header */}
       <div className="panel-header">
         <div className="flex items-center gap-2 min-w-0">
@@ -47,7 +47,7 @@ export const VisualizationPanel: React.FC = () => {
             </span>
           )}
           {executionSteps.length > 0 && (
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: 'rgba(168,85,247,0.1)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.2)' }}>
+            <span data-testid="execution-step-counter" className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: 'rgba(168,85,247,0.1)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.2)' }}>
               {currentStepIndex + 1}/{executionSteps.length}
             </span>
           )}
@@ -65,7 +65,7 @@ export const VisualizationPanel: React.FC = () => {
       </div>
 
       {diagnostic && (
-        <div className={`flex-shrink-0 flex items-start gap-2 px-3 py-2 border-b ${isDiagnosticError ? 'border-red-500/25 bg-red-500/10' : 'border-amber-500/25 bg-amber-500/10'}`}>
+        <div data-testid="execution-diagnostic" className={`flex-shrink-0 flex items-start gap-2 px-3 py-2 border-b ${isDiagnosticError ? 'border-red-500/25 bg-red-500/10' : 'border-amber-500/25 bg-amber-500/10'}`}>
           <AlertTriangle size={14} className={`${isDiagnosticError ? 'text-red-400' : 'text-amber-400'} mt-0.5 flex-shrink-0`} />
           <div className="min-w-0">
             <div className={`text-[11px] font-mono font-bold ${isDiagnosticError ? 'text-red-300' : 'text-amber-300'}`}>

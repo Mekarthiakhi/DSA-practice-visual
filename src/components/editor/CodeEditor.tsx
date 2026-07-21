@@ -115,7 +115,7 @@ export const CodeEditor: React.FC = () => {
   }
 
   return (
-    <div className="panel h-full" style={{ minHeight: 0 }}>
+    <div className="panel h-full" data-testid="code-editor-panel" style={{ minHeight: 0 }}>
       {/* Panel Header */}
       <div className="panel-header flex-shrink-0">
         <div className="flex items-center gap-2">

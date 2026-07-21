@@ -150,6 +150,10 @@ VariableTimeline.displayName = 'VariableTimeline'
 export const GenericCodeViz = memo(
   ({ steps, currentIndex }: Props) => {
     const step = steps[currentIndex]
+    const visibleVariables = useMemo(
+      () => step?.variables.filter(v => !v.name.startsWith('__')) || [],
+      [step?.variables]
+    )
 
     if (!step) {
       return (
@@ -158,14 +162,6 @@ export const GenericCodeViz = memo(
         </div>
       )
     }
-
-    // Memoize filtered variables
-    const visibleVariables = useMemo(
-      () => step.variables.filter(v => !v.name.startsWith('__')),
-      [step.variables]
-    )
-
-    // Memoize all variable names seen
 
     return (
       <div className="flex flex-col h-full overflow-hidden">

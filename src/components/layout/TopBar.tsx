@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Eye, RotateCcw, ChevronDown, Zap, Key, BookOpen } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useIDEStore, Language } from '../../store/ideStore'
-import { runCode } from '../../utils/universalEngine'
 import { runMultiLang, SupportedLang } from '../../utils/multiLangEngine'
+import { cancelJavaScriptExecution, runJavaScriptInWorker } from '../../utils/javascriptWorkerClient'
 import { SAMPLE_CODES } from '../../utils/executionEngine'
 import { GENERAL_SAMPLES, ALL_CATEGORIES } from '../../utils/universalEngine'
 import { MULTI_LANG_SAMPLES, MULTI_LANG_CATEGORIES } from '../../utils/multiLangSamples'
+import { captureTelemetry } from '../../utils/telemetry'
 
 // ─── All samples merged ───────────────────────────────────────────────────────
 const JS_SAMPLES = { ...SAMPLE_CODES, ...GENERAL_SAMPLES }
@@ -85,8 +86,11 @@ export const TopBar: React.FC = () => {
 
     try {
       if (isDirectJavaScript) {
-        // Use existing browser engine for JS/TS
-        const result = runCode(code, execMode === 'trace' ? 'interpreter' : execMode === 'dsa' ? 'dsa' : 'auto')
+        const result = await runJavaScriptInWorker(
+          code,
+          execMode === 'trace' ? 'interpreter' : execMode === 'dsa' ? 'dsa' : 'auto',
+        )
+        if (requestId !== runRequestRef.current) return
         setExecutionSteps(result.steps)
         const diagnosticStep = result.steps.findIndex(step => !!step.diagnostic)
         setCurrentStepIndex(diagnosticStep >= 0 ? diagnosticStep : 0)
@@ -96,7 +100,10 @@ export const TopBar: React.FC = () => {
         addOutput(`📋 ${result.steps.length} steps`)
         addOutput('──────────────────────────')
         result.output.forEach(l => addOutput(l))
-        if (result.error) addOutput(`❌ ${result.error}`)
+        if (result.error) {
+          addOutput(`❌ ${result.error}`)
+          captureTelemetry('runtime_error', { language: currentLang, errorType: 'JavaScriptExecutionError' })
+        }
       } else {
         // Use local WASM/transpilation or the configured isolated runtime service.
         const result = await runMultiLang(code, currentLang, aiApiKey || undefined)
@@ -115,13 +122,20 @@ export const TopBar: React.FC = () => {
         addOutput(`📋 ${result.steps.length} execution steps`)
         addOutput('──────────────────────────')
         result.output.forEach(l => addOutput(l))
-        if (result.error) addOutput(`❌ ${result.error}`)
+        if (result.error) {
+          addOutput(`❌ ${result.error}`)
+          captureTelemetry('runtime_error', { language: currentLang, errorType: 'ExecutionError' })
+        }
       }
     } catch (err) {
       if (requestId !== runRequestRef.current) return
       const msg = err instanceof Error ? err.message : String(err)
       addOutput(`❌ Error: ${msg}`)
       setExecutionStatus('error')
+      captureTelemetry(msg.toLowerCase().includes('timed out') ? 'worker_timeout' : 'runtime_error', {
+        language: currentLang,
+        errorType: err instanceof Error ? err.name : 'UnknownError',
+      })
     } finally {
       if (requestId === runRequestRef.current) setIsRunning(false)
     }
@@ -132,6 +146,7 @@ export const TopBar: React.FC = () => {
   useEffect(() => {
     stopPlay()
     runRequestRef.current += 1
+    cancelJavaScriptExecution()
     setIsRunning(false)
     if (!['javascript', 'typescript', 'python'].includes(language) || !code.trim()) return
 
@@ -143,6 +158,8 @@ export const TopBar: React.FC = () => {
     // Zustand actions are stable; source controls are the only rerun triggers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, language, execMode])
+
+  useEffect(() => () => cancelJavaScriptExecution(), [])
 
   const handlePlayPause = () => {
     if (isPlaying) {
@@ -337,7 +354,7 @@ export const TopBar: React.FC = () => {
       )}
 
       {/* ▶ Visualize */}
-      <button onClick={() => void handleVisualize()} disabled={isRunning}
+      <button data-testid="visualize-button" onClick={() => void handleVisualize()} disabled={isRunning}
         className="flex-shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
         style={{ background: isRunning ? '#1e2130' : 'linear-gradient(135deg,#00b4d8,#0077b6)', color: isRunning ? '#6b7280' : 'white', boxShadow: isRunning ? 'none' : '0 0 14px rgba(0,180,216,.3)' }}
       >

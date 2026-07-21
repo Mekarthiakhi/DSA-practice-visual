@@ -152,6 +152,32 @@ app.post('/api/chat', async (req, res) => {
 })
 
 // ─── Code execution endpoint (sandbox) ────────────────────────────────────────
+const TELEMETRY_EVENTS = new Set(['runtime_error', 'judge_complete', 'worker_timeout', 'ui_error'])
+
+app.post('/api/telemetry', (req, res) => {
+  const clientIp = req.ip || 'unknown'
+  if (!checkRateLimit(clientIp)) return res.status(429).json({ error: 'Rate limit exceeded' })
+
+  const { event, language, errorType, passed, total, durationMs, appVersion, sessionId, timestamp } = req.body || {}
+  if (typeof event !== 'string' || !TELEMETRY_EVENTS.has(event)) {
+    return res.status(400).json({ error: 'Unsupported telemetry event' })
+  }
+
+  // Source, input, output, account data, and IP are deliberately excluded.
+  console.info('anonymous_telemetry', JSON.stringify({
+    event,
+    language: typeof language === 'string' ? language.slice(0, 20) : undefined,
+    errorType: typeof errorType === 'string' ? errorType.slice(0, 80) : undefined,
+    passed: Number.isFinite(Number(passed)) ? Number(passed) : undefined,
+    total: Number.isFinite(Number(total)) ? Number(total) : undefined,
+    durationMs: Number.isFinite(Number(durationMs)) ? Number(durationMs) : undefined,
+    appVersion: typeof appVersion === 'string' ? appVersion.slice(0, 30) : undefined,
+    sessionId: typeof sessionId === 'string' ? sessionId.slice(0, 80) : undefined,
+    timestamp: typeof timestamp === 'string' ? timestamp.slice(0, 40) : undefined,
+  }))
+  return res.status(202).json({ accepted: true })
+})
+
 app.post('/api/execute', async (req, res) => {
   const clientIp = req.ip || 'unknown'
   if (!checkRateLimit(clientIp)) {

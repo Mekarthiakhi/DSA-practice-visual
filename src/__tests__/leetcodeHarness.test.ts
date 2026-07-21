@@ -1,5 +1,5 @@
 import { LEETCODE_PROBLEMS, LeetCodeProblem } from '../data/leetcodeProblems'
-import { createLeetCodeHarness, splitLeetCodeInput } from '../utils/leetcodeHarness'
+import { createLeetCodeHarness, createStructuredFixtureHarness, splitLeetCodeInput, stripGeneratedHarness } from '../utils/leetcodeHarness'
 
 function problem(input: string): LeetCodeProblem {
   return {
@@ -66,6 +66,48 @@ describe('LeetCode visualization harness', () => {
 
     expect(result.added).toBe(false)
     expect(result.message).toContain('Add visualization input')
+  })
+
+  it('replaces an existing generated harness instead of stacking calls', () => {
+    const source = 'function solve(value) { return value; }\n\n// Visualization input\nconsole.log(solve(1));'
+    expect(stripGeneratedHarness(source, 'javascript')).toBe('function solve(value) { return value; }')
+  })
+
+  it('creates adjacency-list and random-pointer fixtures', () => {
+    const graph = createStructuredFixtureHarness(
+      'class Node { constructor(val) { this.val = val; this.neighbors = []; } }\nfunction cloneGraph(node) { return node; }',
+      'javascript',
+      'graph',
+      '[[2,4],[1,3],[2,4],[1,3]]',
+    )
+    expect(graph.added).toBe(true)
+    expect(graph.code).toContain('const __adjacency')
+    expect(graph.code).toContain('cloneGraph(__nodes[0] || null)')
+
+    const random = createStructuredFixtureHarness(
+      'class Node:\n    def __init__(self, val=0, next=None, random=None):\n        self.val = val\n        self.next = next\n        self.random = random\n\ndef copyRandomList(head):\n    return head',
+      'python',
+      'random-list',
+      '[[7,null],[13,0]]',
+    )
+    expect(random.added).toBe(true)
+    expect(random.code).toContain('__nodes = [Node(pair[0])')
+    expect(random.code).toContain('copyRandomList(__nodes[0] if __nodes else None)')
+  })
+
+  it('creates operation-sequence fixtures for design classes and tries', () => {
+    const source = 'class Trie { constructor() {} insert(word) { return word; } search(word) { return true; } }'
+    const fixture = '{"operations":["Trie","insert","search"],"arguments":[[],["apple"],["apple"]]}'
+    const result = createStructuredFixtureHarness(source, 'javascript', 'trie', fixture)
+    expect(result.added).toBe(true)
+    expect(result.code).toContain('new Trie(')
+    expect(result.code).toContain('__instance[__operations[i]]')
+  })
+
+  it('rejects malformed structured fixture JSON with a clear message', () => {
+    const result = createStructuredFixtureHarness('function solve() {}', 'javascript', 'graph', '[invalid')
+    expect(result.added).toBe(false)
+    expect(result.message).toContain('valid JSON')
   })
 })
 

@@ -6,6 +6,7 @@
 
 import React from 'react'
 import { AlertCircle, RotateCcw } from 'lucide-react'
+import { captureTelemetry } from '../utils/telemetry'
 
 interface Props {
   children: React.ReactNode
@@ -34,6 +35,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error(`Error caught in ${this.props.componentName || 'ErrorBoundary'}:`, error, errorInfo)
+    captureTelemetry('ui_error', {
+      errorType: `${this.props.componentName || 'ErrorBoundary'}:${error.name}`.slice(0, 80),
+    })
     this.setState({ errorInfo })
   }
 
