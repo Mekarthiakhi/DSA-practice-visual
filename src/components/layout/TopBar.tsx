@@ -186,11 +186,11 @@ export const TopBar: React.FC = () => {
 
       store.setCurrentStepIndex(idx + 1)
       // Re-read speed each tick so speed changes take immediate effect
-      const delay = Math.round(1200 / useIDEStore.getState().playbackSpeed)
+      const delay = Math.round(2500 / useIDEStore.getState().playbackSpeed)
       playRef.current = setTimeout(tick, delay)
     }
 
-    const initialDelay = Math.round(1200 / useIDEStore.getState().playbackSpeed)
+    const initialDelay = Math.round(2500 / useIDEStore.getState().playbackSpeed)
     playRef.current = setTimeout(tick, initialDelay)
   }
 
@@ -395,10 +395,10 @@ export const TopBar: React.FC = () => {
           {/* Speed */}
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <span className="text-[9px] text-gray-700 font-mono mr-1">speed:</span>
-            {([0.25, 0.5, 1, 2] as const).map(s => (
+            {([0.25, 0.5, 0.75, 1, 1.5, 2] as const).map(s => (
               <button key={s} onClick={() => setPlaybackSpeed(s)}
                 className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-all ${playbackSpeed === s ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-gray-600 hover:text-gray-400'}`}>
-                {s === 0.25 ? '¼×' : s === 0.5 ? '½×' : s === 1 ? '1×' : '2×'}
+                {s === 0.25 ? '¼×' : s === 0.5 ? '½×' : s === 0.75 ? '¾×' : s === 1 ? '1×' : s === 1.5 ? '1.5×' : '2×'}
               </button>
             ))}
           </div>

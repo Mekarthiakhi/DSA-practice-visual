@@ -285,7 +285,7 @@ let sortedValues = bubbleSort([5, 2, 8, 1, 9]);`,
   selectedText: '',
   setSelectedText: (text: string) => set({ selectedText: text }),
 
-  playbackSpeed: 0.5,
+  playbackSpeed: 1,
   setPlaybackSpeed: (speed: number) => set({ playbackSpeed: speed }),
 
   consoleOutput: [],
