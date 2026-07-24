@@ -177,6 +177,7 @@ export const CodeEditor: React.FC = () => {
             left: 0 !important;
             padding: 0 !important;
             margin: 0 !important;
+            display: none !important;
           }
           .execution-line-highlight {
             background: rgba(0, 212, 255, 0.08) !important;
