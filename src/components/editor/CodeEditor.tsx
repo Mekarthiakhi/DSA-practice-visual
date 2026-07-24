@@ -178,6 +178,10 @@ export const CodeEditor: React.FC = () => {
           onMount={handleMount}
           theme="vs-dark"
           options={{
+            // Monaco's automatic screen-reader mode expands its internal input
+            // textarea. The IDE supplies its own execution/navigation UI, so keep
+            // that implementation detail hidden instead of exposing a white box.
+            accessibilitySupport: 'off',
             fontSize: 13,
             fontFamily: '"JetBrains Mono", "Fira Code", monospace',
             fontLigatures: true,

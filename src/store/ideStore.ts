@@ -215,7 +215,8 @@ export const useIDEStore = create<IDEState>((set) => ({
   return arr;
 }
 
-const result = bubbleSort([5, 2, 8, 1, 9]);`,
+// Any valid variable name and direct function arguments are supported.
+let sortedValues = bubbleSort([5, 2, 8, 1, 9]);`,
   language: 'javascript',
   fileName: 'algorithm',
   // Never leave an old trace attached to new source code. A fresh trace is

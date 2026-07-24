@@ -48,6 +48,7 @@ const ArrayView: React.FC<{ nodes: DSANode[]; auxiliaryData?: Record<string, any
   const renderAsBoxes = isStringArray || !!auxiliaryData?.isGeneric || swaps === undefined
   const maxVal = renderAsBoxes ? 1 : Math.max(...nodes.map(n => Math.abs(Number(n.value)) || 0), 1)
   const sc = auxiliaryData?.stringCompare
+  const outerLoopPointer = auxiliaryData?.outerLoopPointer as { index: number; name: string } | undefined
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 p-4 select-none overflow-auto">
@@ -113,7 +114,10 @@ const ArrayView: React.FC<{ nodes: DSANode[]; auxiliaryData?: Record<string, any
 
       {/* Array items - render as word boxes for strings or generic code, bars for sorting algorithms */}
       {renderAsBoxes ? (
-        <div className="flex items-center gap-2 relative flex-wrap justify-center pt-2" style={{ minHeight: 60 }}>
+        <div
+          className={`flex items-center gap-2 relative flex-wrap justify-center ${outerLoopPointer ? 'pt-9' : 'pt-2'}`}
+          style={{ minHeight: outerLoopPointer ? 88 : 60 }}
+        >
           <AnimatePresence mode="popLayout">
             {nodes.map((node, idx) => {
               const c = HL[node.highlight || 'none']
@@ -125,6 +129,14 @@ const ArrayView: React.FC<{ nodes: DSANode[]; auxiliaryData?: Record<string, any
                   transition={{ type: 'spring', stiffness: 320, damping: 28 }}
                   className="flex flex-col items-center gap-1 relative"
                 >
+                  {outerLoopPointer?.index === idx && (
+                    <div className="absolute -top-8 flex flex-col items-center z-10">
+                      <div className="px-2 py-0.5 bg-slate-900/90 border border-dashed border-slate-500 rounded text-[9px] text-slate-300 font-mono whitespace-nowrap">
+                        {outerLoopPointer.name}={outerLoopPointer.index} · outer fixed
+                      </div>
+                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-slate-400" />
+                    </div>
+                  )}
                   <motion.div
                     className="px-3 py-2 rounded-lg border-2 relative overflow-hidden cursor-default"
                     animate={{ backgroundColor: c.bg, borderColor: c.border }}
@@ -267,6 +279,102 @@ const ArrayView: React.FC<{ nodes: DSANode[]; auxiliaryData?: Record<string, any
   )
 }
 // ─── STRING + STACK VIEW ─────────────────────────────────────────────────────
+const MatrixView: React.FC<{
+  nodes: DSANode[]
+  auxiliaryData?: Record<string, any>
+  message?: string
+}> = ({ nodes, auxiliaryData, message }) => {
+  const metadata = auxiliaryData?.matrix as {
+    name?: string
+    rows?: number
+    columns?: number
+    rowPointer?: number
+    rowPointerName?: string
+    columnPointer?: number
+    columnPointerName?: string
+  } | undefined
+  const rows = metadata?.rows ?? Math.max(0, ...nodes.map(node => Number(node.y) + 1))
+  const columns = metadata?.columns ?? Math.max(0, ...nodes.map(node => Number(node.x) + 1))
+  const cells = new Map(nodes.map(node => [`${node.y ?? 0}:${node.x ?? 0}`, node]))
+
+  if (!rows || !columns) {
+    return <div className="flex items-center justify-center h-full text-gray-500 text-sm">No matrix data</div>
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 p-4 select-none overflow-auto">
+      {message && (
+        <motion.div
+          key={message}
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="px-4 py-2 bg-[#13151f] border border-[#252836] rounded-lg text-sm text-center text-gray-300 font-mono"
+        >
+          {message}
+        </motion.div>
+      )}
+
+      <div className="grid gap-1" style={{ gridTemplateColumns: `24px repeat(${columns}, minmax(44px, 1fr))` }}>
+        <span />
+        {Array.from({ length: columns }, (_, columnIndex) => (
+          <span
+            key={`column-${columnIndex}`}
+            className={`text-center text-[10px] font-mono ${
+              metadata?.columnPointer === columnIndex ? 'text-cyan-300' : 'text-gray-600'
+            }`}
+          >
+            {metadata?.columnPointer === columnIndex && metadata.columnPointerName
+              ? `${metadata.columnPointerName}→`
+              : ''}{columnIndex}
+          </span>
+        ))}
+
+        {Array.from({ length: rows }, (_, rowIndex) => (
+          <React.Fragment key={`row-${rowIndex}`}>
+            <span
+              className={`flex items-center justify-end pr-1 text-[10px] font-mono ${
+                metadata?.rowPointer === rowIndex ? 'text-cyan-300' : 'text-gray-600'
+              }`}
+            >
+              {metadata?.rowPointer === rowIndex && metadata.rowPointerName
+                ? `${metadata.rowPointerName}→`
+                : ''}{rowIndex}
+            </span>
+            {Array.from({ length: columns }, (_, columnIndex) => {
+              const node = cells.get(`${rowIndex}:${columnIndex}`)
+              const color = HL[node?.highlight || 'none']
+              return (
+                <motion.div
+                  key={`${rowIndex}:${columnIndex}`}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="min-w-11 h-11 px-2 rounded-md border-2 flex items-center justify-center font-mono text-sm"
+                  style={{
+                    backgroundColor: color.bg,
+                    borderColor: color.border,
+                    color: color.text,
+                    boxShadow: color.glow,
+                  }}
+                  title={`[${rowIndex}][${columnIndex}]`}
+                >
+                  {node?.value ?? ''}
+                </motion.div>
+              )
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <Legend items={[
+        { label: 'Current cell', hl: 'active' },
+        { label: 'Read', hl: 'comparing' },
+        { label: 'Written', hl: 'swapping' },
+      ]} />
+    </div>
+  )
+}
+
 const StringStackView: React.FC<{
   nodes: DSANode[]
   stackItems?: (string | number)[]
@@ -1105,7 +1213,7 @@ export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
       )}
       {dsaState.type === 'tree' && <TreeView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} />}
       {dsaState.type === 'heap' && <ArrayView nodes={dsaState.nodes} comparisons={dsaState.comparisons} swaps={dsaState.swaps} message={dsaState.message ?? 'Min/Max Heap'} />}
-      {dsaState.type === 'matrix' && <ArrayView nodes={dsaState.nodes} message={dsaState.message ?? 'Matrix'} />}
+      {dsaState.type === 'matrix' && <MatrixView nodes={dsaState.nodes} auxiliaryData={dsaState.auxiliaryData} message={dsaState.message ?? 'Matrix'} />}
       {dsaState.type === 'graph' && <GraphView nodes={dsaState.nodes} edges={dsaState.edges} message={dsaState.message} queueItems={dsaState.queueItems} />}
       {dsaState.type === 'stack' && <StackView nodes={dsaState.nodes} stackItems={dsaState.stackItems} message={dsaState.message} />}
       {dsaState.type === 'queue' && <QueueView nodes={dsaState.nodes} queueItems={dsaState.queueItems} message={dsaState.message} />}

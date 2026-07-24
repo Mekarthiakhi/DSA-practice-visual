@@ -5,9 +5,9 @@ import { expect, Page, test } from '@playwright/test'
 declare const process: any
 
 async function replaceEditorCode(page: Page, code: string) {
-  const editor = page.getByRole('textbox', { name: 'Editor content' })
-  await expect(editor).toBeAttached()
-  await editor.focus()
+  const editor = page.locator('.monaco-editor').first()
+  await expect(editor).toBeVisible()
+  await editor.click({ position: { x: 180, y: 80 } })
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A')
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.evaluate(source => navigator.clipboard.writeText(source), code)
@@ -23,7 +23,7 @@ async function runAndWaitForSteps(page: Page) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('AlgoVision', { exact: true })).toBeVisible()
-  await expect(page.getByRole('textbox', { name: 'Editor content' })).toBeAttached()
+  await expect(page.locator('.monaco-editor').first()).toBeVisible()
 })
 
 test('JavaScript runs in the visualizer and Monaco input stays invisible', async ({ page }) => {
@@ -36,9 +36,26 @@ console.log('Result:', sum([2, 3, 4]));`)
   await runAndWaitForSteps(page)
 
   await expect(page.getByTestId('visualization-panel')).toContainText('Execution Canvas')
-  const editorInput = page.getByRole('textbox', { name: 'Editor content' })
-  await expect(editorInput).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(page.locator('.monaco-editor textarea:visible')).toHaveCount(0)
   await expect(page.getByTestId('execution-diagnostic')).toHaveCount(0)
+})
+
+test('a visualized function call does not require an output named result', async ({ page }) => {
+  await replaceEditorCode(page, `function bubbleSort(values) {
+  for (let i = 0; i < values.length - 1; i++) {
+    for (let j = 0; j < values.length - i - 1; j++) {
+      if (values[j] > values[j + 1]) {
+        [values[j], values[j + 1]] = [values[j + 1], values[j]];
+      }
+    }
+  }
+  return values;
+}
+let test = bubbleSort([9, 4, 2]);`)
+  await runAndWaitForSteps(page)
+
+  await expect(page.getByTestId('execution-diagnostic')).toHaveCount(0)
+  await expect(page.getByTestId('visualization-panel')).toContainText(/2|4|9/)
 })
 
 test('syntax and runtime errors point to an execution diagnostic', async ({ page }) => {

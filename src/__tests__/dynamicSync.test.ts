@@ -32,6 +32,66 @@ console.log(result);`
     expect(result.visualization?.synchronized).toBe(true)
   })
 
+  it('does not require a function call result to use the variable name result', () => {
+    const renamedResultCode = bubbleSortCode.replace(
+      'const result = bubbleSort([5, 2, 8, 1, 9]);',
+      'const sortedValues = bubbleSort([9, 4, 2]);',
+    )
+    const result = runCode(renamedResultCode, 'auto')
+
+    expect(result.error).toBeUndefined()
+    expect(result.algo).toBe('bubbleSort')
+    expect(result.steps.some(step =>
+      step.dsaState?.nodes.map(node => node.value).join(',') === '2,4,9'
+    )).toBe(true)
+    expect(result.steps.some(step =>
+      step.variables.some(variable => variable.name === 'sortedValues')
+    )).toBe(true)
+  })
+
+  it('supports let anyVariable = anyFunction(anyArgs) without naming conventions', () => {
+    const code = `function arrangeItems(items, descending) {
+  const copy = [...items];
+  copy.sort((a, b) => descending ? b - a : a - b);
+  return copy;
+}
+let test = arrangeItems([8, 3, 6, 1], false);`
+    const result = runCode(code, 'auto')
+
+    expect(result.error).toBeUndefined()
+    expect(result.steps.some(step =>
+      step.variables.some(variable =>
+        variable.name === 'test' && JSON.stringify(variable.value) === '[1,3,6,8]'
+      )
+    )).toBe(true)
+    expect(result.steps.some(step =>
+      step.dsaState?.nodes.map(node => node.value).join(',') === '1,3,6,8'
+    )).toBe(true)
+  })
+
+  it('accepts a separately named input variable and a direct unassigned call', () => {
+    const withNamedInput = bubbleSortCode.replace(
+      'const result = bubbleSort([5, 2, 8, 1, 9]);',
+      'const customValues = [7, 3, 5];\nconst answer = bubbleSort(customValues);',
+    )
+    const directCall = bubbleSortCode.replace(
+      'const result = bubbleSort([5, 2, 8, 1, 9]);',
+      'bubbleSort([6, 1, 4]);',
+    )
+
+    const namedResult = runCode(withNamedInput, 'auto')
+    const directResult = runCode(directCall, 'auto')
+
+    expect(namedResult.error).toBeUndefined()
+    expect(namedResult.steps.some(step =>
+      step.dsaState?.nodes.map(node => node.value).join(',') === '3,5,7'
+    )).toBe(true)
+    expect(directResult.error).toBeUndefined()
+    expect(directResult.steps.some(step =>
+      step.dsaState?.nodes.map(node => node.value).join(',') === '1,4,6'
+    )).toBe(true)
+  })
+
   it('adds a runtime error step at the failing source line', () => {
     const result = runCode('const nums = [1, 2];\nconsole.log(missingValue);', 'auto')
     const errorStep = result.steps.find(step => step.diagnostic?.severity === 'error')
@@ -119,6 +179,46 @@ console.log(result);`
     }
   })
 
+  it('keeps nested loop-control pointers on the loop currently executing', () => {
+    const result = runCode(bubbleSortCode, 'auto')
+    const innerLoopSteps = result.steps.filter(step => step.line === 4 && step.dsaState?.type === 'array')
+    const outerLoopSteps = result.steps.filter(step => step.line === 3 && step.dsaState?.type === 'array')
+
+    expect(innerLoopSteps.length).toBeGreaterThan(0)
+    expect(outerLoopSteps.length).toBeGreaterThan(1)
+
+    for (const step of innerLoopSteps) {
+      expect(step.dsaState?.pointerName).toBe('j')
+      expect(step.dsaState?.pointer2).toBeUndefined()
+      expect(step.dsaState?.auxiliaryData?.outerLoopPointer).toEqual({
+        index: step.variables.find(variable => variable.name === 'i')?.value,
+        name: 'i',
+      })
+      expect(step.dsaState?.nodes.filter(node => node.highlight === 'active')).toHaveLength(
+        typeof step.dsaState?.pointer === 'number' ? 1 : 0,
+      )
+    }
+
+    for (const step of outerLoopSteps) {
+      expect(step.dsaState?.pointerName).toBe('i')
+      expect(step.dsaState?.pointer2).toBeUndefined()
+    }
+  })
+
+  it('keeps i fixed while j moves across inner-loop comparisons', () => {
+    const result = runCode(bubbleSortCode, 'auto')
+    const comparisons = result.steps.filter(step => step.line === 5 && step.dsaState?.type === 'array')
+
+    expect(comparisons.length).toBeGreaterThan(0)
+    for (const step of comparisons) {
+      const i = step.variables.find(variable => variable.name === 'i')?.value
+      expect(step.dsaState?.auxiliaryData?.outerLoopPointer).toEqual({ index: i, name: 'i' })
+      expect(step.dsaState?.pointerName).toBe('j')
+      expect(step.dsaState?.pointer2Name).toBe('j + 1')
+      expect(step.dsaState?.nodes[i as number]?.highlight).not.toBe('active')
+    }
+  })
+
   it('writes and highlights exactly the two swapped elements', () => {
     const result = runCode(bubbleSortCode, 'auto')
     const firstSwap = result.steps.find(step => step.line === 6 && step.dsaState?.nodes.some(node => node.highlight === 'swapping'))
@@ -174,5 +274,28 @@ console.log(isValid('()[]{}'));`, 'auto')
     expect(result.output).toContain('true')
     expect(result.steps.length).toBeGreaterThan(3)
     expect(result.steps.some(step => step.variables.some(variable => variable.name === 'stack'))).toBe(true)
+  })
+
+  it('visualizes nested arrays as a live matrix with row and column state', () => {
+    const result = runCode(`function incrementGrid(grid) {
+  for (let i = 0; i < grid.length; i++) {
+    for (let j = 0; j < grid[i].length; j++) {
+      grid[i][j] += 1;
+    }
+  }
+  return grid;
+}
+let transformed = incrementGrid([[1, 2], [3, 4]]);`, 'auto')
+    const matrixSteps = result.steps.filter(step => step.dsaState?.type === 'matrix')
+
+    expect(result.error).toBeUndefined()
+    expect(matrixSteps.length).toBeGreaterThan(0)
+    expect(matrixSteps.some(step =>
+      step.dsaState?.nodes.map(node => node.value).join(',') === '2,3,4,5'
+    )).toBe(true)
+    expect(matrixSteps.some(step =>
+      step.dsaState?.nodes.some(node => node.highlight === 'swapping')
+    )).toBe(true)
+    expect(matrixSteps.some(step => step.dsaState?.auxiliaryData?.matrix)).toBe(true)
   })
 })

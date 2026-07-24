@@ -1855,7 +1855,100 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     }
   }
 
-  // 6. ARRAY DETECTOR
+  // 6. MATRIX / GRID / 2-D TABLE DETECTOR
+  const matrixEntries = Object.entries(vars).filter(([, value]) =>
+    Array.isArray(value)
+    && value.length > 0
+    && value.every(row => Array.isArray(row))
+    && (value as unknown[][]).some(row => row.length > 0)
+  )
+
+  if (matrixEntries.length > 0) {
+    const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const referencedMatrix = matrixEntries.find(([matrixName]) =>
+      new RegExp(`\\b${escapeRegExp(matrixName)}\\b`).test(lineCode)
+    )
+    const preferredMatrix = preferredName
+      ? matrixEntries.find(([matrixName]) => matrixName === preferredName)
+      : undefined
+    const [name, rawMatrix] = referencedMatrix || preferredMatrix || matrixEntries[0]
+    const matrix = (rawMatrix as unknown[][]).slice(0, 16).map(row => row.slice(0, 16))
+    const rowCount = matrix.length
+    const columnCount = matrix.reduce((largest, row) => Math.max(largest, row.length), 0)
+    const accessedCells = new Set<string>()
+    const escapedName = escapeRegExp(name)
+    const matrixAccessRegex = new RegExp(`\\b${escapedName}\\s*\\[([^\\]]+)\\]\\s*\\[([^\\]]+)\\]`, 'g')
+    let accessMatch: RegExpExecArray | null
+
+    while ((accessMatch = matrixAccessRegex.exec(lineCode)) !== null) {
+      const row = resolveIndexExpression(accessMatch[1].trim(), vars, name, rowCount)
+      const column = resolveIndexExpression(accessMatch[2].trim(), vars, name, columnCount)
+      if (
+        row !== null
+        && column !== null
+        && row >= 0
+        && row < rowCount
+        && column >= 0
+        && column < (matrix[row]?.length || 0)
+      ) {
+        accessedCells.add(`${row}:${column}`)
+      }
+    }
+
+    const rowPointerName = ['row', 'r', 'i'].find(candidate =>
+      typeof vars[candidate] === 'number'
+      && (vars[candidate] as number) >= 0
+      && (vars[candidate] as number) < rowCount
+    )
+    const columnPointerName = ['column', 'col', 'c', 'j'].find(candidate =>
+      typeof vars[candidate] === 'number'
+      && (vars[candidate] as number) >= 0
+      && (vars[candidate] as number) < columnCount
+    )
+    const rowPointer = rowPointerName ? vars[rowPointerName] as number : undefined
+    const columnPointer = columnPointerName ? vars[columnPointerName] as number : undefined
+    const isWrite = new RegExp(
+      `\\b${escapedName}\\s*\\[[^\\]]+\\]\\s*\\[[^\\]]+\\]\\s*(?:[+\\-*/%]?=(?!=)|\\+\\+|--)`
+    ).test(lineCode)
+
+    const nodes: DSANode[] = []
+    matrix.forEach((row, rowIndex) => {
+      row.forEach((value, columnIndex) => {
+        const cellKey = `${rowIndex}:${columnIndex}`
+        const isAccessed = accessedCells.has(cellKey)
+        const isPointerCell = accessedCells.size === 0
+          && rowIndex === rowPointer
+          && columnIndex === columnPointer
+
+        nodes.push({
+          id: `m-${rowIndex}-${columnIndex}`,
+          value: typeof value === 'object' ? JSON.stringify(safeSerialize(value)) : String(value),
+          x: columnIndex,
+          y: rowIndex,
+          highlight: isAccessed ? (isWrite ? 'swapping' : 'comparing') : isPointerCell ? 'active' : 'none',
+        })
+      })
+    })
+
+    return {
+      type: 'matrix',
+      nodes,
+      message: `${name}: ${rowCount} × ${columnCount}`,
+      auxiliaryData: {
+        matrix: {
+          name,
+          rows: rowCount,
+          columns: columnCount,
+          rowPointer,
+          rowPointerName,
+          columnPointer,
+          columnPointerName,
+        },
+      },
+    }
+  }
+
+  // 7. ARRAY DETECTOR
   const numArrays = Object.entries(vars)
     .filter(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && (typeof (v as unknown[])[0] === 'number' || typeof (v as unknown[])[0] === 'string'))
 
@@ -1949,14 +2042,8 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       return 0;
     });
 
-    if (validIndices.length > 0) pointer = validIndices[0].val;
-    if (validIndices.length > 1) pointer2 = validIndices[1].val;
-
-    if (pointer === undefined && rangeStart !== undefined) pointer = rangeStart;
-    if (pointer2 === undefined && rangeEnd !== undefined) pointer2 = rangeEnd;
-
-    let pointerName = validIndices.length > 0 ? validIndices[0].name : foundStart || undefined
-    let pointer2Name = validIndices.length > 1 ? validIndices[1].name : foundEnd || undefined
+    let pointerName: string | undefined
+    let pointer2Name: string | undefined
 
     // ── Array access parser (resolve arr[j], arr[j+1], arr[j-k], etc.) ──
     const accessedIndices = new Set<number>()
@@ -1978,12 +2065,47 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     // Access expressions on this source line are authoritative. This prevents
     // an outer loop counter such as `i` from becoming a third highlighted item
     // when the operation only compares arr[j] with arr[j + 1].
+    const forCounter = lineCode.match(/^for\s*\(\s*(?:(?:let|const|var)\s+)?([A-Za-z_$][\w$]*)\b/)
+
     if (accessedPointers.length > 0) {
       pointer = accessedPointers[0].index
       pointerName = accessedPointers[0].label
       pointer2 = accessedPointers[1]?.index
       pointer2Name = accessedPointers[1]?.label
+    } else {
+      // A loop-control step should show only the counter owned by that loop.
+      // In nested loops this keeps `j` moving through its complete inner pass;
+      // `i` is shown only when execution returns to the outer loop header.
+      const counterName = forCounter?.[1]
+      const counterValue = counterName ? vars[counterName] : undefined
+      if (typeof counterValue === 'number' && counterValue >= 0 && counterValue < values.length) {
+        pointer = counterValue
+        pointerName = counterName
+      }
     }
+
+    if (pointer === undefined && rangeStart !== undefined) {
+      pointer = rangeStart
+      pointerName = foundStart || undefined
+    }
+    if (pointer2 === undefined && rangeEnd !== undefined) {
+      pointer2 = rangeEnd
+      pointer2Name = foundEnd || undefined
+    }
+
+    // Keep the outer-loop counter visible as context while the inner loop is
+    // running. It is metadata only: the array item must not receive an active
+    // highlight, because `j` owns the current operation.
+    const isInnerJStep = (
+      forCounter?.[1] === 'j'
+      || accessedPointers.some(access => /^j(?:\b|\s*[+\-*/%])/.test(access.label))
+    )
+    const outerLoopPointer = isInnerJStep
+      && typeof vars['i'] === 'number'
+      && vars['i'] >= 0
+      && vars['i'] < values.length
+      ? { index: vars['i'], name: 'i' }
+      : undefined
 
     // ── Sliding window detection ──
     // When variable `k` (window size) exists, compute the window range dynamically.
@@ -2130,11 +2252,13 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       hashTableLabel: hashInfo?.label,
       stackItems,
       stackName: detectedStackVar ? detectedStackVar[0] : undefined,
-      auxiliaryData: stringCompare ? { stringCompare } : undefined
+      auxiliaryData: stringCompare || outerLoopPointer
+        ? { ...(stringCompare ? { stringCompare } : {}), ...(outerLoopPointer ? { outerLoopPointer } : {}) }
+        : undefined
     }
   }
 
-  // 7. STRING DETECTOR
+  // 8. STRING DETECTOR
   const strEntries = Object.entries(vars)
     .filter(([k, v]) => !k.startsWith('__') && typeof v === 'string' && (v as string).length > 0)
   if (strEntries.length > 0) {

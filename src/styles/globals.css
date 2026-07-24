@@ -25,16 +25,22 @@ body {
 .monaco-editor .current-line { background: rgba(0,212,255,0.03) !important; border-color: transparent !important; }
 /* Monaco's keyboard input textarea must remain visually hidden. Some browser/
    Tailwind combinations expose its native white background and resize handle. */
+.monaco-editor textarea,
+.monaco-editor .inputarea,
 .monaco-editor textarea.inputarea,
 .monaco-editor textarea.ime-input,
 .monaco-editor .native-edit-context {
   opacity: 0 !important;
   color: transparent !important;
   background: transparent !important;
+  background-color: transparent !important;
   border: 0 !important;
   outline: 0 !important;
   box-shadow: none !important;
   resize: none !important;
+  overflow: hidden !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
 }
 .execution-line-highlight {
   background: rgba(0, 212, 255, 0.07) !important;
