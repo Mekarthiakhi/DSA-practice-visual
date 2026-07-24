@@ -140,6 +140,22 @@ export const CodeEditor: React.FC = () => {
       {/* Monaco Editor */}
       <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <style>{`
+          /* Force-hide Monaco's internal input elements that can expand in
+             production environments and cause a visible blank box at the top.
+             Covers both the legacy textarea (.inputarea) and the newer
+             Edit Context API div (.native-edit-context). */
+          .monaco-editor .native-edit-context,
+          .monaco-editor .inputarea {
+            width: 1px !important;
+            height: 1px !important;
+            overflow: hidden !important;
+            opacity: 0 !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
           .execution-line-highlight {
             background: rgba(0, 212, 255, 0.08) !important;
             border-left: 2px solid #00d4ff !important;
