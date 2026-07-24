@@ -38,20 +38,29 @@ export const CodeEditor: React.FC = () => {
     // pushing all code lines down. Force-hide it and recalculate layout.
     const domNode = editor.getDomNode()
     if (domNode) {
-      const nativeEditCtx = domNode.querySelector('.native-edit-context') as HTMLElement
-      if (nativeEditCtx) {
-        nativeEditCtx.style.display = 'none'
-        nativeEditCtx.style.height = '0px'
-        nativeEditCtx.style.width = '0px'
-        nativeEditCtx.style.overflow = 'hidden'
+      const enforceHidden = () => {
+        const nativeEditCtx = domNode.querySelector('.native-edit-context') as HTMLElement
+        if (nativeEditCtx) {
+          nativeEditCtx.style.setProperty('display', 'none', 'important')
+          nativeEditCtx.style.setProperty('height', '0px', 'important')
+          nativeEditCtx.style.setProperty('width', '0px', 'important')
+          nativeEditCtx.style.setProperty('position', 'absolute', 'important')
+        }
+        // Also hide any textarea that might expand
+        const textarea = domNode.querySelector('textarea.inputarea, textarea') as HTMLElement
+        if (textarea) {
+          textarea.style.setProperty('display', 'none', 'important')
+          textarea.style.setProperty('height', '0px', 'important')
+          textarea.style.setProperty('width', '0px', 'important')
+          textarea.style.setProperty('position', 'absolute', 'important')
+        }
       }
-      // Also hide any textarea that might expand
-      const textarea = domNode.querySelector('textarea.inputarea') as HTMLElement
-      if (textarea) {
-        textarea.style.height = '1px'
-        textarea.style.width = '1px'
-        textarea.style.overflow = 'hidden'
-      }
+
+      enforceHidden()
+      const observer = new MutationObserver(enforceHidden)
+      observer.observe(domNode, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] })
+      
+      editor.onDidDispose(() => observer.disconnect())
     }
     // Force Monaco to recalculate layout after hiding elements
     setTimeout(() => editor.layout(), 50)
