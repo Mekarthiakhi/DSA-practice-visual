@@ -33,6 +33,28 @@ export const CodeEditor: React.FC = () => {
       const selection = editor.getModel()?.getValueInRange(e.selection) || ''
       useIDEStore.getState().setSelectedText(selection)
     })
+
+    // Fix: Monaco's native-edit-context element takes up 96px in production,
+    // pushing all code lines down. Force-hide it and recalculate layout.
+    const domNode = editor.getDomNode()
+    if (domNode) {
+      const nativeEditCtx = domNode.querySelector('.native-edit-context') as HTMLElement
+      if (nativeEditCtx) {
+        nativeEditCtx.style.display = 'none'
+        nativeEditCtx.style.height = '0px'
+        nativeEditCtx.style.width = '0px'
+        nativeEditCtx.style.overflow = 'hidden'
+      }
+      // Also hide any textarea that might expand
+      const textarea = domNode.querySelector('textarea.inputarea') as HTMLElement
+      if (textarea) {
+        textarea.style.height = '1px'
+        textarea.style.width = '1px'
+        textarea.style.overflow = 'hidden'
+      }
+    }
+    // Force Monaco to recalculate layout after hiding elements
+    setTimeout(() => editor.layout(), 50)
   }
 
   // Highlight current execution line
@@ -198,6 +220,9 @@ export const CodeEditor: React.FC = () => {
             // textarea. The IDE supplies its own execution/navigation UI, so keep
             // that implementation detail hidden instead of exposing a white box.
             accessibilitySupport: 'off',
+            // Disable the Edit Context API that creates a native-edit-context
+            // element causing 96px of blank space at the top in production.
+            ...({ experimentalEditContextEnabled: false } as Record<string, unknown>),
             fontSize: 13,
             fontFamily: '"JetBrains Mono", "Fira Code", monospace',
             fontLigatures: true,
