@@ -1090,6 +1090,10 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
   let comparisons = 0
   let prevArrState: number[] = []
   let prevPointers = ''
+  
+  // Stable ID tracking for spatial animations
+  let stableIds: string[] = []
+  let idCounter = 0
 
   for (let k = 0; k < lineEventIndices.length; k++) {
     const curIdx = lineEventIndices[k]
@@ -1174,6 +1178,11 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
       dsaState.auxiliaryData = dsaState.auxiliaryData || {}
       dsaState.auxiliaryData.isGeneric = true
 
+      // Initialize stable IDs if missing
+      if (stableIds.length !== currentArr.length) {
+        stableIds = currentArr.map(() => `item_${idCounter++}`)
+      }
+
       if (isSwap && prevArrState.length > 0) {
         // Find exactly which indices changed between previous and current array
         const changedIndices: number[] = []
@@ -1207,12 +1216,50 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
           }
         }
         
+        // Update stable IDs based on swap
+        const newStableIds = [...stableIds]
+        if (swapIndices.length === 2) {
+          const [a, b] = swapIndices
+          if (prevArrState[a] === currentArr[b] && prevArrState[b] === currentArr[a]) {
+            const temp = newStableIds[a]
+            newStableIds[a] = newStableIds[b]
+            newStableIds[b] = temp
+          } else {
+            // Value changed without a clean swap (e.g., assignment), generate new ID
+            newStableIds[a] = `item_${idCounter++}`
+            newStableIds[b] = `item_${idCounter++}`
+          }
+        } else {
+           // For other complex updates, do a best-effort multiset match of old values to new values
+           const prevChanged = changedIndices.map(i => ({ idx: i, val: prevArrState[i], id: stableIds[i], used: false }))
+           const currChanged = changedIndices.map(i => ({ idx: i, val: currentArr[i], matchedId: '' }))
+           
+           for (const curr of currChanged) {
+             const match = prevChanged.find(p => !p.used && p.val === curr.val)
+             if (match) {
+               match.used = true
+               curr.matchedId = match.id
+             } else {
+               curr.matchedId = `item_${idCounter++}`
+             }
+           }
+           for (const curr of currChanged) {
+             newStableIds[curr.idx] = curr.matchedId
+           }
+        }
+        stableIds = newStableIds
+
         dsaState.nodes.forEach((n, idx) => {
           if (swapIndices.includes(idx)) {
             n.highlight = 'swapping'
           }
         })
       }
+
+      // Apply the mapped stable IDs to the final node representations
+      dsaState.nodes.forEach((n, idx) => {
+        n.id = stableIds[idx] || `item_${idCounter++}`
+      })
 
       prevArrState = currentArr
       prevPointers = currentPointers

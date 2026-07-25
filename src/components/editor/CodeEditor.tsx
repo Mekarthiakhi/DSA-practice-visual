@@ -35,24 +35,26 @@ export const CodeEditor: React.FC = () => {
     })
 
     // Fix: Monaco's native-edit-context element takes up 96px in production,
-    // pushing all code lines down. Force-hide it and recalculate layout.
+    // pushing all code lines down. Force-hide it visually while keeping it focusable.
     const domNode = editor.getDomNode()
     if (domNode) {
       const enforceHidden = () => {
         const nativeEditCtx = domNode.querySelector('.native-edit-context') as HTMLElement
         if (nativeEditCtx) {
-          nativeEditCtx.style.setProperty('display', 'none', 'important')
-          nativeEditCtx.style.setProperty('height', '0px', 'important')
-          nativeEditCtx.style.setProperty('width', '0px', 'important')
+          nativeEditCtx.style.setProperty('opacity', '0', 'important')
+          nativeEditCtx.style.setProperty('height', '1px', 'important')
+          nativeEditCtx.style.setProperty('width', '1px', 'important')
           nativeEditCtx.style.setProperty('position', 'absolute', 'important')
+          nativeEditCtx.style.setProperty('pointer-events', 'none', 'important')
         }
         // Also hide any textarea that might expand
         const textarea = domNode.querySelector('textarea.inputarea, textarea') as HTMLElement
         if (textarea) {
-          textarea.style.setProperty('display', 'none', 'important')
-          textarea.style.setProperty('height', '0px', 'important')
-          textarea.style.setProperty('width', '0px', 'important')
+          textarea.style.setProperty('opacity', '0', 'important')
+          textarea.style.setProperty('height', '1px', 'important')
+          textarea.style.setProperty('width', '1px', 'important')
           textarea.style.setProperty('position', 'absolute', 'important')
+          textarea.style.setProperty('pointer-events', 'none', 'important')
         }
       }
 
@@ -186,7 +188,7 @@ export const CodeEditor: React.FC = () => {
             left: 0 !important;
             padding: 0 !important;
             margin: 0 !important;
-            display: none !important;
+            pointer-events: none !important;
           }
           .execution-line-highlight {
             background: rgba(0, 212, 255, 0.08) !important;
