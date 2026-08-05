@@ -41,13 +41,7 @@ function analyzeComplexityLocal(code: string): string {
   const lower = code.toLowerCase()
 
   // Detect nested loops
-  let loopCount = 0
-  for (let i = 0; i < code.length; i++) {
-    if (code[i] === 'for' || code[i] === 'while') {
-      loopCount++
-    }
-  }
-
+  const loopCount = (code.match(/\b(for|while)\b/g) || []).length
   if (loopCount >= 3) {
     timeComplexity = 'O(n³)'
   } else if (loopCount === 2) {
@@ -244,7 +238,7 @@ async function callGeminiDirect(type: string, code: string, apiKey: string): Pro
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'llama3-70b-8192',
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
     }),
   })
@@ -403,7 +397,7 @@ export async function chatWithAI(
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'llama3-70b-8192',
+          model: 'llama-3.3-70b-versatile',
           messages: [{ role: 'user', content: fullPrompt }],
         }),
       })
