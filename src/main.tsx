@@ -12,7 +12,5 @@ globalThis.__ALGOVISION_EXECUTION_API_URL__ = import.meta.env.VITE_EXECUTION_API
 installGlobalErrorTelemetry()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+  <App />
 )
