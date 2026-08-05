@@ -21,8 +21,8 @@ export interface AIResponse {
 // Backend proxy URL — in dev it's localhost:3001, in production set via env
 // @ts-ignore
 const API_BASE = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
-// @ts-ignore
-const DEFAULT_GEMINI_KEY: string = import.meta.env.VITE_GEMINI_API_KEY || ''
+// @ts-ignore — Set VITE_GROQ_API_KEY in your .env file (never hardcode keys here)
+const DEFAULT_GEMINI_KEY: string = import.meta.env.VITE_GROQ_API_KEY || ''
 const MAX_RETRIES = 2
 const RETRY_DELAY = 800
 
@@ -185,12 +185,12 @@ function explainCodeLocal(code: string): string {
 async function callBackendProxy(type: string, code: string, apiKey?: string): Promise<string> {
   let lastError: Error | null = null
 
-  // If we have an API key, try calling Gemini directly first
+  // If we have an API key, try calling Groq directly first
   if (apiKey && apiKey.length > 8) {
     try {
       return await callGeminiDirect(type, code, apiKey)
     } catch (err) {
-      console.warn('Direct Gemini call failed, trying backend proxy:', err)
+      console.warn('Direct Groq call failed, trying backend proxy:', err)
     }
   }
 
@@ -223,7 +223,7 @@ async function callBackendProxy(type: string, code: string, apiKey?: string): Pr
 }
 
 /**
- * Call Gemini API directly with user's key
+ * Call Groq API directly with user's key
  */
 async function callGeminiDirect(type: string, code: string, apiKey: string): Promise<string> {
   const prompts: Record<string, string> = {
@@ -235,19 +235,25 @@ async function callGeminiDirect(type: string, code: string, apiKey: string): Pro
   }
   const prompt = prompts[type] || prompts.custom
 
-  // Try Gemini API
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+  // Try Groq API
+  const geminiUrl = `https://api.groq.com/openai/v1/chat/completions`
   const resp = await fetch(geminiUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'llama3-70b-8192',
+      messages: [{ role: 'user', content: prompt }],
+    }),
   })
   if (!resp.ok) {
     const e = await resp.json().catch(() => ({}))
-    throw new Error(e?.error?.message || `Gemini error: ${resp.status}`)
+    throw new Error(e?.error?.message || `Groq error: ${resp.status}`)
   }
   const data = await resp.json()
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini.'
+  return data?.choices?.[0]?.message?.content || 'No response from Groq.'
 }
 
 /**
@@ -383,25 +389,31 @@ export async function chatWithAI(
   apiKey?: string
 ): Promise<string> {
   apiKey = resolveKey(apiKey)
-  // If we have a Gemini API key, use it directly
+  // If we have a Groq API key, use it directly
   if (apiKey && apiKey.length > 8) {
     try {
       const systemMsg = `You are an expert programming assistant helping with code analysis and DSA problems. Current code context:\n\n${code}\n\nAnswer concisely and helpfully.`
       const lastUserMsg = history.filter(m => m.role === 'user').slice(-1)[0]?.content || ''
       const fullPrompt = `${systemMsg}\n\nUser: ${lastUserMsg}`
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+      const geminiUrl = `https://api.groq.com/openai/v1/chat/completions`
       const resp = await fetch(geminiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama3-70b-8192',
+          messages: [{ role: 'user', content: fullPrompt }],
+        }),
       })
       if (resp.ok) {
         const data = await resp.json()
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        const text = data?.choices?.[0]?.message?.content
         if (text) return text
       }
     } catch (err) {
-      console.warn('Direct Gemini chat failed, trying backend proxy:', err)
+      console.warn('Direct Groq chat failed, trying backend proxy:', err)
     }
   }
 
@@ -426,7 +438,7 @@ export async function chatWithAI(
     const msg = error instanceof Error ? error.message : 'Unknown error'
     // If server is down, give helpful message
     if (msg.includes('fetch') || msg.includes('network') || msg.includes('ECONNREFUSED') || msg.includes('Failed to fetch')) {
-      return `## AI Not Available\n\nTo enable AI chat, either:\n1. **Add an API key** (click the 🔑 icon) — supports Gemini, OpenAI, or Anthropic keys\n2. **Start the backend server**: \`cd server && npm run dev\`\n\nThe visualizer and code tracing work without an API key! ⚡`
+      return `## AI Not Available\n\nTo enable AI chat, either:\n1. **Add an API key** (click the 🔑 icon) — supports Groq, OpenAI, or Anthropic keys\n2. **Start the backend server**: \`cd server && npm run dev\`\n\nThe visualizer and code tracing work without an API key! ⚡`
     }
     throw new Error(`AI chat failed: ${msg}`)
   }

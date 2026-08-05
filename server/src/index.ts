@@ -47,48 +47,47 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
-// ─── OpenRouter proxy helper ──────────────────────────────────────────────────
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ''
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+// ─── Groq proxy helper ──────────────────────────────────────────────────
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '' // Set GROQ_API_KEY in server/.env
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const EXECUTION_SERVICE_URL = process.env.EXECUTION_SERVICE_URL || ''
 const EXECUTION_SERVICE_TOKEN = process.env.EXECUTION_SERVICE_TOKEN || ''
 const EXECUTION_TIMEOUT_MS = 20_000
 const TRACE_LANGUAGES = new Set(['java', 'cpp', 'c', 'csharp', 'go', 'rust'])
 
-async function callOpenRouter(prompt: string, maxTokens = 1024): Promise<string> {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY not configured on server')
-  }
+async function callGroq(prompt: string): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not configured')
 
-  const response = await fetch(OPENROUTER_URL, {
+  const response = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'anthropic/claude-sonnet-4',
-      max_tokens: maxTokens,
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2,
+      max_tokens: 1000,
     }),
   })
 
   if (!response.ok) {
-    const err = (await response.json().catch(() => ({}))) as any
-    throw new Error(err.error?.message || `OpenRouter error: ${response.status}`)
+    const text = await response.text()
+    throw new Error(`Groq API error (${response.status}): ${text}`)
   }
 
-  const data = (await response.json()) as any
-  return data.choices?.[0]?.message?.content || 'No response from AI.'
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content || 'No response from AI'
 }
 
 // ─── Health check ─────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     version: '2.0.0',
     service: 'AlgoVision IDE Backend',
-    aiConfigured: !!OPENROUTER_API_KEY,
+    aiConfigured: !!GROQ_API_KEY,
     executionRuntimeConfigured: !!EXECUTION_SERVICE_URL,
   })
 })
@@ -117,7 +116,7 @@ app.post('/api/analyze', async (req, res) => {
   const prompt = prompts[type] || prompts.custom
 
   try {
-    const result = await callOpenRouter(prompt)
+    const result = await callGroq(prompt)
     res.json({ success: true, result, type })
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Analysis failed'
@@ -142,7 +141,7 @@ app.post('/api/chat', async (req, res) => {
   const prompt = `Context: The user is working on this code:\n\`\`\`\n${code || '// No code provided'}\n\`\`\`\n\nConversation:\n${messages.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join('\n')}\n\nPlease respond helpfully about the code above.`
 
   try {
-    const result = await callOpenRouter(prompt)
+    const result = await callGroq(prompt)
     res.json({ success: true, content: result })
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Chat failed'
@@ -258,8 +257,8 @@ const PORT = process.env.PORT || 3001
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`AlgoVision Server running on port ${PORT}`)
-    console.log(`Health: http://localhost:${PORT}/health`)
-    console.log(`AI: ${OPENROUTER_API_KEY ? 'configured' : 'not configured'}`)
+    console.log(`Health: http://localhost:${PORT}/api/health`)
+    console.log(`AI: ${GROQ_API_KEY ? 'configured' : 'not configured'}`)
   })
 }
 

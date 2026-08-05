@@ -16,7 +16,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} nums\n * @return {boolean}\n */\nvar containsDuplicate = function(nums) {\n    \n};",
       "python": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Contains Duplicate — HashSet O(n) time, O(n) space\n// Pattern: HashSet — insert each element; if already in set, duplicate found\nfunction containsDuplicate(nums) {\n  const seen = new Set();\n  for (let i = 0; i < nums.length; i++) {\n    if (seen.has(nums[i])) return true;  // duplicate!\n    seen.add(nums[i]);\n  }\n  return false;\n}\nconst result = containsDuplicate([1, 2, 3, 1]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "242",
@@ -33,7 +35,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {string} s\n * @param {string} t\n * @return {boolean}\n */\nvar isAnagram = function(s, t) {\n    \n};",
       "python": "class Solution:\n    def isAnagram(self, s: str, t: str) -> bool:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Valid Anagram — Character frequency count O(n)\n// Pattern: HashMap — count chars in s, subtract for t; zero map = anagram\nfunction isAnagram(s, t) {\n  if (s.length !== t.length) return false;\n  const count = new Map();\n  for (let i = 0; i < s.length; i++) {\n    count.set(s[i], (count.get(s[i]) || 0) + 1);\n  }\n  for (let i = 0; i < t.length; i++) {\n    if (!count.has(t[i])) return false;\n    count.set(t[i], count.get(t[i]) - 1);\n    if (count.get(t[i]) === 0) count.delete(t[i]);\n  }\n  return count.size === 0;\n}\nconst result = isAnagram(\"anagram\", \"nagaram\");\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "1",
@@ -68,7 +72,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} nums\n * @param {number} target\n * @return {number[]}\n */\nvar twoSum = function(nums, target) {\n    \n};",
       "python": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Two Sum — HashMap for complement lookup O(n)\n// Pattern: HashMap — store value->index; for each num, check if complement exists\nfunction twoSum(nums, target) {\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const complement = target - nums[i];\n    if (map.has(complement)) {\n      return [map.get(complement), i];\n    }\n    map.set(nums[i], i);\n  }\n  return [];\n}\nconst result = twoSum([2, 7, 11, 15], 9);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "49",
@@ -86,7 +92,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {string[]} strs\n * @return {string[][]}\n */\nvar groupAnagrams = function(strs) {\n    \n};",
       "python": "class Solution:\n    def groupAnagrams(self, strs: List[str]) -> List[List[str]]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Group Anagrams — Sorted key as group identifier O(n * k log k)\n// Pattern: HashMap — sort each word as the key, group all anagrams together\nfunction groupAnagrams(strs) {\n  const map = new Map();\n  for (let i = 0; i < strs.length; i++) {\n    const key = strs[i].split('').sort().join('');\n    if (!map.has(key)) map.set(key, []);\n    map.get(key).push(strs[i]);\n  }\n  return Array.from(map.values());\n}\nconst result = groupAnagrams([\"eat\",\"tea\",\"tan\",\"ate\",\"nat\",\"bat\"]);\nconsole.log('Result:', JSON.stringify(result));"
+    }
   },
   {
     "id": "347",
@@ -105,7 +113,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} nums\n * @param {number} k\n * @return {number[]}\n */\nvar topKFrequent = function(nums, k) {\n    \n};",
       "python": "class Solution:\n    def topKFrequent(self, nums: List[int], k: int) -> List[int]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Top K Frequent Elements — Bucket Sort O(n)\n// Pattern: Bucket Sort — use frequency as bucket index, scan from high to low\nfunction topKFrequent(nums, k) {\n  const count = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    count.set(nums[i], (count.get(nums[i]) || 0) + 1);\n  }\n  // buckets[freq] = [num1, num2, ...]\n  const buckets = Array.from({ length: nums.length + 1 }, () => []);\n  for (const [num, freq] of count) {\n    buckets[freq].push(num);\n  }\n  const result = [];\n  for (let i = buckets.length - 1; i >= 0 && result.length < k; i--) {\n    for (const num of buckets[i]) {\n      result.push(num);\n      if (result.length === k) break;\n    }\n  }\n  return result;\n}\nconst result = topKFrequent([1,1,1,2,2,3], 2);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "238",
@@ -196,7 +206,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} nums\n * @return {number}\n */\nvar longestConsecutive = function(nums) {\n    \n};",
       "python": "class Solution:\n    def longestConsecutive(self, nums: List[int]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Longest Consecutive Sequence — HashSet O(n)\n// Pattern: HashSet — only start counting from the START of a sequence\nfunction longestConsecutive(nums) {\n  const numSet = new Set(nums);\n  let longest = 0;\n  for (let i = 0; i < nums.length; i++) {\n    // Only start counting if nums[i]-1 is NOT in set (sequence start)\n    if (!numSet.has(nums[i] - 1)) {\n      let length = 1;\n      let curr = nums[i];\n      while (numSet.has(curr + 1)) {\n        curr++;\n        length++;\n      }\n      longest = Math.max(longest, length);\n    }\n  }\n  return longest;\n}\nconst result = longestConsecutive([100,4,200,1,3,2]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "125",
@@ -229,7 +241,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {string} s\n * @return {boolean}\n */\nvar isPalindrome = function(s) {\n    \n};",
       "python": "class Solution:\n    def isPalindrome(self, s: str) -> bool:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Valid Palindrome — Two Pointers O(n)\n// Pattern: Two Pointers — start from both ends, skip non-alphanumeric\nfunction isPalindrome(s) {\n  const clean = s.toLowerCase().replace(/[^a-z0-9]/g, '');\n  let left = 0;\n  let right = clean.length - 1;\n  while (left < right) {\n    if (clean[left] !== clean[right]) return false;  // mismatch\n    left++;\n    right--;\n  }\n  return true;\n}\nconst result = isPalindrome(\"A man, a plan, a canal: Panama\");\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "167",
@@ -265,7 +279,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} numbers\n * @param {number} target\n * @return {number[]}\n */\nvar twoSum = function(numbers, target) {\n    \n};",
       "python": "class Solution:\n    def twoSum(self, numbers: List[int], target: int) -> List[int]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Two Sum II (Sorted Array) — Two Pointers O(n)\n// Pattern: Two Pointers — sum too small: move left right; too big: move right left\nfunction twoSum(numbers, target) {\n  let left = 0;\n  let right = numbers.length - 1;\n  while (left < right) {\n    const sum = numbers[left] + numbers[right];\n    if (sum === target) return [left + 1, right + 1];  // 1-indexed answer\n    if (sum < target) left++;   // need a bigger sum\n    else right--;               // need a smaller sum\n  }\n  return [];\n}\nconst result = twoSum([2,7,11,15], 9);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "15",
@@ -298,7 +314,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} nums\n * @return {number[][]}\n */\nvar threeSum = function(nums) {\n    \n};",
       "python": "class Solution:\n    def threeSum(self, nums: list[int]) -> list[list[int]]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// 3Sum — Sort + Two Pointers O(n²)\n// Pattern: Sort first, then for each element use two-pointer to find pair\nfunction threeSum(nums) {\n  nums.sort((a, b) => a - b);\n  const result = [];\n  for (let i = 0; i < nums.length - 2; i++) {\n    if (i > 0 && nums[i] === nums[i - 1]) continue;  // skip duplicate i\n    let left = i + 1;\n    let right = nums.length - 1;\n    while (left < right) {\n      const sum = nums[i] + nums[left] + nums[right];\n      if (sum === 0) {\n        result.push([nums[i], nums[left], nums[right]]);\n        while (left < right && nums[left] === nums[left + 1]) left++;\n        while (left < right && nums[right] === nums[right - 1]) right--;\n        left++;\n        right--;\n      } else if (sum < 0) {\n        left++;\n      } else {\n        right--;\n      }\n    }\n  }\n  return result;\n}\nconst result = threeSum([-1, 0, 1, 2, -1, -4]);\nconsole.log('Result:', JSON.stringify(result));"
+    }
   },
   {
     "id": "11",
@@ -327,7 +345,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} height\n * @return {number}\n */\nvar maxArea = function(height) {\n    \n};",
       "python": "class Solution:\n    def maxArea(self, height: List[int]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Container With Most Water — Two Pointers O(n)\n// Pattern: Greedy Two Pointers — always move the shorter wall inward\nfunction maxArea(height) {\n  let left = 0;\n  let right = height.length - 1;\n  let maxWater = 0;\n  while (left < right) {\n    const h = Math.min(height[left], height[right]);\n    const water = h * (right - left);\n    maxWater = Math.max(maxWater, water);\n    // Moving the taller side can't increase water, so move the shorter\n    if (height[left] < height[right]) left++;\n    else right--;\n  }\n  return maxWater;\n}\nconst result = maxArea([1,8,6,2,5,4,8,3,7]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "42",
@@ -384,7 +404,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} prices\n * @return {number}\n */\nvar maxProfit = function(prices) {\n    \n};",
       "python": "class Solution:\n    def maxProfit(self, prices: List[int]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Best Time to Buy and Sell Stock — Sliding Window O(n)\n// Pattern: Track min price so far; profit = current - min\nfunction maxProfit(prices) {\n  let left = 0;   // buy day pointer\n  let right = 1;  // sell day pointer\n  let maxProfit = 0;\n  while (right < prices.length) {\n    if (prices[left] < prices[right]) {\n      const profit = prices[right] - prices[left];\n      maxProfit = Math.max(maxProfit, profit);\n    } else {\n      left = right;  // new cheaper buy day found\n    }\n    right++;\n  }\n  return maxProfit;\n}\nconst result = maxProfit([7, 1, 5, 3, 6, 4]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "3",
@@ -417,7 +439,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {string} s\n * @return {number}\n */\nvar lengthOfLongestSubstring = function(s) {\n    \n};",
       "python": "class Solution:\n    def lengthOfLongestSubstring(self, s: str) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Longest Substring Without Repeating Characters — Sliding Window O(n)\n// Pattern: Expand right, shrink left when duplicate found\nfunction lengthOfLongestSubstring(s) {\n  const seen = new Map();   // char -> last index\n  let left = 0;\n  let maxLen = 0;\n  for (let right = 0; right < s.length; right++) {\n    if (seen.has(s[right]) && seen.get(s[right]) >= left) {\n      left = seen.get(s[right]) + 1;  // shrink: jump past the duplicate\n    }\n    seen.set(s[right], right);\n    maxLen = Math.max(maxLen, right - left + 1);\n  }\n  return maxLen;\n}\nconst result = lengthOfLongestSubstring(\"abcabcbb\");\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "424",
@@ -446,7 +470,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {string} s\n * @param {number} k\n * @return {number}\n */\nvar characterReplacement = function(s, k) {\n    \n};",
       "python": "class Solution:\n    def characterReplacement(self, s: str, k: int) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Longest Repeating Character Replacement — Sliding Window O(n)\n// Pattern: Window is valid if (window size - max freq char) <= k\nfunction characterReplacement(s, k) {\n  const count = new Array(26).fill(0);\n  let maxCount = 0;  // highest freq of any single char in current window\n  let left = 0;\n  let maxLen = 0;\n  for (let right = 0; right < s.length; right++) {\n    const idx = s.charCodeAt(right) - 65;\n    count[idx]++;\n    maxCount = Math.max(maxCount, count[idx]);\n    // If replacements needed exceed k, shrink from left\n    while ((right - left + 1) - maxCount > k) {\n      count[s.charCodeAt(left) - 65]--;\n      left++;\n    }\n    maxLen = Math.max(maxLen, right - left + 1);\n  }\n  return maxLen;\n}\nconst result = characterReplacement(\"AABABBA\", 1);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "567",
@@ -555,7 +581,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {string} s\n * @return {boolean}\n */\nvar isValid = function(s) {\n    \n};",
       "python": "class Solution:\n    def isValid(self, s: str) -> bool:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Valid Parentheses — Monotonic Stack O(n)\n// Pattern: Push opening brackets; pop on closing and verify match\nfunction isValid(s) {\n  const stack = [];\n  const map = { ')': '(', ']': '[', '}': '{' };\n  for (let i = 0; i < s.length; i++) {\n    if ('([{'.includes(s[i])) {\n      stack.push(s[i]);  // opening bracket — push\n    } else {\n      if (stack.pop() !== map[s[i]]) return false;  // closing — must match\n    }\n  }\n  return stack.length === 0;\n}\nconst result = isValid(\"()[]{}\")\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "155",
@@ -645,7 +673,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} temperatures\n * @return {number[]}\n */\nvar dailyTemperatures = function(temperatures) {\n    \n};",
       "python": "class Solution:\n    def dailyTemperatures(self, temperatures: List[int]) -> List[int]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Daily Temperatures — Monotonic Decreasing Stack O(n)\n// Pattern: Stack stores indices; pop when we find a warmer day\nfunction dailyTemperatures(temperatures) {\n  const result = new Array(temperatures.length).fill(0);\n  const stack = [];  // stores indices of days waiting for warmer temp\n  for (let i = 0; i < temperatures.length; i++) {\n    while (stack.length > 0 && temperatures[i] > temperatures[stack[stack.length - 1]]) {\n      const prevIdx = stack.pop();\n      result[prevIdx] = i - prevIdx;  // days waited = current - popped index\n    }\n    stack.push(i);\n  }\n  return result;\n}\nconst result = dailyTemperatures([73,74,75,71,69,72,76,73]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "883",
@@ -824,7 +854,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} nums\n * @return {number}\n */\nvar findMin = function(nums) {\n    \n};",
       "python": "class Solution:\n    def findMin(self, nums: List[int]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Find Minimum in Rotated Sorted Array — Binary Search O(log n)\n// Pattern: The side where nums[mid] > nums[right] is the inflated side\nfunction findMin(nums) {\n  let left = 0;\n  let right = nums.length - 1;\n  while (left < right) {\n    const mid = Math.floor((left + right) / 2);\n    if (nums[mid] > nums[right]) {\n      left = mid + 1;  // minimum is in the right half\n    } else {\n      right = mid;     // minimum is in the left half (including mid)\n    }\n  }\n  return nums[left];\n}\nconst result = findMin([3,4,5,1,2]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "33",
@@ -951,7 +983,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for singly-linked list.\n * function ListNode(val, next) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.next = (next===undefined ? null : next)\n * }\n */\n/**\n * @param {ListNode} head\n * @return {ListNode}\n */\nvar reverseList = function(head) {\n    \n};",
       "python": "# Definition for singly-linked list.\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\nclass Solution:\n    def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Reverse Linked List — Iterative O(n)\n// Pattern: Three-pointer (prev, curr, next) — reverse one link at a time\nfunction ListNode(val, next) { this.val = val; this.next = next || null; }\nfunction reverseList(head) {\n  let prev = null;\n  let curr = head;\n  while (curr !== null) {\n    const nextNode = curr.next;  // save next before overwriting\n    curr.next = prev;            // reverse the link\n    prev = curr;                 // move prev forward\n    curr = nextNode;             // move curr forward\n  }\n  return prev;  // prev is the new head\n}\nconst head = new ListNode(1, new ListNode(2, new ListNode(3, new ListNode(4, new ListNode(5)))));\nconst result = reverseList(head);\nlet node = result; const vals = [];\nwhile (node) { vals.push(node.val); node = node.next; }\nconsole.log('Result:', vals);"
+    }
   },
   {
     "id": "21",
@@ -985,7 +1019,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for singly-linked list.\n * function ListNode(val, next) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.next = (next===undefined ? null : next)\n * }\n */\n/**\n * @param {ListNode} list1\n * @param {ListNode} list2\n * @return {ListNode}\n */\nvar mergeTwoLists = function(list1, list2) {\n    \n};",
       "python": "# Definition for singly-linked list.\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\nclass Solution:\n    def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Merge Two Sorted Lists — Iterative with dummy head O(n+m)\n// Pattern: Compare heads, attach smaller, advance that pointer\nfunction ListNode(val, next) { this.val = val; this.next = next || null; }\nfunction mergeTwoLists(list1, list2) {\n  const dummy = new ListNode(0);\n  let curr = dummy;\n  while (list1 !== null && list2 !== null) {\n    if (list1.val <= list2.val) {\n      curr.next = list1;\n      list1 = list1.next;\n    } else {\n      curr.next = list2;\n      list2 = list2.next;\n    }\n    curr = curr.next;\n  }\n  curr.next = list1 !== null ? list1 : list2;  // attach remaining\n  return dummy.next;\n}\nconst l1 = new ListNode(1, new ListNode(2, new ListNode(4)));\nconst l2 = new ListNode(1, new ListNode(3, new ListNode(4)));\nconst result = mergeTwoLists(l1, l2);\nlet node = result; const vals = [];\nwhile (node) { vals.push(node.val); node = node.next; }\nconsole.log('Result:', vals);"
+    }
   },
   {
     "id": "141",
@@ -1047,7 +1083,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for singly-linked list.\n * function ListNode(val, next) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.next = (next===undefined ? null : next)\n * }\n */\n/**\n * @param {ListNode} head\n * @return {void} Do not return anything, modify head in-place instead.\n */\nvar reorderList = function(head) {\n    \n};",
       "python": "# Definition for singly-linked list.\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\nclass Solution:\n    def reorderList(self, head: Optional[ListNode]) -> None:\n        \"\"\"\n        Do not return anything, modify head in-place instead.\n        \"\"\"\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Reorder List — Find mid + Reverse + Merge O(n)\n// Pattern: Three-step: slow/fast to find mid, reverse 2nd half, merge halves\nfunction ListNode(val, next) { this.val = val; this.next = next || null; }\nfunction reorderList(head) {\n  // Step 1: Find middle with slow/fast pointers\n  let slow = head, fast = head.next;\n  while (fast && fast.next) { slow = slow.next; fast = fast.next.next; }\n  // Step 2: Reverse second half\n  let prev = null, curr = slow.next;\n  slow.next = null;  // cut list in half\n  while (curr) { const next = curr.next; curr.next = prev; prev = curr; curr = next; }\n  // Step 3: Merge two halves\n  let first = head, second = prev;\n  while (second) {\n    const tmp1 = first.next, tmp2 = second.next;\n    first.next = second; second.next = tmp1;\n    first = tmp1; second = tmp2;\n  }\n  return head;\n}\nconst head = new ListNode(1, new ListNode(2, new ListNode(3, new ListNode(4))));\nreorderList(head);\nlet node = head; const vals = [];\nwhile (node) { vals.push(node.val); node = node.next; }\nconsole.log('Result:', vals);"
+    }
   },
   {
     "id": "19",
@@ -1309,7 +1347,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for a binary tree node.\n * function TreeNode(val, left, right) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.left = (left===undefined ? null : left)\n *     this.right = (right===undefined ? null : right)\n * }\n */\n/**\n * @param {TreeNode} root\n * @return {TreeNode}\n */\nvar invertTree = function(root) {\n    \n};",
       "python": "# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nclass Solution:\n    def invertTree(self, root: Optional[TreeNode]) -> Optional[TreeNode]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Invert Binary Tree — Recursive DFS O(n)\n// Pattern: Post-order — invert children first, then swap\nfunction TreeNode(val, left, right) { this.val = val; this.left = left||null; this.right = right||null; }\nfunction invertTree(root) {\n  if (root === null) return null;\n  const temp = root.left;\n  root.left = invertTree(root.right);\n  root.right = invertTree(temp);\n  return root;\n}\nconst root = new TreeNode(4,\n  new TreeNode(2, new TreeNode(1), new TreeNode(3)),\n  new TreeNode(7, new TreeNode(6), new TreeNode(9))\n);\nconst inverted = invertTree(root);\nconsole.log('Result: root=', inverted.val, 'left=', inverted.left.val, 'right=', inverted.right.val);"
+    }
   },
   {
     "id": "104",
@@ -1337,7 +1377,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for a binary tree node.\n * function TreeNode(val, left, right) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.left = (left===undefined ? null : left)\n *     this.right = (right===undefined ? null : right)\n * }\n */\n/**\n * @param {TreeNode} root\n * @return {number}\n */\nvar maxDepth = function(root) {\n    \n};",
       "python": "# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nclass Solution:\n    def maxDepth(self, root: Optional[TreeNode]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Maximum Depth of Binary Tree — Recursive DFS O(n)\n// Pattern: depth(node) = 1 + max(depth(left), depth(right))\nfunction TreeNode(val, left, right) { this.val = val; this.left = left||null; this.right = right||null; }\nfunction maxDepth(root) {\n  if (root === null) return 0;\n  const leftDepth = maxDepth(root.left);\n  const rightDepth = maxDepth(root.right);\n  return 1 + Math.max(leftDepth, rightDepth);\n}\nconst root = new TreeNode(3,\n  new TreeNode(9),\n  new TreeNode(20, new TreeNode(15), new TreeNode(7))\n);\nconst result = maxDepth(root);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "543",
@@ -1365,7 +1407,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for a binary tree node.\n * function TreeNode(val, left, right) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.left = (left===undefined ? null : left)\n *     this.right = (right===undefined ? null : right)\n * }\n */\n/**\n * @param {TreeNode} root\n * @return {number}\n */\nvar diameterOfBinaryTree = function(root) {\n    \n};",
       "python": "# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nclass Solution:\n    def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Diameter of Binary Tree — DFS, track max path through each node\n// Pattern: At each node, diameter candidate = left height + right height\nfunction TreeNode(val, left, right) { this.val = val; this.left = left||null; this.right = right||null; }\nfunction diameterOfBinaryTree(root) {\n  let diameter = 0;\n  function dfs(node) {\n    if (node === null) return 0;\n    const left = dfs(node.left);\n    const right = dfs(node.right);\n    diameter = Math.max(diameter, left + right);  // path through this node\n    return 1 + Math.max(left, right);             // return height to parent\n  }\n  dfs(root);\n  return diameter;\n}\nconst root = new TreeNode(1,\n  new TreeNode(2, new TreeNode(4), new TreeNode(5)),\n  new TreeNode(3)\n);\nconst result = diameterOfBinaryTree(root);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "110",
@@ -1530,7 +1574,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for a binary tree node.\n * function TreeNode(val, left, right) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.left = (left===undefined ? null : left)\n *     this.right = (right===undefined ? null : right)\n * }\n */\n/**\n * @param {TreeNode} root\n * @return {number[][]}\n */\nvar levelOrder = function(root) {\n    \n};",
       "python": "# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nclass Solution:\n    def levelOrder(self, root: Optional[TreeNode]) -> List[List[int]]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Binary Tree Level Order Traversal — BFS with Queue O(n)\n// Pattern: Process one level at a time using queue, track level boundaries\nfunction TreeNode(val, left, right) { this.val = val; this.left = left||null; this.right = right||null; }\nfunction levelOrder(root) {\n  if (!root) return [];\n  const result = [];\n  const queue = [root];\n  while (queue.length > 0) {\n    const levelSize = queue.length;  // freeze current level count\n    const level = [];\n    for (let i = 0; i < levelSize; i++) {\n      const node = queue.shift();    // dequeue front\n      level.push(node.val);\n      if (node.left) queue.push(node.left);\n      if (node.right) queue.push(node.right);\n    }\n    result.push(level);\n  }\n  return result;\n}\nconst root = new TreeNode(3,\n  new TreeNode(9),\n  new TreeNode(20, new TreeNode(15), new TreeNode(7))\n);\nconst result = levelOrder(root);\nconsole.log('Result:', JSON.stringify(result));"
+    }
   },
   {
     "id": "199",
@@ -1608,7 +1654,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for a binary tree node.\n * function TreeNode(val, left, right) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.left = (left===undefined ? null : left)\n *     this.right = (right===undefined ? null : right)\n * }\n */\n/**\n * @param {TreeNode} root\n * @return {boolean}\n */\nvar isValidBST = function(root) {\n    \n};",
       "python": "# Definition for a binary tree node.\n# class TreeNode:\n#     def __init__(self, val=0, left=None, right=None):\n#         self.val = val\n#         self.left = left\n#         self.right = right\nclass Solution:\n    def isValidBST(self, root: Optional[TreeNode]) -> bool:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Validate Binary Search Tree — DFS with bounds O(n)\n// Pattern: Each node must satisfy min < node.val < max (passed from parent)\nfunction TreeNode(val, left, right) { this.val = val; this.left = left||null; this.right = right||null; }\nfunction isValidBST(root) {\n  function validate(node, min, max) {\n    if (node === null) return true;\n    if (node.val <= min || node.val >= max) return false;  // violates BST\n    return validate(node.left, min, node.val) &&\n           validate(node.right, node.val, max);\n  }\n  return validate(root, -Infinity, Infinity);\n}\nconst root = new TreeNode(2, new TreeNode(1), new TreeNode(3));\nconst result = isValidBST(root);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "230",
@@ -2307,7 +2355,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {character[][]} grid\n * @return {number}\n */\nvar numIslands = function(grid) {\n    \n};",
       "python": "class Solution:\n    def numIslands(self, grid: List[List[str]]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Number of Islands — DFS Flood Fill O(m*n)\n// Pattern: For each unvisited '1', DFS and mark whole island as visited\nfunction numIslands(grid) {\n  let count = 0;\n  function dfs(r, c) {\n    if (r < 0 || c < 0 || r >= grid.length || c >= grid[0].length) return;\n    if (grid[r][c] !== '1') return;\n    grid[r][c] = '0';  // mark visited by sinking the island\n    dfs(r + 1, c); dfs(r - 1, c); dfs(r, c + 1); dfs(r, c - 1);\n  }\n  for (let r = 0; r < grid.length; r++) {\n    for (let c = 0; c < grid[0].length; c++) {\n      if (grid[r][c] === '1') { count++; dfs(r, c); }\n    }\n  }\n  return count;\n}\nconst grid = [\n  ['1','1','0','0','0'],\n  ['1','1','0','0','0'],\n  ['0','0','1','0','0'],\n  ['0','0','0','1','1']\n];\nconst result = numIslands(grid);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "695",
@@ -2488,7 +2538,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number} numCourses\n * @param {number[][]} prerequisites\n * @return {boolean}\n */\nvar canFinish = function(numCourses, prerequisites) {\n    \n};",
       "python": "class Solution:\n    def canFinish(self, numCourses: int, prerequisites: List[List[int]]) -> bool:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Course Schedule — Cycle detection with DFS O(V+E)\n// Pattern: UNVISITED=0, VISITING=1, VISITED=2; cycle = VISITING node found again\nfunction canFinish(numCourses, prerequisites) {\n  const graph = {};\n  for (let i = 0; i < numCourses; i++) graph[i] = [];\n  for (const [a, b] of prerequisites) graph[a].push(b);\n  const state = new Array(numCourses).fill(0); // 0=unvisited, 1=visiting, 2=visited\n  function dfs(node) {\n    if (state[node] === 1) return false;  // back edge = cycle!\n    if (state[node] === 2) return true;   // already fully processed\n    state[node] = 1;  // mark as in-progress\n    for (const neighbor of graph[node]) {\n      if (!dfs(neighbor)) return false;\n    }\n    state[node] = 2;  // fully processed\n    return true;\n  }\n  for (let i = 0; i < numCourses; i++) {\n    if (!dfs(i)) return false;\n  }\n  return true;\n}\nconst result = canFinish(5, [[1,0],[2,0],[3,1],[3,2]]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "210",
@@ -2788,7 +2840,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number} n\n * @return {number}\n */\nvar climbStairs = function(n) {\n    \n};",
       "python": "class Solution:\n    def climbStairs(self, n: int) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Climbing Stairs — DP (Fibonacci) O(n), O(1) space\n// Pattern: dp[i] = dp[i-1] + dp[i-2] — ways to climb i stairs\nfunction climbStairs(n) {\n  if (n <= 2) return n;\n  let prev2 = 1;   // dp[i-2]: ways to reach step 1\n  let prev1 = 2;   // dp[i-1]: ways to reach step 2\n  for (let i = 3; i <= n; i++) {\n    const curr = prev1 + prev2;\n    prev2 = prev1;\n    prev1 = curr;\n  }\n  return prev1;\n}\nconst result = climbStairs(6);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "747",
@@ -2844,7 +2898,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} nums\n * @return {number}\n */\nvar rob = function(nums) {\n    \n};",
       "python": "class Solution:\n    def rob(self, nums: List[int]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// House Robber — DP O(n), O(1) space\n// Pattern: At each house, take max of (rob this + 2 ago) vs (skip = prev)\nfunction rob(nums) {\n  let prev2 = 0;\n  let prev1 = 0;\n  for (let i = 0; i < nums.length; i++) {\n    const curr = Math.max(prev1, prev2 + nums[i]);\n    prev2 = prev1;\n    prev1 = curr;\n  }\n  return prev1;\n}\nconst result = rob([2, 7, 9, 3, 1]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "213",
@@ -2984,7 +3040,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} coins\n * @param {number} amount\n * @return {number}\n */\nvar coinChange = function(coins, amount) {\n    \n};",
       "python": "class Solution:\n    def coinChange(self, coins: List[int], amount: int) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Coin Change — DP bottom-up O(amount * coins)\n// Pattern: dp[i] = min coins to make amount i; build from 0 up to target\nfunction coinChange(coins, amount) {\n  const dp = new Array(amount + 1).fill(Infinity);\n  dp[0] = 0;  // 0 coins needed for amount 0\n  for (let i = 1; i <= amount; i++) {\n    for (let j = 0; j < coins.length; j++) {\n      if (coins[j] <= i && dp[i - coins[j]] + 1 < dp[i]) {\n        dp[i] = dp[i - coins[j]] + 1;\n      }\n    }\n  }\n  return dp[amount] === Infinity ? -1 : dp[amount];\n}\nconst result = coinChange([1, 5, 10, 25], 41);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "152",
@@ -3082,7 +3140,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[]} nums\n * @return {number}\n */\nvar lengthOfLIS = function(nums) {\n    \n};",
       "python": "class Solution:\n    def lengthOfLIS(self, nums: List[int]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Longest Increasing Subsequence — DP O(n²)\n// Pattern: dp[i] = LIS ending at index i; check all j < i where nums[j] < nums[i]\nfunction lengthOfLIS(nums) {\n  const dp = new Array(nums.length).fill(1);\n  let maxLen = 1;\n  for (let i = 1; i < nums.length; i++) {\n    for (let j = 0; j < i; j++) {\n      if (nums[j] < nums[i]) {\n        dp[i] = Math.max(dp[i], dp[j] + 1);\n      }\n    }\n    maxLen = Math.max(maxLen, dp[i]);\n  }\n  return maxLen;\n}\nconst result = lengthOfLIS([10,9,2,5,3,7,101,18]);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "416",

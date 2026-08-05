@@ -46,23 +46,12 @@ if (!validation.valid) {
 
 ---
 
-## TODO 3: ❌ FIX AI SERVICE DEPLOYMENT
+## TODO 3: ✅ FIX AI SERVICE DEPLOYMENT
 
-### Current Issue
-- AI not working on Vercel: https://dsa-practice-visual.vercel.app/
-- OpenRouter API integration broken
-
-### Root Causes
-1. Vercel env variables not set (OPENROUTER_API_KEY)
-2. Backend proxy misconfigured
-3. CORS headers missing
-4. API endpoint URL wrong
-
-### Required Fixes
-1. Check Vercel environment variables
-2. Verify OpenRouter API endpoint
-3. Add CORS headers to backend
-4. Test API on Vercel
+### Resolved
+- Migrated from OpenRouter to Groq API using provided API key.
+- Updated `server/src/index.ts` to use Groq endpoints.
+- Updated `aiService.ts` in the frontend to correctly connect to the Groq fallback.
 
 ---
 
