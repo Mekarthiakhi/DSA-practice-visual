@@ -34,38 +34,7 @@ export const CodeEditor: React.FC = () => {
       useIDEStore.getState().setSelectedText(selection)
     })
 
-    // Fix: Monaco's native-edit-context element takes up 96px in production,
-    // pushing all code lines down. Force-hide it visually while keeping it focusable.
-    const domNode = editor.getDomNode()
-    if (domNode) {
-      const enforceHidden = () => {
-        const nativeEditCtx = domNode.querySelector('.native-edit-context') as HTMLElement
-        if (nativeEditCtx) {
-          nativeEditCtx.style.setProperty('opacity', '0', 'important')
-          nativeEditCtx.style.setProperty('height', '1px', 'important')
-          nativeEditCtx.style.setProperty('width', '1px', 'important')
-          nativeEditCtx.style.setProperty('position', 'absolute', 'important')
-          nativeEditCtx.style.setProperty('pointer-events', 'none', 'important')
-        }
-        // Also hide any textarea that might expand
-        const textarea = domNode.querySelector('textarea.inputarea, textarea') as HTMLElement
-        if (textarea) {
-          textarea.style.setProperty('opacity', '0', 'important')
-          textarea.style.setProperty('height', '1px', 'important')
-          textarea.style.setProperty('width', '1px', 'important')
-          textarea.style.setProperty('position', 'absolute', 'important')
-          textarea.style.setProperty('pointer-events', 'none', 'important')
-        }
-      }
-
-      enforceHidden()
-      const observer = new MutationObserver(enforceHidden)
-      observer.observe(domNode, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] })
-      
-      editor.onDidDispose(() => observer.disconnect())
-    }
-    // Force Monaco to recalculate layout after hiding elements
-    setTimeout(() => editor.layout(), 50)
+    // We no longer need the MutationObserver hack because we moved the width/height/position fixes for native-edit-context into src/styles/globals.css where it applies instantly and permanently.
   }
 
   // Highlight current execution line
