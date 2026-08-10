@@ -203,20 +203,22 @@ export interface IDEState {
 }
 
 export const useIDEStore = create<IDEState>((set) => ({
-  code: `function bubbleSort(arr) {
-  const n = arr.length;
-  for (let i = 0; i < n - 1; i++) {
-    for (let j = 0; j < n - i - 1; j++) {
-      if (arr[j] > arr[j + 1]) {
-        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
-      }
-    }
-  }
-  return arr;
-}
-
-// Call your function below:
-let sortedValues = bubbleSort([5, 2, 8, 1, 9]);`,
+  code: [
+    'function bubbleSort(arr) {',
+    '  const n = arr.length;',
+    '  for (let i = 0; i < n - 1; i++) {',
+    '    for (let j = 0; j < n - i - 1; j++) {',
+    '      if (arr[j] > arr[j + 1]) {',
+    '        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];',
+    '      }',
+    '    }',
+    '  }',
+    '  return arr;',
+    '}',
+    '',
+    '// Call your function below:',
+    'let sortedValues = bubbleSort([5, 2, 8, 1, 9]);',
+  ].join('\n'),
   language: 'javascript',
   fileName: 'algorithm',
   // Never leave an old trace attached to new source code. A fresh trace is
