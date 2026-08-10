@@ -23,13 +23,24 @@ body {
 .monaco-editor .margin { background: #0c0e14 !important; }
 .monaco-editor-background { background: #0d0f18 !important; }
 .monaco-editor .current-line { background: rgba(0,212,255,0.03) !important; border-color: transparent !important; }
-/* Monaco's keyboard input textarea must remain visually hidden. Some browser/
-   Tailwind combinations expose its native white background and resize handle. */
+/* The Edit Context API element (.native-edit-context) is purely visual and
+   causes a blank line at the top in production. Safe to nuke completely. */
+.monaco-editor .native-edit-context {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  pointer-events: none !important;
+}
+/* Monaco's keyboard input textarea must remain in the DOM for typing to work,
+   but must be visually hidden so it doesn't create layout artifacts. */
 .monaco-editor textarea,
 .monaco-editor .inputarea,
 .monaco-editor textarea.inputarea,
-.monaco-editor textarea.ime-input,
-.monaco-editor .native-edit-context {
+.monaco-editor textarea.ime-input {
   opacity: 0 !important;
   color: transparent !important;
   background: transparent !important;
