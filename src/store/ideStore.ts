@@ -221,15 +221,22 @@ let sortedValues = bubbleSort([5, 2, 8, 1, 9]);`,
   fileName: 'algorithm',
   // Never leave an old trace attached to new source code. A fresh trace is
   // produced by the live runner after the editor debounce.
-  setCode: (code: string) => set((state) => state.code === code ? state : ({
-    code,
-    executionSteps: [],
-    currentStepIndex: 0,
-    currentLine: 1,
-    executionStatus: 'idle',
-    consoleOutput: [],
-    detectedAlgorithm: undefined,
-  })),
+  setCode: (code: string) => set((state) => {
+    // Strip leading newlines so template literals that start with `\n` don't
+    // produce a blank line 1 in the Monaco editor (visible on both localhost
+    // and production).
+    const trimmed = code.replace(/^\n+/, '')
+    if (state.code === trimmed) return state
+    return {
+      code: trimmed,
+      executionSteps: [],
+      currentStepIndex: 0,
+      currentLine: 1,
+      executionStatus: 'idle',
+      consoleOutput: [],
+      detectedAlgorithm: undefined,
+    }
+  }),
   setLanguage: (lang: Language) => set((state) => state.language === lang ? state : ({
     language: lang,
     executionSteps: [],
