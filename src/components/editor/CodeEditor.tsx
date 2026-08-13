@@ -25,6 +25,14 @@ export const CodeEditor: React.FC = () => {
     editorRef.current = editor
     monacoRef.current = monaco
 
+    // Force an initial relayout in case the editor mounted before its flex
+    // container had a real height (common in the production build). automaticLayout
+    // handles subsequent resizes; these catch the very first frame.
+    const relayout = () => editor.layout()
+    relayout()
+    requestAnimationFrame(relayout)
+    setTimeout(relayout, 100)
+
     editor.onDidChangeCursorPosition((e) => {
       useIDEStore.getState().setCurrentLine(e.position.lineNumber)
     })
@@ -244,6 +252,14 @@ export const CodeEditor: React.FC = () => {
           onMount={handleMount}
           theme="vs-dark"
           options={{
+            // Re-measure the container via ResizeObserver and relayout whenever it
+            // changes size. Without this, Monaco caches whatever height its flex
+            // container happens to have at mount time — which in the production
+            // build is often ~0 before the layout settles — and never corrects it.
+            // The stale layout renders only a sliver of the editor (the "blank line
+            // 1"/gap) and positions the execution-line decoration against the wrong
+            // geometry, so the highlight drifts out of sync with the visible code.
+            automaticLayout: true,
             // Monaco's automatic screen-reader mode expands its internal input
             // textarea. The IDE supplies its own execution/navigation UI, so keep
             // that implementation detail hidden instead of exposing a white box.
