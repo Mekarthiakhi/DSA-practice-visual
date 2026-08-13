@@ -273,7 +273,12 @@ export const CodeEditor: React.FC = () => {
             lineHeight: 22,
             minimap: { enabled: false },
             scrollbar: { verticalScrollbarSize: 4, horizontalScrollbarSize: 4 },
-            padding: { top: 16, bottom: 16 },
+            // Do NOT set padding.top here. In Monaco 0.45 padding.top offsets the
+            // code content (view-lines) but NOT the line-number gutter, so any top
+            // padding renders the code shifted down from its line numbers — the
+            // "blank line 1 / gap" seen in production. Verified on Vercel: top:16
+            // gave a 16px code-vs-gutter offset; top:0 aligns them exactly.
+            padding: { top: 0, bottom: 16 },
             glyphMargin: true,
             lineNumbers: 'on',
             folding: false,
