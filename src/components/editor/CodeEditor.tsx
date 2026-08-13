@@ -41,6 +41,38 @@ export const CodeEditor: React.FC = () => {
       const selection = editor.getModel()?.getValueInRange(e.selection) || ''
       useIDEStore.getState().setSelectedText(selection)
     })
+
+    // Force-hide native-edit-context elements that cause blank space at the top
+    // in production. CSS !important alone isn't enough because Monaco may set
+    // inline styles after our stylesheets load.
+    const squashEditContext = () => {
+      const container = editor.getDomNode()
+      if (!container) return
+      container.querySelectorAll('.native-edit-context, .inputarea').forEach((el) => {
+        const s = (el as HTMLElement).style
+        s.setProperty('display', 'none', 'important')
+        s.setProperty('height', '0', 'important')
+        s.setProperty('width', '0', 'important')
+        s.setProperty('overflow', 'hidden', 'important')
+        s.setProperty('position', 'absolute', 'important')
+        s.setProperty('opacity', '0', 'important')
+        s.setProperty('pointer-events', 'none', 'important')
+      })
+    }
+
+    // Run immediately and again after a short delay for late DOM mutations
+    squashEditContext()
+    setTimeout(squashEditContext, 100)
+    setTimeout(squashEditContext, 500)
+
+    // Watch for Monaco lazily inserting the element
+    const domNode = editor.getDomNode()
+    if (domNode) {
+      const observer = new MutationObserver(() => squashEditContext())
+      observer.observe(domNode, { childList: true, subtree: true })
+      // Store for cleanup
+      ;(editor as unknown as Record<string, unknown>).__editContextObserver = observer
+    }
   }
 
   // Highlight current execution line
@@ -148,6 +180,40 @@ export const CodeEditor: React.FC = () => {
       {/* Monaco Editor */}
       <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <style>{`
+          /* The Edit Context API element (.native-edit-context) is purely visual and
+             causes a blank line at the top in production. Safe to nuke completely. */
+          .monaco-editor .native-edit-context {
+            display: none !important;
+            height: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+            position: absolute !important;
+            clip: rect(0, 0, 0, 0) !important;
+            clip-path: inset(50%) !important;
+            pointer-events: none !important;
+          }
+          /* Monaco's keyboard input textarea must remain in the DOM for typing to work,
+             but must be visually hidden so it doesn't create layout artifacts. */
+          .monaco-editor textarea,
+          .monaco-editor .inputarea,
+          .monaco-editor textarea.inputarea,
+          .monaco-editor textarea.ime-input {
+            opacity: 0 !important;
+            color: transparent !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            border: 0 !important;
+            outline: 0 !important;
+            box-shadow: none !important;
+            resize: none !important;
+            overflow: hidden !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            position: absolute !important;
+            height: 1px !important;
+            width: 1px !important;
+            pointer-events: none !important;
+          }
           .execution-line-highlight {
             background: rgba(0, 212, 255, 0.08) !important;
             border-left: 2px solid #00d4ff !important;
