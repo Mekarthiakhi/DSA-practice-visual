@@ -127,18 +127,113 @@ function mergePythonVariables(current: PythonTraceEvent, next: PythonTraceEvent,
   return merged
 }
 
-function describePythonLine(line: string, variables: Record<string, unknown>): string {
-  const trimmed = line.trim()
-  if (trimmed.startsWith('if ')) return `Check: ${trimmed.slice(3).replace(/:$/, '')}`
-  if (trimmed.startsWith('elif ')) return `Check: ${trimmed.slice(5).replace(/:$/, '')}`
-  if (trimmed.startsWith('for ')) return `Loop: ${trimmed.replace(/:$/, '')}`
-  if (trimmed.startsWith('while ')) return `Loop condition: ${trimmed.slice(6).replace(/:$/, '')}`
-  if (trimmed.startsWith('return')) return `Return ${trimmed.slice(6).trim()}`
-  const assignment = trimmed.match(/^([A-Za-z_]\w*)\s*(?:[+\-*/%]?=)/)
-  if (assignment && assignment[1] in variables) {
-    const value = JSON.stringify(variables[assignment[1]])
-    return `${assignment[1]} = ${value?.slice(0, 80) ?? 'undefined'}`
+// Render a value briefly for step descriptions (short arrays inline, long ones elided).
+function showPyValue(value: unknown): string {
+  if (value === undefined) return '?'
+  if (Array.isArray(value)) {
+    const inner = value.slice(0, 8).map(v => showPyValue(v)).join(', ')
+    return value.length > 8 ? `[${inner}, …]` : `[${inner}]`
   }
+  if (typeof value === 'string') return `"${value.slice(0, 20)}"`
+  return String(value)
+}
+
+// Resolve a simple integer index expression like "j", "j + 1", "i - 1", "0".
+function resolvePyIndex(expr: string, variables: Record<string, unknown>): number | null {
+  const e = expr.trim()
+  if (/^-?\d+$/.test(e)) return Number(e)
+  if (typeof variables[e] === 'number') return variables[e] as number
+  const m = e.match(/^([A-Za-z_]\w*)\s*([+-])\s*(\d+)$/)
+  if (m && typeof variables[m[1]] === 'number') {
+    return (variables[m[1]] as number) + (m[2] === '+' ? 1 : -1) * Number(m[3])
+  }
+  return null
+}
+
+// Resolve a simple value expression: literal, variable, or arr[index].
+function resolvePyValue(expr: string, variables: Record<string, unknown>): unknown {
+  const e = expr.trim()
+  if (/^-?\d+$/.test(e)) return Number(e)
+  if (e in variables) return variables[e]
+  const m = e.match(/^([A-Za-z_]\w*)\s*\[\s*(.+?)\s*\]$/)
+  if (m && Array.isArray(variables[m[1]])) {
+    const arr = variables[m[1]] as unknown[]
+    const idx = resolvePyIndex(m[2], variables)
+    if (idx !== null && idx >= 0 && idx < arr.length) return arr[idx]
+  }
+  return undefined
+}
+
+// Beginner-friendly, value-aware description of a Python line. Instead of echoing
+// the raw source ("Check: arr[j] > arr[j + 1]"), it fills in the actual values the
+// student is looking at ("Is 64 > 25 ?", "Swap 64 ↔ 25"), so each step reads as a
+// clear narration of the execution flow.
+function describePythonLine(line: string, variables: Record<string, unknown>): string {
+  const trimmed = line.trim().replace(/:\s*$/, '')
+
+  // Tuple swap: a, b = b, a  (commonly arr[j], arr[j+1] = arr[j+1], arr[j])
+  const swap = trimmed.match(/^(.+?),\s*(.+?)\s*=\s*(.+?),\s*(.+)$/)
+  if (swap && swap[1].trim() === swap[4].trim() && swap[2].trim() === swap[3].trim()) {
+    const a = resolvePyValue(swap[1], variables)
+    const b = resolvePyValue(swap[2], variables)
+    if (a !== undefined || b !== undefined) return `Swap ${showPyValue(a)} ↔ ${showPyValue(b)}`
+    return `Swap ${swap[1].trim()} and ${swap[2].trim()}`
+  }
+
+  // Conditions: if / elif / while  — surface the compared values and operator.
+  const cond = trimmed.match(/^(if|elif|while)\s+(.+)$/)
+  if (cond) {
+    const cmp = cond[2].match(/^(.+?)\s*(==|!=|<=|>=|<|>)\s*(.+)$/)
+    if (cmp) {
+      const l = resolvePyValue(cmp[1], variables)
+      const r = resolvePyValue(cmp[3], variables)
+      if (l !== undefined || r !== undefined) {
+        const lead = cond[1] === 'while' ? 'While' : 'Is'
+        return `${lead} ${showPyValue(l)} ${cmp[2]} ${showPyValue(r)} ?`
+      }
+    }
+    return `${cond[1] === 'while' ? 'While' : 'Check if'} ${cond[2]}`
+  }
+
+  // for <v> in range(...) — show the loop variable's current position.
+  const forRange = trimmed.match(/^for\s+([A-Za-z_]\w*)\s+in\s+range\(/)
+  if (forRange) {
+    const v = forRange[1]
+    return typeof variables[v] === 'number'
+      ? `Loop: ${v} = ${variables[v]}`
+      : `Start loop over ${v}`
+  }
+  const forEach = trimmed.match(/^for\s+([A-Za-z_]\w*)\s+in\s+(.+)$/)
+  if (forEach) {
+    const v = forEach[1]
+    return v in variables ? `Loop: ${v} = ${showPyValue(variables[v])}` : `Loop over ${forEach[2]}`
+  }
+
+  if (trimmed.startsWith('return')) {
+    const expr = trimmed.slice(6).trim()
+    const val = resolvePyValue(expr, variables)
+    return val !== undefined ? `Return ${showPyValue(val)}` : `Return ${expr}`
+  }
+
+  if (trimmed.startsWith('def ')) return trimmed
+  if (/^print\s*\(/.test(trimmed)) return 'Print output'
+
+  // arr[i] = value
+  const indexAssign = trimmed.match(/^([A-Za-z_]\w*)\s*\[\s*(.+?)\s*\]\s*=\s*(.+)$/)
+  if (indexAssign) {
+    const idx = resolvePyIndex(indexAssign[2], variables)
+    const arr = variables[indexAssign[1]]
+    if (idx !== null && Array.isArray(arr) && idx >= 0 && idx < arr.length) {
+      return `Set ${indexAssign[1]}[${idx}] = ${showPyValue(arr[idx])}`
+    }
+  }
+
+  // name = value  (plain assignment)
+  const assignment = trimmed.match(/^([A-Za-z_]\w*)\s*(?:[+\-*/%]?=)(?!=)/)
+  if (assignment && assignment[1] in variables) {
+    return `Set ${assignment[1]} = ${showPyValue(variables[assignment[1]])}`
+  }
+
   return trimmed.slice(0, 100) || 'Execute line'
 }
 
