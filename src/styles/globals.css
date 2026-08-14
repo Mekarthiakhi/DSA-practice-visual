@@ -23,6 +23,15 @@ body {
 .monaco-editor .margin { background: #0c0e14 !important; }
 .monaco-editor-background { background: #0d0f18 !important; }
 .monaco-editor .current-line { background: rgba(0,212,255,0.03) !important; border-color: transparent !important; }
+/* Hide Monaco's EditContext element. With experimentalEditContextEnabled:false the
+   editor takes input through the .inputarea textarea (below), so this element is
+   inert -- but on some Chrome versions it still renders and occupies one line at
+   the top of the editor, offsetting the code from its line numbers (the
+   browser-dependent "blank line 1"). display:none removes it from layout without
+   affecting input, since it is not the active input element. */
+.monaco-editor .native-edit-context {
+  display: none !important;
+}
 /* Collapse and hide Monaco's input textarea so it neither shows as a white box
    nor takes layout space (which otherwise pushes the code down from its line
    numbers). Critically: NO display:none / visibility:hidden — those stop the
