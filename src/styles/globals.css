@@ -23,6 +23,31 @@ body {
 .monaco-editor .margin { background: #0c0e14 !important; }
 .monaco-editor-background { background: #0d0f18 !important; }
 .monaco-editor .current-line { background: rgba(0,212,255,0.03) !important; border-color: transparent !important; }
+/* Collapse and hide Monaco's input textarea so it neither shows as a white box
+   nor takes layout space (which otherwise pushes the code down from its line
+   numbers). Critically: NO display:none / visibility:hidden — those stop the
+   textarea receiving keystrokes and break editing. opacity:0 + 1px size keeps it
+   invisible and out of the flow while still focusable and typeable. Monaco draws
+   its own cursor in the view layer, so the editing caret is unaffected. */
+.monaco-editor textarea,
+.monaco-editor .inputarea,
+.monaco-editor textarea.inputarea,
+.monaco-editor textarea.ime-input {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  color: transparent !important;
+  background: transparent !important;
+  caret-color: transparent !important;
+  box-shadow: none !important;
+  resize: none !important;
+}
 .execution-line-highlight {
   background: rgba(0, 212, 255, 0.07) !important;
   border-left: 3px solid #00d4ff !important;
