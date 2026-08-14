@@ -30,6 +30,62 @@ const LANGS: { value: Language; label: string; color: string; monacoId: string; 
   { value: 'rust',       label: 'Rust',       color: '#dea584', monacoId: 'rust',       canBrowser: false },
 ]
 
+// Starter code loaded when a language is selected from the language picker, so the
+// editor shows valid code in the chosen language instead of leaving the previous
+// language's source. Prefers that language's Bubble Sort sample; go/rust have no
+// entry in the sample sets, so use inline stubs.
+const GO_STARTER = `// Bubble Sort in Go
+package main
+
+import "fmt"
+
+func bubbleSort(arr []int) []int {
+	n := len(arr)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			if arr[j] > arr[j+1] {
+				arr[j], arr[j+1] = arr[j+1], arr[j]
+			}
+		}
+	}
+	return arr
+}
+
+func main() {
+	data := []int{5, 2, 8, 1, 9}
+	fmt.Println("Sorted:", bubbleSort(data))
+}`
+
+const RUST_STARTER = `// Bubble Sort in Rust
+fn bubble_sort(arr: &mut Vec<i32>) {
+    let n = arr.len();
+    for i in 0..n.saturating_sub(1) {
+        for j in 0..n - i - 1 {
+            if arr[j] > arr[j + 1] {
+                arr.swap(j, j + 1);
+            }
+        }
+    }
+}
+
+fn main() {
+    let mut data = vec![5, 2, 8, 1, 9];
+    bubble_sort(&mut data);
+    println!("Sorted: {:?}", data);
+}`
+
+function defaultSampleForLang(lang: Language): { key: string; code: string } | null {
+  const entries = Object.entries(ALL_SAMPLES_MERGED) as [string, { language?: string; code: string }][]
+  const matches = entries.filter(([, s]) => s && s.language === lang && typeof s.code === 'string')
+  if (matches.length) {
+    const pick = matches.find(([k]) => /bubble/i.test(k)) || matches[0]
+    return { key: pick[0], code: pick[1].code }
+  }
+  if (lang === 'go') return { key: 'go_bubble', code: GO_STARTER }
+  if (lang === 'rust') return { key: 'rust_bubble', code: RUST_STARTER }
+  return null
+}
+
 export const TopBar: React.FC = () => {
   const {
     language, setLanguage, code, setCode, setFileName,
@@ -237,7 +293,12 @@ export const TopBar: React.FC = () => {
               <div className="text-[9px] font-mono text-gray-600 uppercase tracking-wider px-2 py-1 mb-0.5">Select Language</div>
               {LANGS.map(lang => (
                 <button key={lang.value}
-                  onClick={() => { setLanguage(lang.value); setShowLangPicker(false) }}
+                  onClick={() => {
+                    const s = defaultSampleForLang(lang.value)
+                    if (s) { setCode(s.code); setFileName(s.key) }
+                    setLanguage(lang.value)
+                    setShowLangPicker(false)
+                  }}
                   className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors ${language === lang.value ? 'bg-white/8 text-white' : 'text-gray-500 hover:text-gray-200 hover:bg-white/4'}`}
                 >
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: lang.color }} />
