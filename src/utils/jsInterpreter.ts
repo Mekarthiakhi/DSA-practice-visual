@@ -734,17 +734,38 @@ export function interpretCode(code: string): InterpreterResult {
   let errorColumn: number | undefined
   let errorType: string | undefined
 
+  // Auto-invoke top-level function if defined without explicit call
+  let codeToRun = code
+  const fnNames = collectFunctionNames(code)
+  if (fnNames.size > 0) {
+    const fnArray = [...fnNames]
+    const hasCall = fnArray.some(name => {
+      const stripped = code.replace(new RegExp(`function\\s+${name}|(?:const|let|var)\\s+${name}\\s*=`, 'g'), '')
+      return new RegExp(`\\b${name}\\s*\\(`).test(stripped)
+    })
+    if (!hasCall && fnArray.length > 0) {
+      const firstFn = fnArray[0]
+      const match = new RegExp(`function\\s+${firstFn}\\s*\\(([^)]*)\\)`).exec(code)
+      if (match) {
+        const params = match[1].trim()
+        if (!params || params.split(',').every(p => p.includes('='))) {
+          codeToRun = `${code}\n\n// Auto-invoking ${firstFn}()\n${firstFn}();`
+        }
+      }
+    }
+  }
+
   // Shared vars object — inline captures write into this
   const __v__: Record<string, unknown> = {}
 
-  const varNames = collectVarNames(code)
+  const varNames = collectVarNames(codeToRun)
   const captureStr = buildCaptureStr(varNames)
-  const instrumentedCode = instrumentCode(code, varNames)
+  const instrumentedCode = instrumentCode(codeToRun, varNames)
 
   // Execution state
   let stepCount = 0
   const MAX_STEPS = 3000
-  const functionNames = collectFunctionNames(code)
+  const functionNames = fnNames
 
   function getCallStack(): string[] {
     const stack = new Error().stack || ''
@@ -1095,6 +1116,24 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
   let stableIds: string[] = []
   let idCounter = 0
 
+  // ── Console Pattern Detection ─────────────────────────────────────────────
+  // Detect code that builds strings in loops and prints them via console.log,
+  // or builds a single multiline string to return.
+  // For these patterns (pyramids, triangles, diamonds, etc.), instead of showing
+  // individual character boxes, we accumulate the rows and display
+  // them as a stacked pattern that builds up row by row.
+  const hasConsoleLog = /console\s*\.\s*log\s*\(/.test(code)
+  const hasNewlineConcat = /\\n/.test(code)
+  const hasForLoop = /\bfor\s*\(/.test(code)
+  const hasStringConcat = /\+\s*=\s*["']|["']\s*\+|\.repeat\s*\(|row\s*\+\s*=|line\s*\+\s*=|str\s*\+\s*=|result\s*\+\s*=|output\s*\+\s*=|pattern\s*\+\s*=/.test(code)
+  const hasNoArrays = !events.some(ev => ev.type === 'line' && Object.entries(ev.vars).some(([k, v]) => 
+    !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1
+  ))
+  const isConsolePattern = (hasConsoleLog || hasNewlineConcat) && hasForLoop && hasStringConcat && hasNoArrays
+
+  // Track accumulated console output for console_pattern mode
+  const accumulatedOutputLines: string[] = []
+
   for (let k = 0; k < lineEventIndices.length; k++) {
     const curIdx = lineEventIndices[k]
     const curEv = filteredEvents[curIdx]
@@ -1117,6 +1156,13 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
       const oEv = filteredEvents[oIdx]
       if (oEv.type === 'output' && oEv.output) {
         outputs.push(oEv.output)
+      }
+    }
+
+    // Accumulate outputs for console pattern mode
+    if (isConsolePattern) {
+      for (const out of outputs) {
+        accumulatedOutputLines.push(out)
       }
     }
 
@@ -1158,7 +1204,42 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
       if (fallback) activeArrayName = fallback.name
     }
 
-    const dsaState = buildDSAState(varsForStep, activeArrayName, lineCode)
+    // For console pattern mode, override the DSA state with accumulated output
+    let dsaState: DSAState | undefined
+    if (isConsolePattern) {
+      // Find the current iteration's key variables for the message
+      const iVar = currentVars.find(v => v.name === 'i')
+      const nVar = currentVars.find(v => v.name === 'n')
+      const rowVar = currentVars.find(v => (v.name === 'row' || v.name === 'line' || v.name === 'str' || v.name === 'result' || v.name === 'output' || v.name === 'pattern') && v.type === 'string')
+
+      const iterMsg = iVar ? `i = ${iVar.value}` : ''
+      const totalMsg = nVar ? `n = ${nVar.value}` : ''
+      const rowMsg = rowVar ? `${rowVar.name} = "${rowVar.value}"` : ''
+      const parts = [iterMsg, totalMsg, rowMsg].filter(Boolean)
+
+      let linesToDisplay = [...accumulatedOutputLines]
+      
+      // If they are building a multiline string instead of using console.log,
+      // extract the pattern from the largest string variable containing newlines.
+      if (linesToDisplay.length === 0) {
+        const multilineStr = currentVars
+          .filter(v => v.type === 'string' && typeof v.value === 'string' && v.value.includes('\n'))
+          .sort((a, b) => (b.value as string).length - (a.value as string).length)[0]
+          
+        if (multilineStr) {
+          linesToDisplay = (multilineStr.value as string).split('\n').filter(line => line.length > 0)
+        }
+      }
+
+      dsaState = {
+        type: 'console_pattern',
+        nodes: [],
+        outputLines: linesToDisplay,
+        message: parts.length > 0 ? parts.join(' | ') : `Console Output (${linesToDisplay.length} lines)`,
+      }
+    } else {
+      dsaState = buildDSAState(varsForStep, activeArrayName, lineCode)
+    }
     const desc = buildDesc(lineCode, varsForStep)
 
     if (dsaState && dsaState.type === 'array') {
@@ -2073,14 +2154,20 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
         if (ignoredSubstrings.some(sub => lower.includes(sub))) return false;
         if (typeof v !== 'number') return false;
         const num = v as number;
-        return num >= 0 && num <= values.length;
+        return num >= 0 && num < values.length;
       })
       .map(([k, v]) => ({ name: k, val: v as number }));
 
     // Priority naming list for pointers
-    const pointerPriority = ['mid', 'm', 'left', 'l', 'right', 'r', 'i', 'j', 'p1', 'p2', 'idx', 'index'];
-    
+    const pointerPriority = ['mid', 'm', 'left', 'l', 'right', 'r', 'i', 'j', 'k', 'p1', 'p2', 'idx', 'index'];
+    const lowerLineCode = lineCode.toLowerCase();
+
     validIndices.sort((a, b) => {
+      const aInLine = new RegExp(`\\b${a.name.toLowerCase()}\\b`).test(lowerLineCode);
+      const bInLine = new RegExp(`\\b${b.name.toLowerCase()}\\b`).test(lowerLineCode);
+      if (aInLine && !bInLine) return -1;
+      if (!aInLine && bInLine) return 1;
+
       const idxA = pointerPriority.indexOf(a.name.toLowerCase());
       const idxB = pointerPriority.indexOf(b.name.toLowerCase());
       if (idxA !== -1 && idxB !== -1) return idxA - idxB;
@@ -2112,7 +2199,7 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     // Access expressions on this source line are authoritative. This prevents
     // an outer loop counter such as `i` from becoming a third highlighted item
     // when the operation only compares arr[j] with arr[j + 1].
-    const forCounter = lineCode.match(/^for\s*\(\s*(?:(?:let|const|var)\s+)?([A-Za-z_$][\w$]*)\b/)
+    const forCounter = lineCode.match(/^for\s*\(\s*(?:(?:let|const|var)\s+)?([A-Za-z_$][\w$]*)\b/) || lineCode.match(/^for\s+([A-Za-z_$][\w$]*)\s+in\b/)
 
     if (accessedPointers.length > 0) {
       pointer = accessedPointers[0].index
@@ -2196,6 +2283,95 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
 
     // Detect if this is a string array
     const isStringArr = values.length > 0 && typeof values[0] === 'string'
+
+    // ── CHAR-ARRAY → STRING VIEW REDIRECT ──
+    // When we have an array of single-character strings (e.g. from str.split('')),
+    // render it as a string visualization with proper two-pointer support.
+    const isCharArray = isStringArr && values.every(v => typeof v === 'string' && (v as string).length === 1)
+    if (isCharArray) {
+      // Directly resolve pointers from vars, checking all common pointer names.
+      // NOTE: The Node.js debugger often fails to track variables declared in
+      // comma-separated let statements (e.g. `let left = 0, right = chars.length - 1`),
+      // so we must infer the second pointer when it's missing.
+      const ptrCandidates = ['left', 'l', 'i', 'low', 'start', 'p1']
+      const ptr2Candidates = ['right', 'r', 'j', 'high', 'end', 'p2']
+
+      let strPointer: number | undefined
+      let strPointerName: string | undefined
+      let strPointer2: number | undefined
+      let strPointer2Name: string | undefined
+
+      // Try access-based pointers first (most accurate for the current line)
+      if (accessedPointers.length >= 2) {
+        strPointer = accessedPointers[0].index
+        strPointerName = accessedPointers[0].label
+        strPointer2 = accessedPointers[1].index
+        strPointer2Name = accessedPointers[1].label
+      } else if (accessedPointers.length === 1) {
+        strPointer = accessedPointers[0].index
+        strPointerName = accessedPointers[0].label
+      }
+
+      // Fall back to named variable lookup
+      if (strPointer === undefined) {
+        for (const c of ptrCandidates) {
+          if (typeof vars[c] === 'number' && (vars[c] as number) >= 0 && (vars[c] as number) < values.length) {
+            strPointer = vars[c] as number
+            strPointerName = c
+            break
+          }
+        }
+      }
+      if (strPointer2 === undefined) {
+        for (const c of ptr2Candidates) {
+          if (typeof vars[c] === 'number' && (vars[c] as number) >= 0 && (vars[c] as number) < values.length) {
+            strPointer2 = vars[c] as number
+            strPointer2Name = c
+            break
+          }
+        }
+      }
+
+      // Infer right pointer for two-pointer patterns when debugger doesn't track it.
+      // Common pattern: `let left = 0, right = chars.length - 1` — right isn't in vars.
+      // Strategy: mirror left from the end of the array. When left=0, right=len-1.
+      // When left=1 (after first swap + increment), right=len-2, etc.
+      if (strPointer !== undefined && strPointer2 === undefined) {
+        // Check if the code uses a two-pointer reverse pattern
+        const codeStr = lineCode || ''
+        const hasTwoPointerPattern = 
+          (typeof vars['left'] === 'number' || typeof vars['l'] === 'number') &&
+          (codeStr.includes('right') || codeStr.includes('left') || codeStr.includes('swap') || codeStr.includes('chars'))
+        
+        if (hasTwoPointerPattern || values.length > 1) {
+          // Mirror the left pointer from the end
+          strPointer2 = values.length - 1 - strPointer
+          strPointer2Name = 'right'
+          // Ensure pointer2 is valid and different from pointer
+          if (strPointer2 < 0 || strPointer2 >= values.length || strPointer2 <= strPointer) {
+            strPointer2 = undefined
+            strPointer2Name = undefined
+          }
+        }
+      }
+
+      return {
+        type: 'string',
+        nodes: values.map((c, i) => ({
+          id: `c${i}`,
+          value: c,
+          highlight: (i === strPointer ? 'comparing'
+            : i === strPointer2 ? 'comparing'
+            : (strPointer !== undefined && strPointer2 !== undefined && (i < strPointer || i > strPointer2)) ? 'found'
+            : 'none') as DSANode['highlight']
+        })),
+        pointer: strPointer,
+        pointerName: strPointerName,
+        pointer2: strPointer2,
+        pointer2Name: strPointer2Name,
+        message: `${name}: [${values.join(', ')}]`,
+      }
+    }
 
     const nodes: DSANode[] = values.map((v, idx) => {
       let highlight: DSANode['highlight'] = 'none'
@@ -2363,14 +2539,20 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
         if (ignoredSubstrings.some(sub => lower.includes(sub))) return false;
         if (typeof v !== 'number') return false;
         const num = v as number;
-        return num >= 0 && num <= chars.length;
+        return num >= 0 && num < chars.length;
       })
       .map(([k, v]) => ({ name: k, val: v as number }));
 
     // Priority naming list for pointers
-    const pointerPriority = ['mid', 'm', 'left', 'l', 'right', 'r', 'i', 'j', 'p1', 'p2', 'idx', 'index'];
-    
+    const pointerPriority = ['mid', 'm', 'left', 'l', 'right', 'r', 'i', 'j', 'k', 'p1', 'p2', 'idx', 'index'];
+    const lowerLineCode = lineCode.toLowerCase();
+
     validIndices.sort((a, b) => {
+      const aInLine = new RegExp(`\\b${a.name.toLowerCase()}\\b`).test(lowerLineCode);
+      const bInLine = new RegExp(`\\b${b.name.toLowerCase()}\\b`).test(lowerLineCode);
+      if (aInLine && !bInLine) return -1;
+      if (!aInLine && bInLine) return 1;
+
       const idxA = pointerPriority.indexOf(a.name.toLowerCase());
       const idxB = pointerPriority.indexOf(b.name.toLowerCase());
       if (idxA !== -1 && idxB !== -1) return idxA - idxB;

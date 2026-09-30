@@ -28,6 +28,7 @@ const LANGS: { value: Language; label: string; color: string; monacoId: string; 
   { value: 'csharp',     label: 'C#',         color: '#9b4f96', monacoId: 'csharp',     canBrowser: false },
   { value: 'go',         label: 'Go',         color: '#00add8', monacoId: 'go',         canBrowser: false },
   { value: 'rust',       label: 'Rust',       color: '#dea584', monacoId: 'rust',       canBrowser: false },
+  { value: 'php',        label: 'PHP',        color: '#777bb4', monacoId: 'php',        canBrowser: false },
 ]
 
 // Starter code loaded when a language is selected from the language picker, so the

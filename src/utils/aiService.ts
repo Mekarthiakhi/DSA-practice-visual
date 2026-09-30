@@ -444,15 +444,45 @@ export async function chatWithAI(
 export async function callAI(
   messages: Array<{ role: string; content: string }>,
   systemPrompt: string,
-  _apiKey: string
+  apiKey: string
 ): Promise<string> {
   const userContent = messages.map(m => `${m.role}: ${m.content}`).join('\n')
   const fullPrompt = `${systemPrompt}\n\n${userContent}`
 
+  apiKey = resolveKey(apiKey)
+
+  // Try direct Groq call if key is available
+  if (apiKey && apiKey.length > 8) {
+    try {
+      const geminiUrl = `https://api.groq.com/openai/v1/chat/completions`
+      const resp = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: fullPrompt }],
+        }),
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        const text = data?.choices?.[0]?.message?.content
+        if (text) return text
+      }
+    } catch (err) {
+      console.warn('Direct AI call failed, trying backend proxy:', err)
+    }
+  }
+
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (apiKey) headers['x-api-key'] = apiKey
+
     const response = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ code: fullPrompt, type: 'custom' }),
     })
 

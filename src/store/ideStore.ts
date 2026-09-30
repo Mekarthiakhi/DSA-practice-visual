@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 // JS/TS/Python run locally; compiled languages use a configured runtime service or labelled AI simulation.
-export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust'
+export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust' | 'php'
 export type VisualizationTab = 'variables' | 'callstack' | 'heap' | 'flow' | 'dsa'
 export type ExecutionStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error'
 export type AITab = 'explain' | 'complexity' | 'flowchart' | 'optimize'
@@ -86,10 +86,12 @@ export interface DSAEdge {
 }
 
 export interface DSAState {
-  type: 'array' | 'linkedlist' | 'tree' | 'graph' | 'stack' | 'queue' | 'hashmap' | 'heap' | 'matrix' | 'string'
+  type: 'array' | 'linkedlist' | 'tree' | 'graph' | 'stack' | 'queue' | 'hashmap' | 'heap' | 'matrix' | 'string' | 'console_pattern'
   nodes: DSANode[]
   edges?: DSAEdge[]
   auxiliaryData?: Record<string, unknown>
+  // Console pattern output lines (accumulated console.log outputs for pattern-printing code)
+  outputLines?: string[]
   comparisons?: number
   swaps?: number
   message?: string

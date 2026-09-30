@@ -1441,28 +1441,28 @@ export function genTwoSum(nums: number[], target: number): ExecutionStep[] {
 
 export function genReverseString(s: string): ExecutionStep[] {
   const steps: ExecutionStep[] = []
-  const chars = s.split('')
+  const chars = s.split('').map((c, i) => ({ id: `c${i}`, val: c }))
   let left = 0, right = chars.length - 1
 
   const snap = (desc: string, l: number, r: number): ExecutionStep => ({
     line: 1, description: desc,
-    variables: [{ name: 'str', value: chars.join(''), type: 'string', scope: 'reverse', changed: true }, { name: 'left', value: l, type: 'number', scope: 'reverse' }, { name: 'right', value: r, type: 'number', scope: 'reverse' }],
+    variables: [{ name: 'str', value: chars.map(c => c.val).join(''), type: 'string', scope: 'reverse', changed: true }, { name: 'left', value: l, type: 'number', scope: 'reverse' }, { name: 'right', value: r, type: 'number', scope: 'reverse' }],
     callStack: [makeFrame('reverseString', 1, [], true)], heap: [], output: '',
     dsaState: {
       type: 'string',
-      nodes: chars.map((c, i) => ({ id: `c${i}`, value: c, highlight: i === l ? 'comparing' : i === r ? 'comparing' : i < l || i > r ? 'found' : 'none' })),
+      nodes: chars.map((c, i) => ({ id: c.id, value: c.val, highlight: i === l ? 'comparing' : i === r ? 'comparing' : i < l || i > r ? 'found' : 'none' })),
       pointer: l, pointerName: 'l', pointer2: r, pointer2Name: 'r', message: desc
     }
   })
 
   steps.push(snap(`Reverse "${s}" using two pointers`, left, right))
   while (left < right) {
-    steps.push(snap(`Swap chars[${left}]='${chars[left]}' ↔ chars[${right}]='${chars[right]}'`, left, right));
+    steps.push(snap(`Swap chars[${left}]='${chars[left].val}' ↔ chars[${right}]='${chars[right].val}'`, left, right));
     [chars[left], chars[right]] = [chars[right], chars[left]]
-    steps.push(snap(`After swap: "${chars.join('')}"`, left, right))
+    steps.push(snap(`After swap: "${chars.map(c => c.val).join('')}"`, left, right))
     left++; right--
   }
-  steps.push(snap(`✅ Reversed: "${chars.join('')}"`, left, right))
+  steps.push(snap(`✅ Reversed: "${chars.map(c => c.val).join('')}"`, left, right))
   return steps
 }
 

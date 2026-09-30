@@ -11,7 +11,7 @@ import { buildDSAState, interpretCode, resetDynamicVisualizationState } from './
 import { callAI } from './aiService'
 import { PythonTraceEvent, PythonTraceResult, runPythonDynamic } from './pythonRuntime'
 
-export type SupportedLang = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust'
+export type SupportedLang = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust' | 'php'
 
 export interface LangRunResult {
   steps: ExecutionStep[]
@@ -58,8 +58,9 @@ export async function runMultiLang(
   }
 
   // AI is an explicitly labelled simulation fallback for compiled languages.
-  if (apiKey) {
-    return simulateWithAI(code, language, apiKey)
+  const resolvedApiKey = apiKey || import.meta.env.VITE_GROQ_API_KEY || ''
+  if (resolvedApiKey) {
+    return simulateWithAI(code, language, resolvedApiKey as string)
   }
 
   // Without a runtime, return an actionable diagnostic rather than fake steps.

@@ -1170,6 +1170,92 @@ const TwoSumView: React.FC<{
   )
 }
 
+// ─── CONSOLE PATTERN VIEW ───────────────────────────────────────────────────
+// Shows accumulated console.log outputs as a stacked monospace pattern.
+// Used for pattern-printing code (pyramids, triangles, diamonds, etc.)
+const ConsolePatternView: React.FC<{ outputLines?: string[]; message?: string }> = ({ outputLines = [], message }) => {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-6 p-6">
+      {message && (
+        <motion.div key={message} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="px-4 py-2 bg-[#13151f] border border-[#252836] rounded-lg text-sm text-gray-300 font-mono text-center">
+          {message}
+        </motion.div>
+      )}
+
+      {/* Pattern display area */}
+      <div className="relative w-full max-w-lg">
+        {/* Terminal-like header */}
+        <div className="flex items-center gap-2 px-4 py-2 bg-[#0a0c14] border border-[#1e2130] rounded-t-xl border-b-0">
+          <div className="flex gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+            <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
+          </div>
+          <span className="text-[10px] font-mono text-gray-600 uppercase tracking-wider ml-2">console output</span>
+          <span className="text-[10px] font-mono text-cyan-400/50 ml-auto">{outputLines.length} row{outputLines.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        {/* Pattern body */}
+        <div className="bg-[#0d0f18] border border-[#1e2130] rounded-b-xl px-5 py-4 min-h-[120px] max-h-[360px] overflow-y-auto"
+          style={{ boxShadow: '0 0 30px rgba(0,212,255,0.04), inset 0 0 40px rgba(0,0,0,0.3)' }}>
+          {outputLines.length === 0 ? (
+            <div className="flex items-center justify-center h-20 text-gray-700 text-sm font-mono">
+              <span className="animate-pulse">waiting for output...</span>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <AnimatePresence mode="popLayout">
+                {outputLines.map((line, i) => {
+                  const isLatest = i === outputLines.length - 1
+                  return (
+                    <motion.div
+                      key={`line-${i}`}
+                      layout
+                      initial={{ opacity: 0, x: -12, scaleY: 0.8 }}
+                      animate={{
+                        opacity: 1,
+                        x: 0,
+                        scaleY: 1,
+                        color: isLatest ? '#22d3ee' : '#9ca3af',
+                        textShadow: isLatest ? '0 0 8px rgba(34,211,238,0.4)' : 'none',
+                      }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 400,
+                        damping: 28,
+                        delay: 0,
+                      }}
+                      className="font-mono text-sm leading-relaxed whitespace-pre"
+                      style={{ fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace" }}
+                    >
+                      {line || ' '}
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Progress indicator */}
+      {outputLines.length > 0 && (
+        <div className="flex items-center gap-3 text-xs font-mono text-gray-600">
+          <span>Row <span className="text-cyan-400 font-bold">{outputLines.length}</span></span>
+          <div className="w-px h-3 bg-gray-700" />
+          <span className="text-[10px] text-gray-700">Pattern builds as you step through →</span>
+        </div>
+      )}
+
+      <Legend items={[
+        { label: 'Current row', hl: 'active' },
+        { label: 'Previous rows', hl: 'none' },
+      ]} />
+    </div>
+  )
+}
+
 // ─── MAIN DISPATCHER ─────────────────────────────────────────────────────────
 export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
   if (!dsaState) {
@@ -1218,6 +1304,7 @@ export const DSAVisualizer: React.FC<DSAVisualizerProps> = ({ dsaState }) => {
       {dsaState.type === 'stack' && <StackView nodes={dsaState.nodes} stackItems={dsaState.stackItems} message={dsaState.message} />}
       {dsaState.type === 'queue' && <QueueView nodes={dsaState.nodes} queueItems={dsaState.queueItems} message={dsaState.message} />}
       {dsaState.type === 'hashmap' && <HashMapView nodes={dsaState.nodes} hashTable={dsaState.hashTable} message={dsaState.message} />}
+      {dsaState.type === 'console_pattern' && <ConsolePatternView outputLines={dsaState.outputLines} message={dsaState.message} />}
     </div>
   )
 }

@@ -4,7 +4,7 @@
  * All major DSA + common patterns in each language
  */
 
-export type SampleLang = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust'
+export type SampleLang = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust' | 'php'
 
 export interface CodeSample {
   label: string
@@ -981,6 +981,33 @@ console.log("Numbers:", bubbleSort(nums, (a, b) => a - b));
 const words = ["banana", "apple", "cherry", "date"];
 console.log("Words:", bubbleSort(words, (a, b) => a.localeCompare(b)));`,
   },
+  
+  // ══════════════════════════════════════════════════════════════
+  // PHP
+  // ══════════════════════════════════════════════════════════════
+  
+  php_bubble: {
+    label: 'Bubble Sort', language: 'php', category: 'PHP — Sorting',
+    description: 'Classic bubble sort with swap visualization',
+    code: `<?php
+function bubbleSort(&$arr) {
+    $n = count($arr);
+    for ($i = 0; $i < $n; $i++) {
+        for ($j = 0; $j < $n - $i - 1; $j++) {
+            if ($arr[$j] > $arr[$j + 1]) {
+                // Swap elements
+                $temp = $arr[$j];
+                $arr[$j] = $arr[$j + 1];
+                $arr[$j + 1] = $temp;
+            }
+        }
+    }
+}
+
+$nums = [64, 34, 25, 12, 22, 11, 90];
+bubbleSort($nums);
+?>`,
+  },
 }
 
 // Derive all categories from samples
@@ -999,4 +1026,5 @@ export const LANG_LABELS: Record<SampleLang, { label: string; color: string; ico
   csharp:     { label: 'C#',         color: '#9b4f96', icon: 'C#' },
   go:         { label: 'Go',         color: '#00add8', icon: 'GO' },
   rust:       { label: 'Rust',       color: '#dea584', icon: 'RS' },
+  php:        { label: 'PHP',        color: '#777bb4', icon: 'PHP' },
 }

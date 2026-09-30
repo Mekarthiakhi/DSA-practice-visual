@@ -168,7 +168,7 @@ const ConsoleView: React.FC<{ output: string[] }> = ({ output }) => {
           <>
             {output.map((line, i) => (
               <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.015, 0.3) }}
-                className={`py-0.5 leading-relaxed ${
+                className={`py-0.5 leading-relaxed whitespace-pre-wrap ${
                   line.startsWith('▶') || line.startsWith('▸') ? 'text-cyan-400' :
                   line.startsWith('✅') ? 'text-green-400' :
                   line.startsWith('❌') ? 'text-red-400' :
