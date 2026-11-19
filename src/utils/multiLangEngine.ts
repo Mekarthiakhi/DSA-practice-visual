@@ -8,7 +8,7 @@
 
 import { ExecutionStep, Variable, StackFrame, DSAState, DSANode } from '../store/ideStore'
 import { buildDSAState, interpretCode, resetDynamicVisualizationState } from './jsInterpreter'
-import { callAI } from './aiService'
+import { callAI, resolveKey } from './aiService'
 import { PythonTraceEvent, PythonTraceResult, runPythonDynamic } from './pythonRuntime'
 
 export type SupportedLang = 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'rust' | 'php'
@@ -58,7 +58,7 @@ export async function runMultiLang(
   }
 
   // AI is an explicitly labelled simulation fallback for compiled languages.
-  const resolvedApiKey = apiKey || import.meta.env.VITE_GROQ_API_KEY || ''
+  const resolvedApiKey = resolveKey(apiKey)
   if (resolvedApiKey) {
     return simulateWithAI(code, language, resolvedApiKey as string)
   }

@@ -85,7 +85,9 @@ export const VisualizationPanel: React.FC = () => {
             className="h-full overflow-y-auto"
           >
             {activeVizTab === 'dsa' && (
-              hasDSA
+              executionSteps.length === 0
+                ? <DSAVisualizer dsaState={undefined} />
+                : hasDSA
                 ? <DSAVisualizer dsaState={currentStep?.dsaState} />
                 : <GenericCodeViz steps={executionSteps} currentIndex={currentStepIndex} />
             )}

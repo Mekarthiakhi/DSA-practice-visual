@@ -136,6 +136,9 @@ export const TopBar: React.FC = () => {
     clearOutput()
     setIsRunning(true)
     setExecutionStatus('running')
+    if (!isLiveUpdate) {
+      useIDEStore.getState().setActiveVizTab('dsa')
+    }
     addOutput(isLiveUpdate ? 'Updating live execution...' : 'Starting visualization...')
 
     const currentLang = language as SupportedLang

@@ -1,7 +1,7 @@
 /**
- * Sorting Algorithms Barrel Export
+ * Sorting & Searching Algorithms Barrel Export
  * PHASE 2: Modular organization
- * Updated with Heap Sort
+ * Updated with Heap Sort & Binary Search Variants
  */
 
 export { genBubbleSort } from './bubbleSort'
@@ -10,5 +10,10 @@ export {
   genSelectionSort,
   genInsertionSort,
   genMergeSort,
-  genQuickSort
+  genQuickSort,
+  genBinarySearch,
+  genLinearSearch,
+  genSearchInsert,
+  genFindMinRotated,
+  genSearchRotatedArray
 } from '../../utils/executionEngine'

@@ -304,6 +304,38 @@ function dailyTemperatures(temperatures) {
 const result = dailyTemperatures([73,74,75,71,69,72,76,73]);
 console.log('Result:', result);`,
 
+  "155": `// Min Stack — Auxiliary Stack O(1) all ops
+// Pattern: Track current minimum at every height with a secondary min-stack
+class MinStack {
+  constructor() {
+    this.stack = [];
+    this.minStack = [];
+  }
+  push(val) {
+    this.stack.push(val);
+    const min = this.minStack.length === 0 ? val : Math.min(val, this.minStack[this.minStack.length - 1]);
+    this.minStack.push(min);
+  }
+  pop() {
+    this.stack.pop();
+    this.minStack.pop();
+  }
+  top() {
+    return this.stack[this.stack.length - 1];
+  }
+  getMin() {
+    return this.minStack[this.minStack.length - 1];
+  }
+}
+const ms = new MinStack();
+ms.push(-2);
+ms.push(0);
+ms.push(-3);
+console.log('min:', ms.getMin());
+ms.pop();
+console.log('top:', ms.top());
+console.log('min:', ms.getMin());`,
+
   // ──────────────────────────────────────────────────────────────────
   // Binary Search
   // ──────────────────────────────────────────────────────────────────
@@ -418,6 +450,48 @@ let node = head; const vals = [];
 while (node) { vals.push(node.val); node = node.next; }
 console.log('Result:', vals);`,
 
+  "141": `// Linked List Cycle — Floyd's Tortoise and Hare O(n) time, O(1) space
+function ListNode(val, next) { this.val = val; this.next = next || null; }
+function hasCycle(head) {
+  let slow = head;
+  let fast = head;
+  while (fast !== null && fast.next !== null) {
+    slow = slow.next;
+    fast = fast.next.next;
+    if (slow === fast) return true;
+  }
+  return false;
+}
+const node1 = new ListNode(3);
+const node2 = new ListNode(2);
+const node3 = new ListNode(0);
+const node4 = new ListNode(-4);
+node1.next = node2; node2.next = node3; node3.next = node4; node4.next = node2;
+const result = hasCycle(node1);
+console.log('Result:', result);`,
+
+  "19": `// Remove Nth Node From End of List — Two Pointers O(n) time, O(1) space
+function ListNode(val, next) { this.val = val; this.next = next || null; }
+function removeNthFromEnd(head, n) {
+  const dummy = new ListNode(0, head);
+  let fast = dummy;
+  let slow = dummy;
+  for (let i = 0; i <= n; i++) {
+    fast = fast.next;
+  }
+  while (fast !== null) {
+    slow = slow.next;
+    fast = fast.next;
+  }
+  slow.next = slow.next.next;
+  return dummy.next;
+}
+const head = new ListNode(1, new ListNode(2, new ListNode(3, new ListNode(4, new ListNode(5)))));
+const result = removeNthFromEnd(head, 2);
+let node = result; const vals = [];
+while (node) { vals.push(node.val); node = node.next; }
+console.log('Result:', vals);`,
+
   // ──────────────────────────────────────────────────────────────────
   // Trees
   // ──────────────────────────────────────────────────────────────────
@@ -453,6 +527,20 @@ const root = new TreeNode(3,
   new TreeNode(20, new TreeNode(15), new TreeNode(7))
 );
 const result = maxDepth(root);
+console.log('Result:', result);`,
+
+  "100": `// Same Tree — Recursive DFS O(n)
+// Pattern: Two trees are identical if root values match and both left & right subtrees match
+function TreeNode(val, left, right) { this.val = val; this.left = left||null; this.right = right||null; }
+function isSameTree(p, q) {
+  if (p === null && q === null) return true;
+  if (p === null || q === null) return false;
+  if (p.val !== q.val) return false;
+  return isSameTree(p.left, q.left) && isSameTree(p.right, q.right);
+}
+const p = new TreeNode(1, new TreeNode(2), new TreeNode(3));
+const q = new TreeNode(1, new TreeNode(2), new TreeNode(3));
+const result = isSameTree(p, q);
 console.log('Result:', result);`,
 
   "543": `// Diameter of Binary Tree — DFS, track max path through each node
@@ -518,6 +606,119 @@ function isValidBST(root) {
 }
 const root = new TreeNode(2, new TreeNode(1), new TreeNode(3));
 const result = isValidBST(root);
+console.log('Result:', result);`,
+
+  "230": `// Kth Smallest Element in a BST — In-order Traversal O(H + k)
+// Pattern: In-order traversal visits BST in ascending order; k-th node visited is the answer
+function TreeNode(val, left, right) { this.val = val; this.left = left||null; this.right = right||null; }
+function kthSmallest(root, k) {
+  let count = 0;
+  let result = null;
+  function inorder(node) {
+    if (!node || result !== null) return;
+    inorder(node.left);
+    count++;
+    if (count === k) {
+      result = node.val;
+      return;
+    }
+    inorder(node.right);
+  }
+  inorder(root);
+  return result;
+}
+const root = new TreeNode(3,
+  new TreeNode(1, null, new TreeNode(2)),
+  new TreeNode(4)
+);
+const result = kthSmallest(root, 1);
+console.log('Result:', result);`,
+
+  // ──────────────────────────────────────────────────────────────────
+  // Heap / Priority Queue
+  // ──────────────────────────────────────────────────────────────────
+
+  "703": `// Kth Largest Element in a Stream — Min-Heap O(log k)
+// Pattern: Maintain min-heap of size k; top of heap is always kth largest
+class KthLargest {
+  constructor(k, nums) {
+    this.k = k;
+    this.heap = [];
+    for (const n of nums) this.add(n);
+  }
+  add(val) {
+    this.heap.push(val);
+    let i = this.heap.length - 1;
+    while (i > 0) {
+      const p = Math.floor((i - 1) / 2);
+      if (this.heap[i] < this.heap[p]) {
+        [this.heap[i], this.heap[p]] = [this.heap[p], this.heap[i]];
+        i = p;
+      } else break;
+    }
+    if (this.heap.length > this.k) {
+      this.heap[0] = this.heap.pop();
+      let curr = 0;
+      while (true) {
+        let smallest = curr;
+        const l = 2 * curr + 1, r = 2 * curr + 2;
+        if (l < this.heap.length && this.heap[l] < this.heap[smallest]) smallest = l;
+        if (r < this.heap.length && this.heap[r] < this.heap[smallest]) smallest = r;
+        if (smallest !== curr) {
+          [this.heap[curr], this.heap[smallest]] = [this.heap[smallest], this.heap[curr]];
+          curr = smallest;
+        } else break;
+      }
+    }
+    return this.heap[0];
+  }
+}
+const kthLargest = new KthLargest(3, [4, 5, 8, 2]);
+console.log('add(3):', kthLargest.add(3));
+console.log('add(5):', kthLargest.add(5));
+console.log('add(10):', kthLargest.add(10));`,
+
+  "215": `// Kth Largest Element in an Array — Min-Heap O(n log k)
+// Pattern: Keep min-heap of size k; elements smaller than root are discarded
+function findKthLargest(nums, k) {
+  const heap = [];
+  function push(val) {
+    heap.push(val);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const p = Math.floor((i - 1) / 2);
+      if (heap[i] < heap[p]) {
+        [heap[i], heap[p]] = [heap[p], heap[i]];
+        i = p;
+      } else break;
+    }
+  }
+  function pop() {
+    const min = heap[0];
+    const last = heap.pop();
+    if (heap.length > 0) {
+      heap[0] = last;
+      let i = 0;
+      while (true) {
+        let smallest = i;
+        const l = 2 * i + 1, r = 2 * i + 2;
+        if (l < heap.length && heap[l] < heap[smallest]) smallest = l;
+        if (r < heap.length && heap[r] < heap[smallest]) smallest = r;
+        if (smallest !== i) {
+          [heap[i], heap[smallest]] = [heap[smallest], heap[i]];
+          i = smallest;
+        } else break;
+      }
+    }
+    return min;
+  }
+  for (const num of nums) {
+    push(num);
+    if (heap.length > k) pop();
+  }
+  return heap[0];
+}
+const result = findKthLargest([3, 2, 1, 5, 6, 4], 2);
 console.log('Result:', result);`,
 
   // ──────────────────────────────────────────────────────────────────
@@ -591,6 +792,45 @@ const result = lengthOfLIS([10,9,2,5,3,7,101,18]);
 console.log('Result:', result);`,
 
   // ──────────────────────────────────────────────────────────────────
+  // Backtracking
+  // ──────────────────────────────────────────────────────────────────
+
+  "51": `// N-Queens — Backtracking O(N!)
+// Pattern: Place queens row-by-row; validate column and diagonals
+function solveNQueens(n) {
+  const result = [];
+  const board = Array.from({ length: n }, () => Array(n).fill('.'));
+
+  function isValid(r, c) {
+    for (let i = 0; i < r; i++) {
+      if (board[i][c] === 'Q') return false;
+      const cDiff = Math.abs(c - board[i].indexOf('Q'));
+      if (cDiff === r - i) return false;
+    }
+    return true;
+  }
+
+  function backtrack(r) {
+    if (r === n) {
+      result.push(board.map(row => row.join('')));
+      return;
+    }
+    for (let c = 0; c < n; c++) {
+      if (isValid(r, c)) {
+        board[r][c] = 'Q';
+        backtrack(r + 1);
+        board[r][c] = '.';
+      }
+    }
+  }
+
+  backtrack(0);
+  return result;
+}
+const result = solveNQueens(4);
+console.log('Solutions:', result.length);`,
+
+  // ──────────────────────────────────────────────────────────────────
   // Graphs
   // ──────────────────────────────────────────────────────────────────
 
@@ -643,5 +883,290 @@ function canFinish(numCourses, prerequisites) {
   return true;
 }
 const result = canFinish(5, [[1,0],[2,0],[3,1],[3,2]]);
+console.log('Result:', result);`,
+
+  "695": `// Max Area of Island — DFS Traversal O(m*n)
+// Pattern: Sinking island cells to 0 and counting connected component size
+function maxAreaOfIsland(grid) {
+  let maxArea = 0;
+  function dfs(r, c) {
+    if (r < 0 || c < 0 || r >= grid.length || c >= grid[0].length || grid[r][c] === 0) {
+      return 0;
+    }
+    grid[r][c] = 0; // sink cell
+    let area = 1;
+    area += dfs(r + 1, c);
+    area += dfs(r - 1, c);
+    area += dfs(r, c + 1);
+    area += dfs(r, c - 1);
+    return area;
+  }
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[0].length; c++) {
+      if (grid[r][c] === 1) {
+        const area = dfs(r, c);
+        if (area > maxArea) maxArea = area;
+      }
+    }
+  }
+  return maxArea;
+}
+const grid = [
+  [0, 1, 1, 0, 0],
+  [0, 1, 1, 0, 0],
+  [0, 0, 0, 1, 1],
+  [0, 0, 0, 1, 1]
+];
+const result = maxAreaOfIsland(grid);
+console.log('Result:', result);`,
+
+  "133": `// Clone Graph — BFS Traversal O(V+E)
+// Pattern: Map original nodes to copies, propagate neighbors with queue
+function cloneGraph(graph, start = 1) {
+  if (!graph || Object.keys(graph).length === 0) return {};
+  const cloned = {};
+  const queue = [start];
+  cloned[start] = [];
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    const neighbors = graph[curr] || [];
+    for (const neighbor of neighbors) {
+      if (!cloned[neighbor]) {
+        cloned[neighbor] = [];
+        queue.push(neighbor);
+      }
+      cloned[curr].push(neighbor);
+    }
+  }
+  return cloned;
+}
+const graph = {
+  1: [2, 4],
+  2: [1, 3],
+  3: [2, 4],
+  4: [1, 3]
+};
+const result = cloneGraph(graph, 1);
+console.log('Result:', result);`,
+
+  "1036": `// Rotting Oranges — Multi-Source BFS O(m*n)
+// Pattern: Enqueue all initial rotten oranges (2), spread rotting to fresh (1) level by level
+function orangesRotting(grid) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const queue = [];
+  let fresh = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === 2) {
+        queue.push([r, c]);
+      } else if (grid[r][c] === 1) {
+        fresh++;
+      }
+    }
+  }
+  if (fresh === 0) return 0;
+  let minutes = 0;
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  while (queue.length > 0 && fresh > 0) {
+    const size = queue.length;
+    for (let i = 0; i < size; i++) {
+      const curr = queue.shift();
+      const r = curr[0];
+      const c = curr[1];
+      for (const d of dirs) {
+        const nr = r + d[0];
+        const nc = c + d[1];
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === 1) {
+          grid[nr][nc] = 2; // rot the orange
+          fresh--;
+          queue.push([nr, nc]);
+        }
+      }
+    }
+    minutes++;
+  }
+  return fresh === 0 ? minutes : -1;
+}
+const grid = [
+  [2, 1, 1],
+  [1, 1, 0],
+  [0, 1, 1]
+];
+const result = orangesRotting(grid);
+console.log('Result:', result);`,
+
+  "994": `// Rotting Oranges — Multi-Source BFS O(m*n)
+function orangesRotting(grid) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const queue = [];
+  let fresh = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === 2) queue.push([r, c]);
+      else if (grid[r][c] === 1) fresh++;
+    }
+  }
+  if (fresh === 0) return 0;
+  let minutes = 0;
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  while (queue.length > 0 && fresh > 0) {
+    const size = queue.length;
+    for (let i = 0; i < size; i++) {
+      const curr = queue.shift();
+      const r = curr[0];
+      const c = curr[1];
+      for (const d of dirs) {
+        const nr = r + d[0];
+        const nc = c + d[1];
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === 1) {
+          grid[nr][nc] = 2;
+          fresh--;
+          queue.push([nr, nc]);
+        }
+      }
+    }
+    minutes++;
+  }
+  return fresh === 0 ? minutes : -1;
+}
+const grid = [
+  [2, 1, 1],
+  [1, 1, 0],
+  [0, 1, 1]
+];
+const result = orangesRotting(grid);
+console.log('Result:', result);`,
+
+  "417": `// Pacific Atlantic Water Flow — Multi-Source Reverse DFS O(m*n)
+// Pattern: Start DFS from Pacific & Atlantic borders flowing inward to higher/equal ground
+function pacificAtlantic(heights) {
+  const rows = heights.length;
+  const cols = heights[0].length;
+  const pac = [];
+  const atl = [];
+  for (let r = 0; r < rows; r++) {
+    pac.push(new Array(cols).fill(false));
+    atl.push(new Array(cols).fill(false));
+  }
+  function dfs(r, c, ocean) {
+    ocean[r][c] = true;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (const d of dirs) {
+      const nr = r + d[0];
+      const nc = c + d[1];
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !ocean[nr][nc] && heights[nr][nc] >= heights[r][c]) {
+        dfs(nr, nc, ocean);
+      }
+    }
+  }
+  for (let r = 0; r < rows; r++) {
+    dfs(r, 0, pac);
+    dfs(r, cols - 1, atl);
+  }
+  for (let c = 0; c < cols; c++) {
+    dfs(0, c, pac);
+    dfs(rows - 1, c, atl);
+  }
+  const result = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (pac[r][c] && atl[r][c]) {
+        result.push([r, c]);
+      }
+    }
+  }
+  return result;
+}
+const heights = [
+  [1, 2, 2, 3, 5],
+  [3, 2, 3, 4, 4],
+  [2, 4, 5, 3, 1]
+];
+const result = pacificAtlantic(heights);
+console.log('Result:', result);`,
+
+  "54": `// Spiral Matrix — Layer by layer traversal O(m*n)
+// Pattern: Traverse top, right, bottom, left boundaries while tightening borders
+function spiralOrder(matrix) {
+  const result = [];
+  if (!matrix.length) return result;
+  let top = 0, bottom = matrix.length - 1;
+  let left = 0, right = matrix[0].length - 1;
+  while (top <= bottom && left <= right) {
+    for (let c = left; c <= right; c++) {
+      result.push(matrix[top][c]);
+    }
+    top++;
+    for (let r = top; r <= bottom; r++) {
+      result.push(matrix[r][right]);
+    }
+    right--;
+    if (top <= bottom) {
+      for (let c = right; c >= left; c--) {
+        result.push(matrix[bottom][c]);
+      }
+      bottom--;
+    }
+    if (left <= right) {
+      for (let r = bottom; r >= top; r--) {
+        result.push(matrix[r][left]);
+      }
+      left++;
+    }
+  }
+  return result;
+}
+const matrix = [
+  [1, 2, 3],
+  [4, 5, 6],
+  [7, 8, 9]
+];
+const result = spiralOrder(matrix);
+console.log('Result:', result);`,
+
+  "73": `// Set Matrix Zeroes — In-Place O(1) Space Matrix Marking O(m*n)
+// Pattern: Use first row & column as marker flags, handle edge overlap
+function setZeroes(matrix) {
+  const rows = matrix.length;
+  const cols = matrix[0].length;
+  let firstRowZero = false;
+  let firstColZero = false;
+  for (let r = 0; r < rows; r++) {
+    if (matrix[r][0] === 0) firstColZero = true;
+  }
+  for (let c = 0; c < cols; c++) {
+    if (matrix[0][c] === 0) firstRowZero = true;
+  }
+  for (let r = 1; r < rows; r++) {
+    for (let c = 1; c < cols; c++) {
+      if (matrix[r][c] === 0) {
+        matrix[r][0] = 0;
+        matrix[0][c] = 0;
+      }
+    }
+  }
+  for (let r = 1; r < rows; r++) {
+    for (let c = 1; c < cols; c++) {
+      if (matrix[r][0] === 0 || matrix[0][c] === 0) {
+        matrix[r][c] = 0;
+      }
+    }
+  }
+  if (firstRowZero) {
+    for (let c = 0; c < cols; c++) matrix[0][c] = 0;
+  }
+  if (firstColZero) {
+    for (let r = 0; r < rows; r++) matrix[r][0] = 0;
+  }
+  return matrix;
+}
+const matrix = [
+  [1, 1, 1],
+  [1, 0, 1],
+  [1, 1, 1]
+];
+const result = setZeroes(matrix);
 console.log('Result:', result);`,
 };

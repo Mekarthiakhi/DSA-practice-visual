@@ -86,7 +86,7 @@ export interface DSAEdge {
 }
 
 export interface DSAState {
-  type: 'array' | 'linkedlist' | 'tree' | 'graph' | 'stack' | 'queue' | 'hashmap' | 'heap' | 'matrix' | 'string' | 'console_pattern'
+  type: 'array' | 'linkedlist' | 'tree' | 'graph' | 'stack' | 'queue' | 'hashmap' | 'heap' | 'matrix' | 'string' | 'console_pattern' | 'dp' | 'minstack'
   nodes: DSANode[]
   edges?: DSAEdge[]
   auxiliaryData?: Record<string, unknown>
@@ -101,6 +101,8 @@ export interface DSAState {
   pointerName?: string
   pointer2?: number
   pointer2Name?: string
+  pointer3?: number
+  pointer3Name?: string
   rangeStart?: number
   rangeEnd?: number
   pivotIndex?: number

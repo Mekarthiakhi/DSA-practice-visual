@@ -1,4 +1,7 @@
-jest.mock('../utils/aiService', () => ({ callAI: jest.fn() }))
+jest.mock('../utils/aiService', () => ({
+  callAI: jest.fn(),
+  resolveKey: jest.fn((apiKey?: string) => apiKey || ''),
+}))
 
 import { pythonTraceToSteps, runMultiLang } from '../utils/multiLangEngine'
 import { PythonTraceResult } from '../utils/pythonRuntime'

@@ -1055,7 +1055,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for singly-linked list.\n * function ListNode(val) {\n *     this.val = val;\n *     this.next = null;\n * }\n */\n\n/**\n * @param {ListNode} head\n * @return {boolean}\n */\nvar hasCycle = function(head) {\n    \n};",
       "python": "# Definition for singly-linked list.\n# class ListNode:\n#     def __init__(self, x):\n#         self.val = x\n#         self.next = None\n\nclass Solution:\n    def hasCycle(self, head: Optional[ListNode]) -> bool:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Linked List Cycle — Floyd's Tortoise and Hare O(n) time, O(1) space\nfunction ListNode(val, next) { this.val = val; this.next = next || null; }\nfunction hasCycle(head) {\n  let slow = head, fast = head;\n  while (fast !== null && fast.next !== null) {\n    slow = slow.next;\n    fast = fast.next.next;\n    if (slow === fast) return true;\n  }\n  return false;\n}\nconst node1 = new ListNode(3);\nconst node2 = new ListNode(2);\nconst node3 = new ListNode(0);\nconst node4 = new ListNode(-4);\nnode1.next = node2; node2.next = node3; node3.next = node4; node4.next = node2;\nconst result = hasCycle(node1);\nconsole.log('Result:', result);"
+    }
   },
   {
     "id": "143",
@@ -1120,7 +1122,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * Definition for singly-linked list.\n * function ListNode(val, next) {\n *     this.val = (val===undefined ? 0 : val)\n *     this.next = (next===undefined ? null : next)\n * }\n */\n/**\n * @param {ListNode} head\n * @param {number} n\n * @return {ListNode}\n */\nvar removeNthFromEnd = function(head, n) {\n    \n};",
       "python": "# Definition for singly-linked list.\n# class ListNode:\n#     def __init__(self, val=0, next=None):\n#         self.val = val\n#         self.next = next\nclass Solution:\n    def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Remove Nth Node From End of List — Two Pointers O(n) time, O(1) space\nfunction ListNode(val, next) { this.val = val; this.next = next || null; }\nfunction removeNthFromEnd(head, n) {\n  const dummy = new ListNode(0, head);\n  let fast = dummy, slow = dummy;\n  for (let i = 0; i <= n; i++) fast = fast.next;\n  while (fast !== null) {\n    slow = slow.next;\n    fast = fast.next;\n  }\n  slow.next = slow.next.next;\n  return dummy.next;\n}\nconst head = new ListNode(1, new ListNode(2, new ListNode(3, new ListNode(4, new ListNode(5)))));\nconst result = removeNthFromEnd(head, 2);\nlet node = result; const vals = [];\nwhile (node) { vals.push(node.val); node = node.next; }\nconsole.log('Result:', vals);"
+    }
   },
   {
     "id": "138",
@@ -2387,7 +2391,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[][]} grid\n * @return {number}\n */\nvar maxAreaOfIsland = function(grid) {\n    \n};",
       "python": "class Solution:\n    def maxAreaOfIsland(self, grid: List[List[int]]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Max Area of Island — DFS Traversal O(m*n)\nfunction maxAreaOfIsland(grid) {\n  let maxArea = 0;\n  function dfs(r, c) {\n    if (r < 0 || c < 0 || r >= grid.length || c >= grid[0].length || grid[r][c] === 0) return 0;\n    grid[r][c] = 0;\n    let area = 1;\n    area += dfs(r + 1, c);\n    area += dfs(r - 1, c);\n    area += dfs(r, c + 1);\n    area += dfs(r - 1, c);\n    return area;\n  }\n  for (let r = 0; r < grid.length; r++) {\n    for (let c = 0; c < grid[0].length; c++) {\n      if (grid[r][c] === 1) {\n        const a = dfs(r, c);\n        if (a > maxArea) maxArea = a;\n      }\n    }\n  }\n  return maxArea;\n}\nconst grid = [\n  [0, 1, 1, 0, 0],\n  [0, 1, 1, 0, 0],\n  [0, 0, 0, 1, 1],\n  [0, 0, 0, 1, 1]\n];\nconst result = maxAreaOfIsland(grid);\nconsole.log('Result:', result);"
+}
   },
   {
     "id": "133",
@@ -2423,7 +2429,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * // Definition for a _Node.\n * function _Node(val, neighbors) {\n *    this.val = val === undefined ? 0 : val;\n *    this.neighbors = neighbors === undefined ? [] : neighbors;\n * };\n */\n\n/**\n * @param {_Node} node\n * @return {_Node}\n */\nvar cloneGraph = function(node) {\n    \n};",
       "python": "\"\"\"\n# Definition for a Node.\nclass Node:\n    def __init__(self, val = 0, neighbors = None):\n        self.val = val\n        self.neighbors = neighbors if neighbors is not None else []\n\"\"\"\n\nfrom typing import Optional\nclass Solution:\n    def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Clone Graph — BFS Traversal O(V+E)\nfunction cloneGraph(graph, start = 1) {\n  if (!graph || Object.keys(graph).length === 0) return {};\n  const cloned = {};\n  const queue = [start];\n  cloned[start] = [];\n  while (queue.length > 0) {\n    const curr = queue.shift();\n    const neighbors = graph[curr] || [];\n    for (const neighbor of neighbors) {\n      if (!cloned[neighbor]) {\n        cloned[neighbor] = [];\n        queue.push(neighbor);\n      }\n      cloned[curr].push(neighbor);\n    }\n  }\n  return cloned;\n}\nconst graph = {\n  1: [2, 4],\n  2: [1, 3],\n  3: [2, 4],\n  4: [1, 3]\n};\nconst result = cloneGraph(graph, 1);\nconsole.log('Result:', result);"
+}
   },
   {
     "id": "1036",
@@ -2458,7 +2466,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[][]} grid\n * @return {number}\n */\nvar orangesRotting = function(grid) {\n    \n};",
       "python": "class Solution:\n    def orangesRotting(self, grid: List[List[int]]) -> int:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Rotting Oranges — Multi-Source BFS O(m*n)\nfunction orangesRotting(grid) {\n  const rows = grid.length;\n  const cols = grid[0].length;\n  const queue = [];\n  let fresh = 0;\n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      if (grid[r][c] === 2) queue.push([r, c]);\n      else if (grid[r][c] === 1) fresh++;\n    }\n  }\n  if (fresh === 0) return 0;\n  let minutes = 0;\n  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];\n  while (queue.length > 0 && fresh > 0) {\n    const size = queue.length;\n    for (let i = 0; i < size; i++) {\n      const curr = queue.shift();\n      const r = curr[0];\n      const c = curr[1];\n      for (const d of dirs) {\n        const nr = r + d[0];\n        const nc = c + d[1];\n        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === 1) {\n          grid[nr][nc] = 2;\n          fresh--;\n          queue.push([nr, nc]);\n        }\n      }\n    }\n    minutes++;\n  }\n  return fresh === 0 ? minutes : -1;\n}\nconst grid = [\n  [2, 1, 1],\n  [1, 1, 0],\n  [0, 1, 1]\n];\nconst result = orangesRotting(grid);\nconsole.log('Result:', result);"
+}
   },
   {
     "id": "417",
@@ -2488,7 +2498,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[][]} heights\n * @return {number[][]}\n */\nvar pacificAtlantic = function(heights) {\n    \n};",
       "python": "class Solution:\n    def pacificAtlantic(self, heights: List[List[int]]) -> List[List[int]]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Pacific Atlantic Water Flow — Multi-Source Reverse DFS O(m*n)\nfunction pacificAtlantic(heights) {\n  const rows = heights.length;\n  const cols = heights[0].length;\n  const pac = [];\n  const atl = [];\n  for (let r = 0; r < rows; r++) {\n    pac.push(new Array(cols).fill(false));\n    atl.push(new Array(cols).fill(false));\n  }\n  function dfs(r, c, ocean) {\n    ocean[r][c] = true;\n    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];\n    for (const d of dirs) {\n      const nr = r + d[0];\n      const nc = c + d[1];\n      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !ocean[nr][nc] && heights[nr][nc] >= heights[r][c]) {\n        dfs(nr, nc, ocean);\n      }\n    }\n  }\n  for (let r = 0; r < rows; r++) {\n    dfs(r, 0, pac);\n    dfs(r, cols - 1, atl);\n  }\n  for (let c = 0; c < cols; c++) {\n    dfs(0, c, pac);\n    dfs(rows - 1, c, atl);\n  }\n  const result = [];\n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      if (pac[r][c] && atl[r][c]) result.push([r, c]);\n    }\n  }\n  return result;\n}\nconst heights = [\n  [1, 2, 2, 3, 5],\n  [3, 2, 3, 4, 4],\n  [2, 4, 5, 3, 1]\n];\nconst result = pacificAtlantic(heights);\nconsole.log('Result:', result);"
+}
   },
   {
     "id": "130",
@@ -3947,7 +3959,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[][]} matrix\n * @return {number[]}\n */\nvar spiralOrder = function(matrix) {\n    \n};",
       "python": "class Solution:\n    def spiralOrder(self, matrix: List[List[int]]) -> List[int]:\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Spiral Matrix — Layer by layer traversal O(m*n)\nfunction spiralOrder(matrix) {\n  const result = [];\n  if (!matrix.length) return result;\n  let top = 0, bottom = matrix.length - 1;\n  let left = 0, right = matrix[0].length - 1;\n  while (top <= bottom && left <= right) {\n    for (let c = left; c <= right; c++) {\n      result.push(matrix[top][c]);\n    }\n    top++;\n    for (let r = top; r <= bottom; r++) {\n      result.push(matrix[r][right]);\n    }\n    right--;\n    if (top <= bottom) {\n      for (let c = right; c >= left; c--) {\n        result.push(matrix[bottom][c]);\n      }\n      bottom--;\n    }\n    if (left <= right) {\n      for (let r = bottom; r >= top; r--) {\n        result.push(matrix[r][left]);\n      }\n      left++;\n    }\n  }\n  return result;\n}\nconst matrix = [\n  [1, 2, 3],\n  [4, 5, 6],\n  [7, 8, 9]\n];\nconst result = spiralOrder(matrix);\nconsole.log('Result:', result);"
+}
   },
   {
     "id": "73",
@@ -3977,7 +3991,9 @@ export const NEETCODE_150_PROBLEMS: LeetCodeProblem[] = [
       "javascript": "/**\n * @param {number[][]} matrix\n * @return {void} Do not return anything, modify matrix in-place instead.\n */\nvar setZeroes = function(matrix) {\n    \n};",
       "python": "class Solution:\n    def setZeroes(self, matrix: List[List[int]]) -> None:\n        \"\"\"\n        Do not return anything, modify matrix in-place instead.\n        \"\"\"\n        "
     },
-    "solution": {}
+    "solution": {
+      "javascript": "// Set Matrix Zeroes — In-Place O(1) Space Matrix Marking O(m*n)\nfunction setZeroes(matrix) {\n  const rows = matrix.length;\n  const cols = matrix[0].length;\n  let firstRowZero = false;\n  let firstColZero = false;\n  for (let r = 0; r < rows; r++) {\n    if (matrix[r][0] === 0) firstColZero = true;\n  }\n  for (let c = 0; c < cols; c++) {\n    if (matrix[0][c] === 0) firstRowZero = true;\n  }\n  for (let r = 1; r < rows; r++) {\n    for (let c = 1; c < cols; c++) {\n      if (matrix[r][c] === 0) {\n        matrix[r][0] = 0;\n        matrix[0][c] = 0;\n      }\n    }\n  }\n  for (let r = 1; r < rows; r++) {\n    for (let c = 1; c < cols; c++) {\n      if (matrix[r][0] === 0 || matrix[0][c] === 0) {\n        matrix[r][c] = 0;\n      }\n    }\n  }\n  if (firstRowZero) {\n    for (let c = 0; c < cols; c++) matrix[0][c] = 0;\n  }\n  if (firstColZero) {\n    for (let r = 0; r < rows; r++) matrix[r][0] = 0;\n  }\n  return matrix;\n}\nconst matrix = [\n  [1, 1, 1],\n  [1, 0, 1],\n  [1, 1, 1]\n];\nconst result = setZeroes(matrix);\nconsole.log('Result:', result);"
+}
   },
   {
     "id": "202",

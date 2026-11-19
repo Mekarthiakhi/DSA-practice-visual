@@ -27,7 +27,7 @@ const MAX_RETRIES = 2
 const RETRY_DELAY = 800
 
 /** Resolve the key to use: explicit arg > env default */
-function resolveKey(apiKey?: string): string {
+export function resolveKey(apiKey?: string): string {
   return (apiKey && apiKey.length > 8) ? apiKey : DEFAULT_GEMINI_KEY
 }
 

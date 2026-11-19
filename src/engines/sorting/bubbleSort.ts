@@ -62,6 +62,7 @@ export function genBubbleSort(arr: number[]): ExecutionStep[] {
       pointerName: 'i',
       pointer2: jPtr,
       pointer2Name: 'j',
+      auxiliaryData: { isSorting: true, renderAs: 'bars' },
     },
   })
 

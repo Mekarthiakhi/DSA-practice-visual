@@ -1258,6 +1258,10 @@ function eventsToSteps(events: TraceEvent[], code: string): ExecutionStep[] {
       dsaState.comparisons = comparisons
       dsaState.auxiliaryData = dsaState.auxiliaryData || {}
       dsaState.auxiliaryData.isGeneric = true
+      if (swaps > 0 || /sort|swap|partition|bubble|insert|select|heap/i.test(lineCode)) {
+        dsaState.auxiliaryData.renderAs = 'bars'
+        dsaState.auxiliaryData.isSorting = true
+      }
 
       // Initialize stable IDs if missing
       if (stableIds.length !== currentArr.length) {
@@ -1643,9 +1647,12 @@ function detectHashTableInfo(vars: Record<string, unknown>, excludeName: string,
     return { table, name, label: 'presence' }
   }
 
+  const isNodeLike = (v: unknown): boolean =>
+    typeof v === 'object' && v !== null && ('next' in (v as object) || 'left' in (v as object) || 'right' in (v as object) || '__class__' in (v as object))
+
   const objEntries = Object.entries(vars).filter(([k, v]) =>
     !k.startsWith('__') && k !== excludeName && k !== 'variables' && typeof v === 'object' && v !== null && !Array.isArray(v) &&
-    !(v instanceof Map) && !(v instanceof Set)
+    !(v instanceof Map) && !(v instanceof Set) && !isNodeLike(v)
   )
   if (objEntries.length > 0) {
     // Prefer objects accessed on the current line, otherwise fallback to any object with valid values
@@ -1698,12 +1705,28 @@ function resolveIndexExpression(
 
 export function buildDSAState(vars: Record<string, unknown>, preferredName?: string, lineCode = ''): DSAState | undefined {
 
-  // 1. STACK DETECTOR
+  // Check presence of hierarchical or spatial data structures
+  const isGraphPresent = Object.entries(vars).some(([k, v]) => 
+    !k.startsWith('__') &&
+    v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Map) && !(v instanceof Set) &&
+    Object.keys(v).length > 0 &&
+    Object.values(v).every(val => Array.isArray(val) && (val.length === 0 || val.every(item => typeof item === 'string' || typeof item === 'number')))
+  )
+  const isOffsetArray = (varName: string) => /^(dirs|directions|moves|deltas|offsets|prerequisites|pairs)$/i.test(varName)
+  const isMatrixPresent = Object.entries(vars).some(([k, value]) =>
+    !k.startsWith('__') &&
+    !isOffsetArray(k) &&
+    Array.isArray(value) && value.length > 0 && value.every(row => Array.isArray(row)) && (value as unknown[][]).some(row => row.length > 0)
+  )
+  const isTreePresent = Object.values(vars).some(v => v && typeof v === 'object' && ('left' in v || 'right' in v))
+  const isLLPresent = Object.values(vars).some(v => v && typeof v === 'object' && ('next' in v || 'val' in v || 'value' in v) && !('left' in v))
+
+  // 1. STACK DETECTOR (primary only when no spatial or linked structures present)
   const stackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
   const strEntriesForStack = Object.entries(vars).filter(([k, v]) => !k.startsWith('__') && typeof v === 'string' && (v as string).length > 0 && k !== 'type')
   const hasArrayForStack = Object.entries(vars).some(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && (typeof (v as unknown[])[0] === 'number' || typeof (v as unknown[])[0] === 'string'))
 
-  if (stackVar && strEntriesForStack.length === 0 && !hasArrayForStack) {
+  if (!isGraphPresent && !isMatrixPresent && !isTreePresent && !isLLPresent && stackVar && strEntriesForStack.length === 0 && !hasArrayForStack) {
     const [name, arr] = stackVar
     const items = arr as (string | number)[]
     return {
@@ -1718,9 +1741,9 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     }
   }
 
-  // 2. QUEUE DETECTOR
+  // 2. QUEUE DETECTOR (primary only when no graph, matrix, tree, or linked list present)
   const queueVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('queue') && Array.isArray(v))
-  if (queueVar) {
+  if (!isGraphPresent && !isMatrixPresent && !isTreePresent && !isLLPresent && queueVar) {
     const [name, arr] = queueVar
     const items = arr as (string | number)[]
     return {
@@ -1769,8 +1792,16 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       const val = node.val !== undefined ? node.val : node.value
       
       let highlight: DSANode['highlight'] = 'none'
-      if (vars['curr'] && (vars['curr'] as any).val === val) highlight = 'active'
-      else if (vars['node'] && (vars['node'] as any).val === val) highlight = 'active'
+      const activeNodeVars = ['curr', 'current', 'node', 'root', 'p', 'q', 'target', 'subRoot']
+      for (const varKey of activeNodeVars) {
+        const v = vars[varKey]
+        if (v && typeof v === 'object') {
+          if (v === node || (v as any).val === val || (v as any).value === val) {
+            highlight = (varKey === 'target' || varKey === 'p' || varKey === 'q') ? 'found' : 'active'
+            break
+          }
+        }
+      }
 
       nodes.push({
         id,
@@ -1818,8 +1849,8 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
   }
 
   // 4. LINKED LIST DETECTOR
-  const linkedListVars = Object.entries(vars).filter(([, v]) => 
-    v && typeof v === 'object' && ('next' in v || 'val' in v || 'value' in v)
+  const linkedListVars = Object.entries(vars).filter(([k, v]) => 
+    !k.startsWith('__') && v && typeof v === 'object' && ('next' in v || 'val' in v || 'value' in v)
   )
 
   if (linkedListVars.length > 0) {
@@ -1835,60 +1866,88 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     }
 
     // Determine the heads to start tracing from
-    // Prioritize named lists, dummy nodes, or heads
-    const preferredHeadNames = ['list1', 'list2', 'l1', 'l2', 'head1', 'head2', 'head', 'dummy', 'list']
-    let startVars = linkedListVars.filter(([k]) => preferredHeadNames.includes(k))
+    const preferredHeadNames = ['head', 'list1', 'list2', 'l1', 'l2', 'head1', 'head2', 'dummy', 'list', 'first', 'second', 'slow', 'fast', 'curr', 'prev']
+    let startVars = linkedListVars.filter(([k]) => preferredHeadNames.includes(k.toLowerCase()))
     if (startVars.length === 0) startVars = linkedListVars
 
-    const globalVisited = new Set<unknown>()
-    let currentY = 80
+    const globalVisited = new Map<unknown, string>() // nodeObj -> nodeId
+    let currentY = 120
     let listCount = 0
 
-    for (const [varName, headNode] of startVars) {
-      if (globalVisited.has(headNode)) continue // Already traced this node as part of another list
+    // Trace from startVars first, and then trace any remaining unvisited linked list nodes
+    const allTraceVars = [...startVars]
+    for (const entry of linkedListVars) {
+      if (!allTraceVars.some(([, n]) => n === entry[1])) {
+        allTraceVars.push(entry)
+      }
+    }
+
+    for (const [, headNode] of allTraceVars) {
+      if (globalVisited.has(headNode)) continue
 
       let curr: any = headNode
       let idx = 0
+      const currentListPath = new Set<unknown>()
 
-      while (curr && !globalVisited.has(curr)) {
-        globalVisited.add(curr)
-        const val = curr.val !== undefined ? curr.val : curr.value
-        const id = `ll-${listCount}-${idx}`
+      while (curr && !currentListPath.has(curr)) {
+        currentListPath.add(curr)
+        const isAlreadyGlobal = globalVisited.has(curr)
+        const id = isAlreadyGlobal ? globalVisited.get(curr)! : `ll-${listCount}-${idx}`
         
-        let highlight: DSANode['highlight'] = 'none'
-        const ptrNames = nodePointers.get(curr) || []
-        
-        // Determine highlighting based on variable names pointing to this node
-        if (ptrNames.some(n => ['curr', 'current', 'list1', 'list2', 'l1', 'l2'].includes(n))) {
-          highlight = 'active'
-        } else if (ptrNames.some(n => ['prev', 'p'].includes(n))) {
-          highlight = 'visited'
-        } else if (ptrNames.some(n => ['next', 'nextTemp', 'q', 'temp'].includes(n))) {
-          highlight = 'comparing'
-        } else if (ptrNames.length > 0 && !ptrNames.includes(varName)) {
-          // It has some other pointer pointing to it
-          highlight = 'processing'
+        if (!isAlreadyGlobal) {
+          globalVisited.set(curr, id)
+          const val = curr.val !== undefined ? curr.val : curr.value
+          const ptrNames = nodePointers.get(curr) || []
+          
+          let highlight: DSANode['highlight'] = 'none'
+          if (ptrNames.some(n => ['curr', 'current'].includes(n))) {
+            highlight = 'active'
+          } else if (ptrNames.some(n => ['prev', 'p'].includes(n))) {
+            highlight = 'visited'
+          } else if (ptrNames.some(n => ['next', 'nextTemp', 'tmp1', 'tmp2', 'q', 'temp'].includes(n))) {
+            highlight = 'comparing'
+          } else if (ptrNames.includes('slow') && ptrNames.includes('fast')) {
+            highlight = 'found'
+          } else if (ptrNames.includes('slow')) {
+            highlight = 'visited'
+          } else if (ptrNames.includes('fast')) {
+            highlight = 'swapping'
+          } else if (ptrNames.length > 0) {
+            highlight = 'processing'
+          }
+
+          nodes.push({
+            id,
+            value: val !== undefined ? String(val) : 'Node',
+            x: idx * 135 + 80,
+            y: currentY,
+            highlight,
+            label: ptrNames.length > 0 ? ptrNames.join(', ') : undefined
+          })
         }
 
-        // Create a label showing which variables point to this node
-        const label = ptrNames.join(', ')
-
-        nodes.push({
-          id,
-          value: val !== undefined ? String(val) : `Node`,
-          x: idx * 100 + 60,
-          y: currentY,
-          highlight,
-          label: label || undefined
-        })
-
-        if (idx > 0) {
-          edges.push({
-            id: `e-ll-${listCount}-${idx-1}-${idx}`,
-            from: `ll-${listCount}-${idx-1}`,
-            to: id,
-            directed: true
-          })
+        // Check curr.next
+        if (curr.next && typeof curr.next === 'object') {
+          if (currentListPath.has(curr.next) || globalVisited.has(curr.next)) {
+            const targetId = globalVisited.get(curr.next) || id
+            edges.push({
+              id: `e-cycle-${id}-${targetId}`,
+              from: id,
+              to: targetId,
+              directed: true,
+              highlight: true,
+              label: 'cycle'
+            })
+            break
+          } else {
+            const nextId = `ll-${listCount}-${idx + 1}`
+            edges.push({
+              id: `e-${id}-${nextId}`,
+              from: id,
+              to: nextId,
+              directed: true
+            })
+          }
         }
         
         curr = curr.next
@@ -1896,12 +1955,11 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       }
       
       if (idx > 0) {
-        currentY += 100 // Move down for the next list
+        currentY += 100
         listCount++
       }
     }
     
-    // If we have nodes, return the state
     if (nodes.length > 0) {
       return {
         type: 'linkedlist',
@@ -1914,62 +1972,134 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
 
   // 5. GRAPH DETECTOR
   const findGraph = (vrs: Record<string, unknown>) => {
-    const candidates = Object.entries(vrs).filter(([, v]) => 
+    const candidates = Object.entries(vrs).filter(([k, v]) => 
+      !k.startsWith('__') &&
       v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Map) && !(v instanceof Set) &&
-      Object.values(v).every(val => Array.isArray(val) && val.every(item => typeof item === 'string' || typeof item === 'number'))
+      Object.keys(v).length > 0 &&
+      Object.values(v).every(val => Array.isArray(val) && (val.length === 0 || val.every(item => typeof item === 'string' || typeof item === 'number')))
     )
     if (candidates.length === 0) return null
-    return candidates[0]
+    const preferred = candidates.find(([k]) => /^(graph|adj|adjlist|adjacency|cloned|g)$/i.test(k))
+    return preferred || candidates[0]
   }
   const graphEntry = findGraph(vars)
   if (graphEntry) {
     const [name, graphObj] = graphEntry
     const adjList = graphObj as Record<string, (string | number)[]>
-    const nodeIds = Object.keys(adjList)
+    
+    // Gather all unique nodes from keys and neighbor values
+    const nodeSet = new Set<string>()
+    for (const [k, neighbors] of Object.entries(adjList)) {
+      nodeSet.add(String(k))
+      for (const nbr of neighbors || []) {
+        nodeSet.add(String(nbr))
+      }
+    }
+    const nodeIds = Array.from(nodeSet).sort((a, b) => {
+      const numA = Number(a), numB = Number(b)
+      return (!isNaN(numA) && !isNaN(numB)) ? numA - numB : a.localeCompare(b)
+    })
     const n = nodeIds.length
-    
-    const visitedVar = Object.values(vars).find(v => (v instanceof Set || Array.isArray(v)) && [...v].every(item => typeof item === 'string' || typeof item === 'number'))
-    const visitedSet = visitedVar ? new Set([...visitedVar as any]) : new Set<string>()
-    
-    const queueVar = Object.entries(vars).find(([k, v]) => (k === 'queue' || k === 'stack') && Array.isArray(v))
-    const queueItems = queueVar ? queueVar[1] as (string | number)[] : []
 
-    const currentVar = Object.entries(vars).find(([k, v]) => (k === 'node' || k === 'curr' || k === 'current') && (typeof v === 'string' || typeof v === 'number'))
+    // State array (Course Schedule pattern: 0=unvisited, 1=visiting, 2=visited)
+    const stateVar = Object.entries(vars).find(([k, v]) => /^(state|status|visitedState)$/i.test(k) && Array.isArray(v))
+    const stateArr = stateVar ? (stateVar[1] as number[]) : null
+
+    // Visited set or array
+    const visitedVar = Object.entries(vars).find(([k, v]) => 
+      /^(visited|seen|closed|done|processed)$/i.test(k) && 
+      (v instanceof Set || Array.isArray(v))
+    )
+    const visitedSet = new Set<string>()
+    if (visitedVar) {
+      const raw = visitedVar[1]
+      const items = (raw instanceof Set ? Array.from(raw) : raw) as unknown[]
+      items.forEach((item: any) => visitedSet.add(String(item)))
+    }
+
+    // Cloned map / object (Clone Graph pattern)
+    const clonedVar = Object.entries(vars).find(([k, v]) => /^(cloned|clones|copies)$/i.test(k) && typeof v === 'object' && v !== null)
+    const clonedKeys = new Set(clonedVar ? Object.keys(clonedVar[1] as object).map(String) : [])
+
+    // Queue / Stack for BFS / DFS
+    const queueVar = Object.entries(vars).find(([k, v]) => (k === 'queue' || k === 'stack' || k === 'q') && Array.isArray(v))
+    const queueItems = queueVar ? (queueVar[1] as (string | number)[]).map(v => typeof v === 'object' && v !== null && 'val' in v ? (v as any).val : v) : []
+
+    const currentVar = Object.entries(vars).find(([k, v]) => (k === 'node' || k === 'curr' || k === 'current' || k === 'u' || k === 'v') && (typeof v === 'string' || typeof v === 'number'))
     const currentVal = currentVar ? String(currentVar[1]) : null
 
+    // Node coordinates layout
     const positions: Record<string, { x: number; y: number }> = {}
-    nodeIds.forEach((id, i) => {
-      const angle = (i / n) * Math.PI * 2 - Math.PI / 2
-      positions[id] = { x: 220 + 160 * Math.cos(angle), y: 200 + 160 * Math.sin(angle) }
-    })
+    if (n === 1) {
+      positions[nodeIds[0]] = { x: 250, y: 200 }
+    } else if (n === 2) {
+      positions[nodeIds[0]] = { x: 170, y: 200 }
+      positions[nodeIds[1]] = { x: 330, y: 200 }
+    } else {
+      const radius = Math.min(150, Math.max(80, 50 + n * 16))
+      nodeIds.forEach((id, i) => {
+        const angle = (i / n) * Math.PI * 2 - Math.PI / 2
+        positions[id] = {
+          x: 250 + radius * Math.cos(angle),
+          y: 200 + radius * Math.sin(angle)
+        }
+      })
+    }
 
     const nodes: DSANode[] = nodeIds.map(id => {
       let highlight: DSANode['highlight'] = 'none'
-      if (id === currentVal) highlight = 'active'
-      else if (visitedSet.has(id)) highlight = 'found'
-      else if (queueItems.includes(id)) highlight = 'comparing'
+      const idNum = Number(id)
       
+      if (stateArr && !isNaN(idNum) && stateArr[idNum] !== undefined) {
+        if (stateArr[idNum] === 1) highlight = 'active'
+        else if (stateArr[idNum] === 2) highlight = 'found'
+      } else if (id === currentVal) {
+        highlight = 'active'
+      } else if (visitedSet.has(id) || clonedKeys.has(id)) {
+        highlight = 'found'
+      } else if (queueItems.map(String).includes(id)) {
+        highlight = 'comparing'
+      }
+
       return {
         id,
         value: id,
-        x: positions[id].x,
-        y: positions[id].y,
+        x: positions[id]?.x ?? 250,
+        y: positions[id]?.y ?? 200,
         highlight
       }
     })
 
+    // Detect if graph has directed edges
+    let isDirected = /prerequisite|canfinish|course|directed|topological/i.test(lineCode) ||
+      Object.keys(vars).some(k => /prerequisite|courses/i.test(k))
+    if (!isDirected) {
+      for (const [from, neighbors] of Object.entries(adjList)) {
+        for (const to of neighbors || []) {
+          const rev = adjList[String(to)]
+          if (!rev || !rev.map(String).includes(String(from))) {
+            isDirected = true
+            break
+          }
+        }
+        if (isDirected) break
+      }
+    }
+
     const edges: DSAEdge[] = []
     const seenEdges = new Set<string>()
     for (const [from, neighbors] of Object.entries(adjList)) {
-      for (const to of neighbors) {
-        const key = [from, to].sort().join('-')
+      for (const to of neighbors || []) {
+        const toStr = String(to)
+        const fromStr = String(from)
+        const key = isDirected ? `${fromStr}->${toStr}` : [fromStr, toStr].sort().join('-')
         if (!seenEdges.has(key)) {
           seenEdges.add(key)
           edges.push({
-            id: `e-g-${from}-${to}`,
-            from,
-            to: String(to),
-            directed: false
+            id: `e-g-${fromStr}-${toStr}`,
+            from: fromStr,
+            to: toStr,
+            directed: isDirected
           })
         }
       }
@@ -1979,13 +2109,16 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       type: 'graph',
       nodes,
       edges,
-      message: `${name}: Graph Adjacency Layout`
+      queueItems: queueItems.length > 0 ? queueItems : undefined,
+      message: `${name}: Graph Adjacency Layout (${nodes.length} nodes)`
     }
   }
 
   // 6. MATRIX / GRID / 2-D TABLE DETECTOR
-  const matrixEntries = Object.entries(vars).filter(([, value]) =>
-    Array.isArray(value)
+  const matrixEntries = Object.entries(vars).filter(([k, value]) =>
+    !k.startsWith('__')
+    && !isOffsetArray(k)
+    && Array.isArray(value)
     && value.length > 0
     && value.every(row => Array.isArray(row))
     && (value as unknown[][]).some(row => row.length > 0)
@@ -1993,13 +2126,18 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
 
   if (matrixEntries.length > 0) {
     const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // Prioritize standard names 'grid', 'matrix', 'board', 'heights'
+    const prioritizedMatrix = matrixEntries.find(([matrixName]) =>
+      /^(grid|matrix|board|heights|image|table)$/i.test(matrixName)
+    )
     const referencedMatrix = matrixEntries.find(([matrixName]) =>
       new RegExp(`\\b${escapeRegExp(matrixName)}\\b`).test(lineCode)
     )
     const preferredMatrix = preferredName
       ? matrixEntries.find(([matrixName]) => matrixName === preferredName)
       : undefined
-    const [name, rawMatrix] = referencedMatrix || preferredMatrix || matrixEntries[0]
+
+    const [name, rawMatrix] = referencedMatrix || prioritizedMatrix || preferredMatrix || matrixEntries[0]
     const matrix = (rawMatrix as unknown[][]).slice(0, 16).map(row => row.slice(0, 16))
     const rowCount = matrix.length
     const columnCount = matrix.reduce((largest, row) => Math.max(largest, row.length), 0)
@@ -2023,12 +2161,20 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       }
     }
 
-    const rowPointerName = ['row', 'r', 'i'].find(candidate =>
+    // Dynamic row/col pointer candidates
+    const rowCandidates = ['row', 'r', 'currRow', 'currR', 'nr', 'nextRow', 'x', 'i', 'top', 'bottom', 'bottomRow', 'topRow']
+    const colCandidates = ['col', 'column', 'c', 'currCol', 'currC', 'nc', 'nextCol', 'y', 'j', 'left', 'right', 'rightCol', 'leftCol']
+
+    // Prefer candidates that appear in lineCode
+    const rowInLine = rowCandidates.filter(c => new RegExp(`\\b${c}\\b`).test(lineCode))
+    const colInLine = colCandidates.filter(c => new RegExp(`\\b${c}\\b`).test(lineCode))
+
+    const rowPointerName = (rowInLine.concat(rowCandidates)).find(candidate =>
       typeof vars[candidate] === 'number'
       && (vars[candidate] as number) >= 0
       && (vars[candidate] as number) < rowCount
     )
-    const columnPointerName = ['column', 'col', 'c', 'j'].find(candidate =>
+    const columnPointerName = (colInLine.concat(colCandidates)).find(candidate =>
       typeof vars[candidate] === 'number'
       && (vars[candidate] as number) >= 0
       && (vars[candidate] as number) < columnCount
@@ -2039,21 +2185,57 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       `\\b${escapedName}\\s*\\[[^\\]]+\\]\\s*\\[[^\\]]+\\]\\s*(?:[+\\-*/%]?=(?!=)|\\+\\+|--)`
     ).test(lineCode)
 
+    // Detect visited sets or 2D boolean matrices (e.g., pac, atl, visited, seen)
+    const visitedCellKeys = new Set<string>()
+    for (const [k, v] of Object.entries(vars)) {
+      if (k === name || k.startsWith('__')) continue
+      if (v instanceof Set) {
+        v.forEach(item => {
+          if (typeof item === 'string') {
+            const m = item.match(/^(\d+)[,:\-](\d+)$/)
+            if (m) visitedCellKeys.add(`${m[1]}:${m[2]}`)
+          } else if (Array.isArray(item) && item.length === 2 && typeof item[0] === 'number' && typeof item[1] === 'number') {
+            visitedCellKeys.add(`${item[0]}:${item[1]}`)
+          }
+        })
+      } else if (Array.isArray(v) && v.length === rowCount && v.every(row => Array.isArray(row))) {
+        (v as unknown[][]).forEach((row, r) => {
+          row.forEach((cell, c) => {
+            if (cell === true || cell === 1 || cell === 'visited' || cell === 'v') {
+              visitedCellKeys.add(`${r}:${c}`)
+            }
+          })
+        })
+      }
+    }
+
+    // Extract queue items for BFS on Matrix (e.g. Rotting Oranges)
+    const queueVar = Object.entries(vars).find(([k, v]) => (k === 'queue' || k === 'q' || k.toLowerCase().includes('queue')) && Array.isArray(v))
+    const queueItems = queueVar ? (queueVar[1] as (string | number | any)[]) : undefined
+
     const nodes: DSANode[] = []
     matrix.forEach((row, rowIndex) => {
       row.forEach((value, columnIndex) => {
         const cellKey = `${rowIndex}:${columnIndex}`
         const isAccessed = accessedCells.has(cellKey)
-        const isPointerCell = accessedCells.size === 0
-          && rowIndex === rowPointer
-          && columnIndex === columnPointer
+        const isPointerCell = rowIndex === rowPointer && columnIndex === columnPointer
+        const isVisitedCell = visitedCellKeys.has(cellKey)
+
+        let highlight: DSANode['highlight'] = 'none'
+        if (isAccessed) {
+          highlight = isWrite ? 'swapping' : 'comparing'
+        } else if (isPointerCell) {
+          highlight = 'active'
+        } else if (isVisitedCell) {
+          highlight = 'visited'
+        }
 
         nodes.push({
           id: `m-${rowIndex}-${columnIndex}`,
           value: typeof value === 'object' ? JSON.stringify(safeSerialize(value)) : String(value),
           x: columnIndex,
           y: rowIndex,
-          highlight: isAccessed ? (isWrite ? 'swapping' : 'comparing') : isPointerCell ? 'active' : 'none',
+          highlight,
         })
       })
     })
@@ -2062,6 +2244,7 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       type: 'matrix',
       nodes,
       message: `${name}: ${rowCount} × ${columnCount}`,
+      queueItems: queueItems && queueItems.length > 0 ? queueItems : undefined,
       auxiliaryData: {
         matrix: {
           name,
@@ -2127,23 +2310,24 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     const ignoredNumNames = new Set([
       'length', 'len', 'n', 'size', 'count', 'sum', 'total', 'max', 'min', 
       'target', 'diff', 'curr', 'current', 'temp', 'val', 'value', 'ans', 'res', 'result', 'pivot',
-      'maxLength', 'maxLen', 'maxlength', 'zeroCount', 'zerocount', 'ones', 'zeros',
+      'maxLength', 'maxLen', 'maxlength', 'maxlen', 'zeroCount', 'zerocount', 'ones', 'zeros',
       'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
-      'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
-      'key', 'depth', 'level', 'step', 'steps', 'windowSum',
-      'formed', 'required', 'minLen', 'start', 'minLength', 'minStart',
+      'complement', 'profit', 'maxProfit', 'maxprofit', 'minPrice', 'minprice', 'currentSum', 'maxSum',
+      'key', 'depth', 'level', 'step', 'steps', 'windowSum', 'windowsum', 'maxsum',
+      'formed', 'required', 'minLen', 'minlen', 'start', 'minLength', 'minlength', 'minStart',
       'matches', 'maxMatches', 'maxmatches', 'best', 'bestWord', 'bestword',
       'maxVal', 'minVal', 'maxval', 'minval', 'score', 'bestScore',
       'average', 'avarage', 'avg', 'mean', 'median', 'ratio', 'percentage', 'pct',
       'gap', 'distance', 'cost', 'weight', 'capacity', 'threshold', 'limit',
-      'maxsum', 'minsum', 'cursum', 'runsum', 'runningsum', 'prefixsum', 'suffixsum',
+      'maxReach', 'maxreach', 'reach', 'jump', 'fuel', 'tank',
+      'minsum', 'cursum', 'runsum', 'runningsum', 'prefixsum', 'suffixsum',
       'maxavg', 'minavg', 'curavg',
       'counter', 'freq', 'frequency', 'occurrence', 'occurrences'
     ]);
 
     // Also ignore variables whose names contain common non-pointer substrings
     // (catches typos and variations like sildWindow, slidWindow, windowCount, etc.)
-    const ignoredSubstrings = ['window', 'avg', 'average', 'avarage', 'sum', 'count', 'total', 'profit', 'price', 'cost', 'freq', 'score'];
+    const ignoredSubstrings = ['window', 'avg', 'average', 'avarage', 'sum', 'count', 'total', 'profit', 'price', 'cost', 'freq', 'score', 'reach'];
 
     const validIndices = Object.entries(vars)
       .filter(([k, v]) => {
@@ -2159,7 +2343,7 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       .map(([k, v]) => ({ name: k, val: v as number }));
 
     // Priority naming list for pointers
-    const pointerPriority = ['mid', 'm', 'left', 'l', 'right', 'r', 'i', 'j', 'k', 'p1', 'p2', 'idx', 'index'];
+    const pointerPriority = ['mid', 'm', 'left', 'l', 'right', 'r', 'slow', 'fast', 'read', 'write', 'i', 'j', 'k', 'p1', 'p2', 'idx', 'index'];
     const lowerLineCode = lineCode.toLowerCase();
 
     validIndices.sort((a, b) => {
@@ -2201,15 +2385,42 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     // when the operation only compares arr[j] with arr[j + 1].
     const forCounter = lineCode.match(/^for\s*\(\s*(?:(?:let|const|var)\s+)?([A-Za-z_$][\w$]*)\b/) || lineCode.match(/^for\s+([A-Za-z_$][\w$]*)\s+in\b/)
 
-    if (accessedPointers.length > 0) {
-      pointer = accessedPointers[0].index
-      pointerName = accessedPointers[0].label
-      pointer2 = accessedPointers[1]?.index
-      pointer2Name = accessedPointers[1]?.label
+    // Detect if an inner two-pointer loop exists (e.g. 3Sum, Two Pointers inside outer loop)
+    const hasInnerTwoPointers = (
+      (typeof vars['left'] === 'number' && typeof vars['right'] === 'number') ||
+      (typeof vars['l'] === 'number' && typeof vars['r'] === 'number') ||
+      (typeof vars['low'] === 'number' && typeof vars['high'] === 'number') ||
+      (typeof vars['slow'] === 'number' && typeof vars['fast'] === 'number')
+    )
+
+    const isInnerJStep = (
+      forCounter?.[1] === 'j'
+      || accessedPointers.some(access => /^j(?:\b|\s*[+\-*/%])/.test(access.label))
+    )
+    const isInnerTwoPointerStep = hasInnerTwoPointers && (
+      forCounter?.[1] === 'left' || forCounter?.[1] === 'right' || forCounter?.[1] === 'fast' ||
+      accessedPointers.some(access => /^(?:left|right|slow|fast)(?:\b|\s*[+\-*/%])/.test(access.label)) ||
+      /\b(?:left|right|slow|fast|while)\b/.test(lineCode)
+    )
+
+    const outerLoopPointer = (isInnerJStep || isInnerTwoPointerStep)
+      && typeof vars['i'] === 'number'
+      && vars['i'] >= 0
+      && vars['i'] < values.length
+      ? { index: vars['i'] as number, name: 'i' }
+      : undefined
+
+    // Filter accessed pointers if outerLoopPointer is active to keep inner pointers on the array
+    const effectiveAccessed = outerLoopPointer && accessedPointers.length > 2
+      ? accessedPointers.filter(p => p.index !== outerLoopPointer.index || (p.label !== 'i' && p.label !== outerLoopPointer.name))
+      : accessedPointers
+
+    if (effectiveAccessed.length > 0) {
+      pointer = effectiveAccessed[0].index
+      pointerName = effectiveAccessed[0].label
+      pointer2 = effectiveAccessed[1]?.index
+      pointer2Name = effectiveAccessed[1]?.label
     } else {
-      // A loop-control step should show only the counter owned by that loop.
-      // In nested loops this keeps `j` moving through its complete inner pass;
-      // `i` is shown only when execution returns to the outer loop header.
       const counterName = forCounter?.[1]
       const counterValue = counterName ? vars[counterName] : undefined
       if (typeof counterValue === 'number' && counterValue >= 0 && counterValue < values.length) {
@@ -2218,28 +2429,75 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       }
     }
 
-    if (pointer === undefined && rangeStart !== undefined) {
-      pointer = rangeStart
-      pointerName = foundStart || undefined
-    }
-    if (pointer2 === undefined && rangeEnd !== undefined) {
-      pointer2 = rangeEnd
-      pointer2Name = foundEnd || undefined
+    const midCandidate = typeof vars['mid'] === 'number' ? vars['mid'] as number : (typeof vars['m'] === 'number' ? vars['m'] as number : undefined);
+    const isBinarySearch = (midCandidate !== undefined || typeof vars['target'] === 'number') &&
+      (rangeStart !== undefined || rangeEnd !== undefined || midCandidate !== undefined);
+
+    let pointer3: number | undefined
+    let pointer3Name: string | undefined
+
+    if (isBinarySearch) {
+      if (midCandidate !== undefined && midCandidate >= 0 && midCandidate < values.length) {
+        pointer = midCandidate;
+        pointerName = 'mid';
+      }
+      if (rangeStart !== undefined && rangeStart >= 0 && rangeStart < values.length) {
+        pointer2 = rangeStart;
+        pointer2Name = foundStart || 'L';
+      }
+      if (rangeEnd !== undefined && rangeEnd >= 0 && rangeEnd < values.length) {
+        pointer3 = rangeEnd;
+        pointer3Name = foundEnd || 'R';
+      }
+    } else {
+      if (pointer === undefined && rangeStart !== undefined) {
+        pointer = rangeStart
+        pointerName = foundStart || undefined
+      }
+      if (pointer2 === undefined && rangeEnd !== undefined && Boolean(foundEnd)) {
+        pointer2 = rangeEnd
+        pointer2Name = foundEnd || undefined
+      }
     }
 
-    // Keep the outer-loop counter visible as context while the inner loop is
-    // running. It is metadata only: the array item must not receive an active
-    // highlight, because `j` owns the current operation.
-    const isInnerJStep = (
-      forCounter?.[1] === 'j'
-      || accessedPointers.some(access => /^j(?:\b|\s*[+\-*/%])/.test(access.label))
-    )
-    const outerLoopPointer = isInnerJStep
-      && typeof vars['i'] === 'number'
-      && vars['i'] >= 0
-      && vars['i'] < values.length
-      ? { index: vars['i'], name: 'i' }
-      : undefined
+    // Two-pointer persistent fallback (e.g. left & right, slow & fast)
+    if (typeof vars['left'] === 'number' && typeof vars['right'] === 'number') {
+      if (pointer === undefined) {
+        pointer = vars['left'] as number
+        pointerName = 'left'
+      }
+      if (pointer2 === undefined) {
+        pointer2 = vars['right'] as number
+        pointer2Name = 'right'
+      }
+    } else if (typeof vars['slow'] === 'number' && typeof vars['fast'] === 'number') {
+      if (pointer === undefined) {
+        pointer = vars['fast'] as number
+        pointerName = 'fast'
+      }
+      if (pointer2 === undefined) {
+        pointer2 = vars['slow'] as number
+        pointer2Name = 'slow'
+      }
+    }
+
+    // Secondary pointer fallback
+    if (!forCounter && pointer2 === undefined) {
+      const secondaryCandidates = ['slow', 'j', 'right', 'r', 'p2', 'high', 'end'];
+      for (const sc of secondaryCandidates) {
+        if (typeof vars[sc] === 'number' && (vars[sc] as number) >= 0 && (vars[sc] as number) < values.length && pointerName !== sc) {
+          pointer2 = vars[sc] as number;
+          pointer2Name = sc;
+          break;
+        }
+      }
+    }
+
+    // In loop bodies where pointer is still undefined, fallback to loop counter `i` if valid to prevent flickering
+    if (pointer === undefined && typeof vars['i'] === 'number' && (vars['i'] as number) >= 0 && (vars['i'] as number) < values.length) {
+      pointer = vars['i'] as number;
+      pointerName = 'i';
+    }
 
     // ── Sliding window detection ──
     // When variable `k` (window size) exists, compute the window range dynamically.
@@ -2347,8 +2605,8 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
           // Mirror the left pointer from the end
           strPointer2 = values.length - 1 - strPointer
           strPointer2Name = 'right'
-          // Ensure pointer2 is valid and different from pointer
-          if (strPointer2 < 0 || strPointer2 >= values.length || strPointer2 <= strPointer) {
+          // Ensure pointer2 is within bounds
+          if (strPointer2 < 0 || strPointer2 >= values.length || strPointer2 < strPointer) {
             strPointer2 = undefined
             strPointer2Name = undefined
           }
@@ -2360,8 +2618,8 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
         nodes: values.map((c, i) => ({
           id: `c${i}`,
           value: c,
-          highlight: (i === strPointer ? 'comparing'
-            : i === strPointer2 ? 'comparing'
+          highlight: (isSwapLine && (i === strPointer || i === strPointer2) ? 'swapping'
+            : (i === strPointer || i === strPointer2) ? 'comparing'
             : (strPointer !== undefined && strPointer2 !== undefined && (i < strPointer || i > strPointer2)) ? 'found'
             : 'none') as DSANode['highlight']
         })),
@@ -2370,6 +2628,20 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
         pointer2: strPointer2,
         pointer2Name: strPointer2Name,
         message: `${name}: [${values.join(', ')}]`,
+      }
+    }
+
+    const hashInfo = detectHashTableInfo(vars, name, lineCode)
+    const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
+    const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
+
+    // Complement detection for Two Sum: if complement exists in Map, link pointer2
+    if (pointer2 === undefined && vars['complement'] !== undefined && hashInfo) {
+      const compVal = vars['complement']
+      const compIdx = hashInfo.table[String(compVal)]
+      if (typeof compIdx === 'number' && compIdx >= 0 && compIdx < values.length) {
+        pointer2 = compIdx
+        pointer2Name = 'complement'
       }
     }
 
@@ -2382,6 +2654,19 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
         } else if (pointer !== undefined && idx < pointer) {
           highlight = 'skipped'
         }
+      } else if (isBinarySearch) {
+        // Binary search: symmetrically dim elements outside the active search range [rangeStart..rangeEnd]
+        if (rangeStart !== undefined && idx < rangeStart) {
+          highlight = 'skipped'
+        } else if (rangeEnd !== undefined && idx > rangeEnd) {
+          highlight = 'skipped'
+        } else if (accessedIndices.has(idx)) {
+          highlight = 'comparing'
+        } else if (idx === pointer) {
+          highlight = 'active'
+        } else {
+          highlight = 'none'
+        }
       } else if (isWindow && rangeStart !== undefined && rangeEnd !== undefined) {
         // Window mode: elements in window are 'active', elements accessed on this line are 'comparing'
         if (idx >= rangeStart && idx <= rangeEnd) highlight = 'active'
@@ -2392,6 +2677,12 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       } else {
         if (idx === pivotIndex) {
           highlight = 'pivot'
+        } else if (lineCode.includes('sum === 0') && (idx === vars['i'] || idx === vars['left'] || idx === vars['right'])) {
+          highlight = 'found'
+        } else if (lineCode.includes('return') && (idx === pointer || idx === pointer2) && (hashInfo || lineCode.includes('complement'))) {
+          highlight = 'found'
+        } else if (typeof vars['slow'] === 'number' && typeof vars['fast'] === 'number' && idx <= (vars['slow'] as number)) {
+          highlight = (idx === pointer || idx === pointer2) && accessedIndices.has(idx) ? (isSwapLine ? 'swapping' : 'comparing') : 'sorted'
         } else if (accessedIndices.has(idx)) {
           highlight = isSwapLine ? 'swapping' : 'comparing'
         } else if (idx === pointer || idx === pointer2) {
@@ -2406,10 +2697,6 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
         highlight,
       }
     })
-
-    const hashInfo = detectHashTableInfo(vars, name, lineCode)
-    const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
-    const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
 
     // ── Secondary String Comparison Detection ──
     // Show character-by-character comparison when two strings exist
@@ -2458,6 +2745,62 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       }
     }
 
+    // Tracking variables for greedy, sliding window, binary search, two-pointer, and math algorithms
+    const trackingVars: Record<string, unknown> = {}
+    const candidateVars = [
+      'minPrice', 'maxProfit', 'profit',
+      'maxReach', 'jump',
+      'currentSum', 'maxSum',
+      'windowSum', 'k',
+      'left', 'right', 'mid', 'target',
+      'low', 'high',
+      'maxLen', 'ans', 'count', 'total', 'res', 'cost', 'fuel', 'tank',
+      'leftMax', 'rightMax', 'water', 'totalWater', 'maxArea', 'area', 'slow', 'fast', 'sum', 'complement'
+    ]
+    for (const vName of candidateVars) {
+      if (vars[vName] !== undefined && typeof vars[vName] !== 'object') {
+        trackingVars[vName] = vars[vName]
+      }
+    }
+
+    let customMessage = `${name}: [${values.join(', ')}]`
+    if (isBinarySearch && midCandidate !== undefined && vars['target'] !== undefined) {
+      customMessage = `Binary Search: mid=${midCandidate} (${values[midCandidate]}), target=${vars['target']} | range: [${rangeStart ?? 0}..${rangeEnd ?? values.length - 1}]`
+    } else if (vars['maxProfit'] !== undefined) {
+      customMessage = `Stock: maxProfit=${vars['maxProfit']}${vars['minPrice'] !== undefined ? `, minPrice=${vars['minPrice']}` : ''}`
+    } else if (vars['maxSum'] !== undefined && vars['currentSum'] !== undefined) {
+      customMessage = `Kadane: maxSum=${vars['maxSum']}, currentSum=${vars['currentSum']}`
+    } else if (vars['maxReach'] !== undefined) {
+      customMessage = `Jump Game: i=${pointer ?? 0}, maxReach=${vars['maxReach']}`
+    } else if (vars['windowSum'] !== undefined) {
+      customMessage = `Sliding Window: windowSum=${vars['windowSum']}${vars['maxSum'] !== undefined ? `, maxSum=${vars['maxSum']}` : ''}`
+    } else if (vars['maxArea'] !== undefined || vars['area'] !== undefined) {
+      customMessage = `Container With Most Water: maxArea=${vars['maxArea'] ?? vars['max'] ?? 0}${vars['area'] !== undefined ? `, currentArea=${vars['area']}` : ''}`
+    } else if (vars['water'] !== undefined || (vars['leftMax'] !== undefined && vars['rightMax'] !== undefined)) {
+      customMessage = `Trapping Rain Water: water=${vars['water'] ?? 0}, leftMax=${vars['leftMax'] ?? 0}, rightMax=${vars['rightMax'] ?? 0}`
+    } else if (vars['slow'] !== undefined && vars['fast'] !== undefined) {
+      customMessage = `Remove Duplicates: slow=${vars['slow']}, fast=${vars['fast']}`
+    } else if (vars['sum'] !== undefined && (typeof vars['left'] === 'number' && typeof vars['right'] === 'number')) {
+      customMessage = `3Sum: i=${vars['i'] ?? ''}, left=${vars['left']}, right=${vars['right']}, sum=${vars['sum']}`
+    } else if (vars['maxLen'] !== undefined) {
+      customMessage = `Max Length: maxLen=${vars['maxLen']}`
+    } else if (vars['ans'] !== undefined && typeof vars['ans'] !== 'object') {
+      customMessage = `Result: ans=${vars['ans']}`
+    } else if (vars['res'] !== undefined && typeof vars['res'] !== 'object') {
+      customMessage = `Result: res=${vars['res']}`
+    }
+
+    const isElevationProblem = name === 'height' || name === 'elevation' ||
+      /\b(?:maxArea|trap|most\s*water|trapping)\b/i.test(lineCode)
+
+    const auxData: Record<string, unknown> = {
+      ...(stringCompare ? { stringCompare } : {}),
+      ...(outerLoopPointer ? { outerLoopPointer } : {}),
+      ...(Object.keys(trackingVars).length > 0 ? { trackingVars } : {}),
+      ...(isElevationProblem ? { renderAsBars: true } : {}),
+      ...(isBinarySearch ? { isSearch: true, renderAs: 'boxes' } : {})
+    }
+
     return {
       type: 'array',
       nodes,
@@ -2465,19 +2808,67 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       pointerName,
       pointer2,
       pointer2Name,
+      pointer3,
+      pointer3Name,
       rangeStart,
       rangeEnd,
       pivotIndex,
-      message: `${name}: [${values.join(', ')}]`,
+      message: customMessage,
       hashTable: hashInfo?.table,
       arrayName: name,
       hashTableName: hashInfo?.name,
       hashTableLabel: hashInfo?.label,
       stackItems,
       stackName: detectedStackVar ? detectedStackVar[0] : undefined,
-      auxiliaryData: stringCompare || outerLoopPointer
-        ? { ...(stringCompare ? { stringCompare } : {}), ...(outerLoopPointer ? { outerLoopPointer } : {}) }
-        : undefined
+      auxiliaryData: Object.keys(auxData).length > 0 ? auxData : undefined
+    }
+  }
+
+  // 7.5 BACKSPACE STRING COMPARE DETECTOR
+  // Only detect when variables or code specifically indicate the backspace compare problem
+  if (typeof vars['s'] === 'string' && typeof vars['t'] === 'string') {
+    const sStr = vars['s'] as string;
+    const tStr = vars['t'] as string;
+    const hasExplicitSkip = typeof vars['skipS'] === 'number' || typeof vars['skipT'] === 'number' ||
+      typeof vars['backspaceS'] === 'number' || typeof vars['backspaceT'] === 'number';
+    const hasBackspaceName = /\bbackspace(?:String)?Compare\b/i.test(lineCode) ||
+      Object.keys(vars).some(k => /skip[ST]|backspace[ST]/i.test(k));
+    const hasBackspaceChar = sStr.includes('#') || tStr.includes('#');
+
+    if (hasExplicitSkip || (hasBackspaceChar && hasBackspaceName)) {
+      const pointerI = typeof vars['i'] === 'number' ? vars['i'] as number : undefined;
+      const pointerJ = typeof vars['j'] === 'number' ? vars['j'] as number : undefined;
+      
+      const skipS = typeof vars['skipS'] === 'number' ? vars['skipS'] as number : (typeof vars['backspaceS'] === 'number' ? vars['backspaceS'] as number : 0);
+      const skipT = typeof vars['skipT'] === 'number' ? vars['skipT'] as number : (typeof vars['backspaceT'] === 'number' ? vars['backspaceT'] as number : 0);
+
+      let message = `Backspace Compare`;
+      const trimmedLine = lineCode.trim();
+      if (trimmedLine.startsWith('return')) {
+        message = `Return: ${trimmedLine.replace(/^return\s+/, '').replace(/;$/, '')}`;
+      }
+
+      const nodes: DSANode[] = sStr.split('').map((char, idx) => ({
+        id: `s-${idx}`,
+        value: char,
+        highlight: idx === pointerI ? 'active' : 'none'
+      }));
+
+      return {
+        type: 'string',
+        nodes,
+        message,
+        auxiliaryData: {
+          isBackspaceCompare: true,
+          s: sStr,
+          t: tStr,
+          i: pointerI,
+          j: pointerJ,
+          skipS,
+          skipT,
+          lineCode
+        }
+      };
     }
   }
 
@@ -2519,17 +2910,18 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     const ignoredNumNames = new Set([
       'length', 'len', 'n', 'size', 'count', 'sum', 'total', 'max', 'min', 
       'target', 'diff', 'curr', 'current', 'temp', 'val', 'value', 'ans', 'res', 'result', 'pivot',
-      'maxLength', 'maxLen', 'maxlength', 'zeroCount', 'zerocount', 'ones', 'zeros',
+      'maxLength', 'maxLen', 'maxlength', 'maxlen', 'zeroCount', 'zerocount', 'ones', 'zeros',
       'comparisons', 'swaps', 'shifts', 'k', 'windowLen', 'windowSize',
       'complement', 'profit', 'maxProfit', 'minPrice', 'currentSum', 'maxSum',
       'key', 'depth', 'level', 'step', 'steps',
-      'formed', 'required', 'minLen', 'start', 'minLength', 'minStart',
+      'formed', 'required', 'minLen', 'minlen', 'start', 'minLength', 'minlength', 'minStart',
       'average', 'avarage', 'avg', 'mean', 'median', 'ratio', 'percentage', 'pct',
       'gap', 'distance', 'cost', 'weight', 'capacity', 'threshold', 'limit',
+      'maxReach', 'maxreach', 'reach', 'jump', 'fuel', 'tank',
       'counter', 'freq', 'frequency', 'occurrence', 'occurrences'
     ]);
 
-    const ignoredSubstrings = ['window', 'avg', 'average', 'avarage', 'sum', 'count', 'total', 'profit', 'price', 'cost', 'freq', 'score'];
+    const ignoredSubstrings = ['window', 'avg', 'average', 'avarage', 'sum', 'count', 'total', 'profit', 'price', 'cost', 'freq', 'score', 'reach'];
 
     const validIndices = Object.entries(vars)
       .filter(([k, v]) => {
@@ -2584,8 +2976,30 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     if (stringAccesses.length > 0) {
       pointer = stringAccesses[0].index
       pointerName = stringAccesses[0].label
-      pointer2 = stringAccesses[1]?.index
-      pointer2Name = stringAccesses[1]?.label
+      if (stringAccesses[1]) {
+        pointer2 = stringAccesses[1].index
+        pointer2Name = stringAccesses[1].label
+      }
+    }
+
+    if (pointer === undefined && rangeStart !== undefined) {
+      pointer = rangeStart;
+      pointerName = foundStart || 'left';
+    }
+    if (pointer2 === undefined && rangeEnd !== undefined) {
+      pointer2 = rangeEnd;
+      pointer2Name = foundEnd || 'right';
+    }
+
+    // Preserve both sliding window boundary pointers if rangeStart and rangeEnd exist
+    if (rangeStart !== undefined && rangeEnd !== undefined) {
+      if (pointer === rangeEnd && pointer2 === undefined) {
+        pointer2 = rangeStart;
+        pointer2Name = foundStart || 'left';
+      } else if (pointer === rangeStart && pointer2 === undefined) {
+        pointer2 = rangeEnd;
+        pointer2Name = foundEnd || 'right';
+      }
     }
 
     const isWindow = rangeStart !== undefined && rangeEnd !== undefined && rangeEnd >= rangeStart
@@ -2593,6 +3007,19 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
     const hashInfo = detectHashTableInfo(vars, name, lineCode)
     const detectedStackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
     const stackItems = detectedStackVar ? [...(detectedStackVar[1] as (string|number)[])] : undefined
+
+    const stringTrackingVars: Record<string, unknown> = {}
+    for (const vName of ['left', 'right', 'maxLen', 'maxLength', 'minLen', 'minLength', 'k']) {
+      if (vars[vName] !== undefined && typeof vars[vName] !== 'object') {
+        stringTrackingVars[vName] = vars[vName]
+      }
+    }
+
+    let customStringMessage = `${name} = "${str}"`
+    if (vars['maxLen'] !== undefined || vars['maxLength'] !== undefined) {
+      const best = vars['maxLen'] ?? vars['maxLength']
+      customStringMessage = `Longest Substring: maxLen=${best}${rangeStart !== undefined && rangeEnd !== undefined ? `, window: [${rangeStart}..${rangeEnd}] ("${String(str).slice(rangeStart, rangeEnd + 1)}")` : ''}`
+    }
 
     return {
       type: 'string',
@@ -2616,13 +3043,14 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       pointer2Name,
       rangeStart,
       rangeEnd,
-      message: `${name} = "${str}"`,
+      message: customStringMessage,
       hashTable: hashInfo?.table,
       arrayName: name,
       hashTableName: hashInfo?.name,
       hashTableLabel: hashInfo?.label,
       stackItems,
-      stackName: detectedStackVar ? detectedStackVar[0] : undefined
+      stackName: detectedStackVar ? detectedStackVar[0] : undefined,
+      auxiliaryData: Object.keys(stringTrackingVars).length > 0 ? { trackingVars: stringTrackingVars } : undefined
     }
   }
 

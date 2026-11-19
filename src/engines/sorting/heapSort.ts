@@ -107,6 +107,8 @@ export function genHeapSort(arr: number[]): ExecutionStep[] {
       auxiliaryData: {
         heapSize: heapRange?.end ?? n,
         heapStart: heapRange?.start ?? 0,
+        isSorting: true,
+        renderAs: 'bars',
       },
     },
   })

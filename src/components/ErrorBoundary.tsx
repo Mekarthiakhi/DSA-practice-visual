@@ -5,8 +5,9 @@
  */
 
 import React from 'react'
-import { AlertCircle, RotateCcw } from 'lucide-react'
+import { AlertCircle, RotateCcw, Terminal } from 'lucide-react'
 import { captureTelemetry } from '../utils/telemetry'
+import { useIDEStore } from '../store/ideStore'
 
 interface Props {
   children: React.ReactNode
@@ -97,6 +98,17 @@ export class ErrorBoundary extends React.Component<Props, State> {
               >
                 Reload Page
               </button>
+            <button
+              onClick={() => {
+                this.handleReset();
+                const { setActiveVizTab } = useIDEStore.getState();
+                setActiveVizTab('heap');
+              }}
+              className="flex-1 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <Terminal size={14} />
+              Open Console
+            </button>
             </div>
 
             {/* Help Text */}

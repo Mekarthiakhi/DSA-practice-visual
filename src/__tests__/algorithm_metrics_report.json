@@ -1,0 +1,499 @@
+[
+  {
+    "category": "Greedy",
+    "name": "Best Time to Buy and Sell Stock",
+    "language": "JavaScript",
+    "input": "prices = [7, 1, 5, 3, 6, 4]",
+    "expected": "5",
+    "actual": "5",
+    "accepted": true,
+    "stepCount": 23,
+    "error": null,
+    "variables": [
+      "minPrice",
+      "maxProfit",
+      "i",
+      "prices"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 6,
+    "dsaPointers": [
+      "pointer: i",
+      "highlights: active, comparing"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Greedy",
+    "name": "Best Time to Buy and Sell Stock",
+    "language": "Python",
+    "input": "prices = [7, 1, 5, 3, 6, 4]",
+    "expected": "5",
+    "actual": "5",
+    "accepted": true,
+    "stepCount": 26,
+    "error": null,
+    "variables": [
+      "maxProfit",
+      "prices",
+      "min_price",
+      "max_profit",
+      "i"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 6,
+    "dsaPointers": [
+      "pointer: i",
+      "highlights: active, comparing"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Greedy",
+    "name": "Maximum Subarray (Kadane)",
+    "language": "JavaScript",
+    "input": "nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]",
+    "expected": "6",
+    "actual": "6",
+    "accepted": true,
+    "stepCount": 31,
+    "error": null,
+    "variables": [
+      "maxSum",
+      "currentSum",
+      "i",
+      "nums"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 9,
+    "dsaPointers": [
+      "pointer: 0, i",
+      "highlights: comparing, active"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Greedy",
+    "name": "Maximum Subarray (Kadane)",
+    "language": "Python",
+    "input": "nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]",
+    "expected": "6",
+    "actual": "6",
+    "accepted": true,
+    "stepCount": 30,
+    "error": null,
+    "variables": [
+      "maxSubArray",
+      "nums",
+      "max_sum",
+      "current_sum",
+      "i"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 9,
+    "dsaPointers": [
+      "pointer: 0, i",
+      "highlights: comparing, active"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Greedy",
+    "name": "Jump Game (Valid Jump)",
+    "language": "JavaScript",
+    "input": "nums = [2, 3, 1, 1, 4]",
+    "expected": "true",
+    "actual": "true",
+    "accepted": true,
+    "stepCount": 12,
+    "error": null,
+    "variables": [
+      "maxReach",
+      "i",
+      "nums"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 5,
+    "dsaPointers": [
+      "pointer: i",
+      "highlights: active, comparing"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Greedy",
+    "name": "Jump Game (Blocked Jump)",
+    "language": "JavaScript",
+    "input": "nums = [3, 2, 1, 0, 4]",
+    "expected": "false",
+    "actual": "false",
+    "accepted": true,
+    "stepCount": 22,
+    "error": null,
+    "variables": [
+      "maxReach",
+      "i",
+      "nums"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 5,
+    "dsaPointers": [
+      "pointer: i",
+      "highlights: active, comparing"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Greedy",
+    "name": "Jump Game",
+    "language": "Python",
+    "input": "nums = [2, 3, 1, 1, 4]",
+    "expected": "True",
+    "actual": "True",
+    "accepted": true,
+    "stepCount": 12,
+    "error": null,
+    "variables": [
+      "canJump",
+      "nums",
+      "max_reach",
+      "i"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 5,
+    "dsaPointers": [
+      "pointer: i",
+      "highlights: active, comparing"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Sliding Window",
+    "name": "Max Sum Subarray of Size K",
+    "language": "JavaScript",
+    "input": "arr = [2, 1, 5, 1, 3, 2], k = 3",
+    "expected": "9",
+    "actual": "9",
+    "accepted": true,
+    "stepCount": 21,
+    "error": null,
+    "variables": [
+      "windowSum",
+      "maxSum",
+      "i",
+      "arr",
+      "k"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 6,
+    "dsaPointers": [
+      "pointer: i",
+      "pointer2: i - k",
+      "windowRange: [0..1]",
+      "highlights: active, comparing, visited"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Sliding Window",
+    "name": "Max Sum Subarray of Size K",
+    "language": "Python",
+    "input": "arr = [2, 1, 5, 1, 3, 2], k = 3",
+    "expected": "9",
+    "actual": "9",
+    "accepted": true,
+    "stepCount": 22,
+    "error": null,
+    "variables": [
+      "maxSumSubarray",
+      "arr",
+      "k",
+      "window_sum",
+      "i",
+      "max_sum"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 6,
+    "dsaPointers": [
+      "pointer: i",
+      "pointer2: i - k",
+      "windowRange: [0..0]",
+      "highlights: active, comparing, visited"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Sliding Window",
+    "name": "Longest Substring Without Repeating Characters",
+    "language": "JavaScript",
+    "input": "s = \"abcabcbb\"",
+    "expected": "3",
+    "actual": "3",
+    "accepted": true,
+    "stepCount": 47,
+    "error": null,
+    "variables": [
+      "charSet",
+      "left",
+      "maxLength",
+      "right",
+      "s"
+    ],
+    "dsaStateType": "string",
+    "dsaNodesCount": 8,
+    "dsaPointers": [
+      "pointer: left, right",
+      "pointer2: left, right",
+      "windowRange: [0..undefined]",
+      "highlights: comparing, active"
+    ],
+    "hasHashTable": true
+  },
+  {
+    "category": "Sliding Window",
+    "name": "Longest Substring Without Repeating Characters",
+    "language": "Python",
+    "input": "s = \"abcabcbb\"",
+    "expected": "3",
+    "actual": "3",
+    "accepted": true,
+    "stepCount": 60,
+    "error": null,
+    "variables": [
+      "lengthOfLongestSubstring",
+      "s",
+      "char_set",
+      "left",
+      "max_length",
+      "right"
+    ],
+    "dsaStateType": "string",
+    "dsaNodesCount": 8,
+    "dsaPointers": [
+      "pointer: left, max_length, right",
+      "pointer2: left, right",
+      "windowRange: [0..undefined]",
+      "highlights: comparing, found, active"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Binary Search",
+    "name": "Classic Binary Search (Found)",
+    "language": "JavaScript",
+    "input": "nums = [-1, 0, 3, 5, 9, 12], target = 9",
+    "expected": "4",
+    "actual": "4",
+    "accepted": true,
+    "stepCount": 12,
+    "error": null,
+    "variables": [
+      "left",
+      "right",
+      "mid",
+      "nums",
+      "target"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 6,
+    "dsaPointers": [
+      "pointer: left, mid",
+      "pointer2: left",
+      "windowRange: [0..undefined]",
+      "highlights: active, comparing, skipped"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Binary Search",
+    "name": "Classic Binary Search (Not Found)",
+    "language": "JavaScript",
+    "input": "nums = [-1, 0, 3, 5, 9, 12], target = 2",
+    "expected": "-1",
+    "actual": "-1",
+    "accepted": true,
+    "stepCount": 19,
+    "error": null,
+    "variables": [
+      "left",
+      "right",
+      "mid",
+      "nums",
+      "target"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 6,
+    "dsaPointers": [
+      "pointer: left, mid",
+      "pointer2: left",
+      "windowRange: [0..undefined]",
+      "highlights: active, comparing, skipped"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Binary Search",
+    "name": "Classic Binary Search (Found)",
+    "language": "Python",
+    "input": "nums = [-1, 0, 3, 5, 9, 12], target = 9",
+    "expected": "4",
+    "actual": "4",
+    "accepted": true,
+    "stepCount": 13,
+    "error": null,
+    "variables": [
+      "binarySearch",
+      "nums",
+      "target",
+      "left",
+      "right",
+      "mid"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 6,
+    "dsaPointers": [
+      "pointer: left, mid",
+      "pointer2: left",
+      "windowRange: [0..undefined]",
+      "highlights: active, comparing, skipped"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Binary Search",
+    "name": "Classic Binary Search (Not Found)",
+    "language": "Python",
+    "input": "nums = [-1, 0, 3, 5, 9, 12], target = 2",
+    "expected": "-1",
+    "actual": "-1",
+    "accepted": true,
+    "stepCount": 21,
+    "error": null,
+    "variables": [
+      "binarySearch",
+      "nums",
+      "target",
+      "left",
+      "right",
+      "mid"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 6,
+    "dsaPointers": [
+      "pointer: left, mid",
+      "pointer2: left",
+      "windowRange: [0..undefined]",
+      "highlights: active, comparing, skipped"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Binary Search",
+    "name": "Search Insert Position (Exact Match)",
+    "language": "JavaScript",
+    "input": "nums = [1, 3, 5, 6], target = 5",
+    "expected": "2",
+    "actual": "2",
+    "accepted": true,
+    "stepCount": 12,
+    "error": null,
+    "variables": [
+      "left",
+      "right",
+      "mid",
+      "nums",
+      "target"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 4,
+    "dsaPointers": [
+      "pointer: left, mid",
+      "pointer2: left",
+      "windowRange: [0..undefined]",
+      "highlights: active, comparing, skipped"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Binary Search",
+    "name": "Search Insert Position (Middle Insert)",
+    "language": "JavaScript",
+    "input": "nums = [1, 3, 5, 6], target = 2",
+    "expected": "1",
+    "actual": "1",
+    "accepted": true,
+    "stepCount": 15,
+    "error": null,
+    "variables": [
+      "left",
+      "right",
+      "mid",
+      "nums",
+      "target"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 4,
+    "dsaPointers": [
+      "pointer: left, mid",
+      "pointer2: left",
+      "windowRange: [0..undefined]",
+      "highlights: active, comparing, skipped"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Binary Search",
+    "name": "Search Insert Position (End Insert)",
+    "language": "JavaScript",
+    "input": "nums = [1, 3, 5, 6], target = 7",
+    "expected": "4",
+    "actual": "4",
+    "accepted": true,
+    "stepCount": 19,
+    "error": null,
+    "variables": [
+      "left",
+      "right",
+      "mid",
+      "nums",
+      "target"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 4,
+    "dsaPointers": [
+      "pointer: left, mid",
+      "pointer2: left, right",
+      "windowRange: [0..undefined]",
+      "highlights: active, comparing, skipped"
+    ],
+    "hasHashTable": false
+  },
+  {
+    "category": "Binary Search",
+    "name": "Search Insert Position",
+    "language": "Python",
+    "input": "nums = [1, 3, 5, 6], target = 5",
+    "expected": "2",
+    "actual": "2",
+    "accepted": true,
+    "stepCount": 13,
+    "error": null,
+    "variables": [
+      "searchInsert",
+      "nums",
+      "target",
+      "left",
+      "right",
+      "mid"
+    ],
+    "dsaStateType": "array",
+    "dsaNodesCount": 4,
+    "dsaPointers": [
+      "pointer: left, mid",
+      "pointer2: left",
+      "windowRange: [0..undefined]",
+      "highlights: active, comparing, skipped"
+    ],
+    "hasHashTable": false
+  }
+]
