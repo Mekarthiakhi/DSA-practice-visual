@@ -1169,4 +1169,517 @@ const matrix = [
 ];
 const result = setZeroes(matrix);
 console.log('Result:', result);`,
+
+  // ──────────────────────────────────────────────────────────────────
+  // Grid, Stack, Binary Search, Trees, and Design Extensions
+  // ──────────────────────────────────────────────────────────────────
+
+  "36": `// Valid Sudoku — HashSet for rows, cols, and 3x3 boxes O(1)
+function isValidSudoku(board) {
+  const rows = Array.from({ length: 9 }, () => new Set());
+  const cols = Array.from({ length: 9 }, () => new Set());
+  const boxes = Array.from({ length: 9 }, () => new Set());
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const val = board[r][c];
+      if (val === '.') continue;
+      const boxIdx = Math.floor(r / 3) * 3 + Math.floor(c / 3);
+
+      if (rows[r].has(val) || cols[c].has(val) || boxes[boxIdx].has(val)) {
+        return false;
+      }
+      rows[r].add(val);
+      cols[c].add(val);
+      boxes[boxIdx].add(val);
+    }
+  }
+  return true;
+}
+const board = [
+  ["5","3",".",".","7",".",".",".","."],
+  ["6",".",".","1","9","5",".",".","."],
+  [".","9","8",".",".",".",".","6","."],
+  ["8",".",".",".","6",".",".",".","3"],
+  ["4",".",".","8",".","3",".",".","1"],
+  ["7",".",".",".","2",".",".",".","6"],
+  [".","6",".",".",".",".","2","8","."],
+  [".",".",".","4","1","9",".",".","5"],
+  [".",".",".",".","8",".",".","7","9"]
+];
+const result = isValidSudoku(board);
+console.log('Result:', result);`,
+
+  "883": `// Car Fleet — Monotonic Stack with arrival times O(n log n)
+function carFleet(target, position, speed) {
+  const cars = position.map((pos, i) => [pos, speed[i]]);
+  cars.sort((a, b) => b[0] - a[0]);
+
+  const stack = [];
+  for (let i = 0; i < cars.length; i++) {
+    const time = (target - cars[i][0]) / cars[i][1];
+    if (stack.length === 0 || time > stack[stack.length - 1]) {
+      stack.push(time);
+    }
+  }
+  return stack.length;
+}
+const result = carFleet(12, [10, 8, 0, 5, 3], [2, 4, 1, 1, 3]);
+console.log('Result:', result);`,
+
+  "1023": `// Time Based Key-Value Store — Map of timestamp arrays with Binary Search O(log n)
+function timeBasedStore() {
+  const store = new Map();
+
+  function set(key, value, timestamp) {
+    if (!store.has(key)) store.set(key, []);
+    store.get(key).push([timestamp, value]);
+  }
+
+  function get(key, timestamp) {
+    if (!store.has(key)) return "";
+    const list = store.get(key);
+    let left = 0;
+    let right = list.length - 1;
+    let res = "";
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (list[mid][0] <= timestamp) {
+        res = list[mid][1];
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+    return res;
+  }
+
+  set("foo", "bar", 1);
+  const v1 = get("foo", 1);
+  const v2 = get("foo", 3);
+  set("foo", "bar2", 4);
+  const v3 = get("foo", 4);
+  return [v1, v2, v3];
+}
+const result = timeBasedStore();
+console.log('Result:', result);`,
+
+  "146": `// LRU Cache — Hash Map + Doubly Linked List O(1)
+function lruCacheSimulation() {
+  const capacity = 2;
+  const cache = new Map();
+
+  function get(key) {
+    if (!cache.has(key)) return -1;
+    const val = cache.get(key);
+    cache.delete(key);
+    cache.set(key, val);
+    return val;
+  }
+
+  function put(key, value) {
+    if (cache.has(key)) cache.delete(key);
+    cache.set(key, value);
+    if (cache.size > capacity) {
+      const oldestKey = cache.keys().next().value;
+      cache.delete(oldestKey);
+    }
+  }
+
+  put(1, 1);
+  put(2, 2);
+  const a = get(1);
+  put(3, 3);
+  const b = get(2);
+  put(4, 4);
+  const c = get(1);
+  const d = get(3);
+  const e = get(4);
+  return [a, b, c, d, e];
+}
+const result = lruCacheSimulation();
+console.log('Result:', result);`,
+
+  "199": `// Binary Tree Right Side View — Level Order Traversal (BFS) O(n)
+function rightSideView(root) {
+  if (!root) return [];
+  const result = [];
+  const queue = [root];
+
+  while (queue.length > 0) {
+    const levelSize = queue.length;
+    let rightmost = null;
+
+    for (let i = 0; i < levelSize; i++) {
+      const curr = queue.shift();
+      rightmost = curr.val;
+      if (curr.left) queue.push(curr.left);
+      if (curr.right) queue.push(curr.right);
+    }
+    result.push(rightmost);
+  }
+  return result;
+}
+const tree = {
+  val: 1,
+  left: { val: 2, right: { val: 5, left: null, right: null } },
+  right: { val: 3, right: { val: 4, left: null, right: null } }
+};
+const result = rightSideView(tree);
+console.log('Result:', result);`,
+
+  "789": `// Kth Largest Element in a Stream — Min-Heap Simulation O(log k)
+function kthLargestStream() {
+  const k = 3;
+  const heap = [4, 5, 8, 2];
+  heap.sort((a, b) => a - b);
+  while (heap.length > k) heap.shift();
+
+  function add(val) {
+    heap.push(val);
+    heap.sort((a, b) => a - b);
+    if (heap.length > k) heap.shift();
+    return heap[0];
+  }
+
+  const r1 = add(3);
+  const r2 = add(5);
+  const r3 = add(10);
+  const r4 = add(9);
+  const r5 = add(4);
+  return [r1, r2, r3, r4, r5];
+}
+const result = kthLargestStream();
+console.log('Result:', result);`,
+
+  "621": `// Task Scheduler — Greedy Frequency Calculation O(n)
+function leastInterval(tasks, n) {
+  const freq = new Map();
+  let maxFreq = 0;
+
+  for (let i = 0; i < tasks.length; i++) {
+    const count = (freq.get(tasks[i]) || 0) + 1;
+    freq.set(tasks[i], count);
+    if (count > maxFreq) maxFreq = count;
+  }
+
+  let maxFreqCount = 0;
+  for (const count of freq.values()) {
+    if (count === maxFreq) maxFreqCount++;
+  }
+
+  const intervals = (maxFreq - 1) * (n + 1) + maxFreqCount;
+  return Math.max(tasks.length, intervals);
+}
+const result = leastInterval(["A","A","A","B","B","B"], 2);
+console.log('Result:', result);`,
+
+  "355": `// Design Twitter — User Feed Aggregator O(k log k)
+function designTwitterSimulation() {
+  const followers = new Map();
+  const tweets = [];
+
+  function postTweet(userId, tweetId) {
+    tweets.push({ userId, tweetId, time: tweets.length });
+  }
+
+  function getNewsFeed(userId) {
+    const following = followers.get(userId) || new Set();
+    following.add(userId);
+    const feed = [];
+    for (let i = tweets.length - 1; i >= 0 && feed.length < 10; i--) {
+      if (following.has(tweets[i].userId)) {
+        feed.push(tweets[i].tweetId);
+      }
+    }
+    return feed;
+  }
+
+  function follow(followerId, followeeId) {
+    if (!followers.has(followerId)) followers.set(followerId, new Set());
+    followers.get(followerId).add(followeeId);
+  }
+
+  postTweet(1, 5);
+  const f1 = getNewsFeed(1);
+  follow(1, 2);
+  postTweet(2, 6);
+  const f2 = getNewsFeed(1);
+  return { f1, f2 };
+}
+const result = designTwitterSimulation();
+console.log('Result:', result);`,
+
+  "295": `// Find Median from Data Stream — Two-Part Sorted Partition O(n)
+function medianFinderSimulation() {
+  const nums = [];
+
+  function addNum(num) {
+    let left = 0;
+    let right = nums.length - 1;
+    let insertIdx = nums.length;
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (nums[mid] >= num) {
+        insertIdx = mid;
+        right = mid - 1;
+      } else {
+        left = mid + 1;
+      }
+    }
+    nums.splice(insertIdx, 0, num);
+  }
+
+  function findMedian() {
+    const n = nums.length;
+    if (n % 2 === 1) return nums[Math.floor(n / 2)];
+    return (nums[n / 2 - 1] + nums[n / 2]) / 2;
+  }
+
+  addNum(1);
+  addNum(2);
+  const m1 = findMedian();
+  addNum(3);
+  const m2 = findMedian();
+  return [m1, m2];
+}
+const result = medianFinderSimulation();
+console.log('Result:', result);`,
+
+  "208": `// Implement Trie (Prefix Tree) — Tree node children mapping O(w)
+function trieSimulation() {
+  const root = { children: {}, isEnd: false };
+
+  function insert(word) {
+    let curr = root;
+    for (let i = 0; i < word.length; i++) {
+      const char = word[i];
+      if (!curr.children[char]) curr.children[char] = { children: {}, isEnd: false };
+      curr = curr.children[char];
+    }
+    curr.isEnd = true;
+  }
+
+  function search(word) {
+    let curr = root;
+    for (let i = 0; i < word.length; i++) {
+      const char = word[i];
+      if (!curr.children[char]) return false;
+      curr = curr.children[char];
+    }
+    return curr.isEnd;
+  }
+
+  function startsWith(prefix) {
+    let curr = root;
+    for (let i = 0; i < prefix.length; i++) {
+      const char = prefix[i];
+      if (!curr.children[char]) return false;
+      curr = curr.children[char];
+    }
+    return true;
+  }
+
+  insert("apple");
+  const a = search("apple");
+  const b = search("app");
+  const c = startsWith("app");
+  insert("app");
+  const d = search("app");
+  return [a, b, c, d];
+}
+const result = trieSimulation();
+console.log('Result:', result);`,
+
+  "211": `// Design Add and Search Words — Trie with Backtracking DFS O(m * 26)
+function wordDictionarySimulation() {
+  const root = { children: {}, isEnd: false };
+
+  function addWord(word) {
+    let curr = root;
+    for (let i = 0; i < word.length; i++) {
+      const char = word[i];
+      if (!curr.children[char]) curr.children[char] = { children: {}, isEnd: false };
+      curr = curr.children[char];
+    }
+    curr.isEnd = true;
+  }
+
+  function dfsSearch(node, word, index) {
+    if (!node) return false;
+    if (index === word.length) return node.isEnd;
+
+    const char = word[index];
+    if (char === '.') {
+      for (const childKey of Object.keys(node.children)) {
+        if (dfsSearch(node.children[childKey], word, index + 1)) return true;
+      }
+      return false;
+    } else {
+      return dfsSearch(node.children[char], word, index + 1);
+    }
+  }
+
+  addWord("bad");
+  addWord("dad");
+  addWord("mad");
+  const r1 = dfsSearch(root, "pad", 0);
+  const r2 = dfsSearch(root, "bad", 0);
+  const r3 = dfsSearch(root, ".ad", 0);
+  const r4 = dfsSearch(root, "b..", 0);
+  return [r1, r2, r3, r4];
+}
+const result = wordDictionarySimulation();
+console.log('Result:', result);`,
+
+  "130": `// Surrounded Regions — Boundary DFS Flood Fill O(m * n)
+function solveSurroundedRegions(board) {
+  const rows = board.length;
+  const cols = board[0].length;
+
+  function dfs(r, c) {
+    if (r < 0 || r >= rows || c < 0 || c >= cols || board[r][c] !== 'O') return;
+    board[r][c] = 'T'; // Temporary mark for safe border connected 'O'
+    dfs(r + 1, c);
+    dfs(r - 1, c);
+    dfs(r, c + 1);
+    dfs(r, c - 1);
+  }
+
+  for (let r = 0; r < rows; r++) {
+    dfs(r, 0);
+    dfs(r, cols - 1);
+  }
+  for (let c = 0; c < cols; c++) {
+    dfs(0, c);
+    dfs(rows - 1, c);
+  }
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (board[r][c] === 'O') board[r][c] = 'X';
+      else if (board[r][c] === 'T') board[r][c] = 'O';
+    }
+  }
+  return board;
+}
+const grid = [
+  ["X","X","X","X"],
+  ["X","O","O","X"],
+  ["X","X","O","X"],
+  ["X","O","X","X"]
+];
+const result = solveSurroundedRegions(grid);
+console.log('Result:', result);`,
+
+  "91": `// Decode Ways — 1D Dynamic Programming O(n) time, O(n) space
+function numDecodings(s) {
+  if (!s || s[0] === '0') return 0;
+  const n = s.length;
+  const dp = new Array(n + 1).fill(0);
+  dp[0] = 1;
+  dp[1] = 1;
+
+  for (let i = 2; i <= n; i++) {
+    const oneDigit = parseInt(s.substring(i - 1, i));
+    const twoDigits = parseInt(s.substring(i - 2, i));
+
+    if (oneDigit >= 1 && oneDigit <= 9) {
+      dp[i] += dp[i - 1];
+    }
+    if (twoDigits >= 10 && twoDigits <= 26) {
+      dp[i] += dp[i - 2];
+    }
+  }
+  return dp[n];
+}
+const result = numDecodings("226");
+console.log('Result:', result);`,
+
+  "2139": `// Detect Squares — Point Coordinate Frequency Counting O(n)
+function detectSquaresSimulation() {
+  const points = new Map();
+
+  function add(point) {
+    const key = \`\${point[0]},\${point[1]}\`;
+    points.set(key, (points.get(key) || 0) + 1);
+  }
+
+  function count(point) {
+    const [px, py] = point;
+    let totalSquares = 0;
+
+    for (const [key, cnt] of points.entries()) {
+      const [x, y] = key.split(',').map(Number);
+      if (Math.abs(px - x) !== Math.abs(py - y) || px === x || py === y) continue;
+
+      const p1 = \`\${px},\${y}\`;
+      const p2 = \`\${x},\${py}\`;
+      if (points.has(p1) && points.has(p2)) {
+        totalSquares += cnt * points.get(p1) * points.get(p2);
+      }
+    }
+    return totalSquares;
+  }
+
+  add([3, 10]);
+  add([11, 2]);
+  add([3, 2]);
+  const c1 = count([11, 10]);
+  const c2 = count([14, 8]);
+  add([11, 2]);
+  const c3 = count([11, 10]);
+  return [c1, c2, c3];
+}
+const result = detectSquaresSimulation();
+console.log('Result:', result);`,
+
+  "136": `// Single Number — Bitwise XOR Accumulation O(n) time, O(1) space
+function singleNumber(nums) {
+  let ans = 0;
+  for (let i = 0; i < nums.length; i++) {
+    ans ^= nums[i];
+  }
+  return ans;
+}
+const result = singleNumber([4, 1, 2, 1, 2]);
+console.log('Result:', result);`,
+
+  "191": `// Number of 1 Bits (Hamming Weight) — Brian Kernighan's Algorithm O(k)
+function hammingWeight(n) {
+  let count = 0;
+  let curr = n;
+  while (curr > 0) {
+    curr = curr & (curr - 1);
+    count++;
+  }
+  return count;
+}
+const result = hammingWeight(11);
+console.log('Result:', result);`,
+
+  "190": `// Reverse Bits — 32-Bit Bitwise Shifting O(1)
+function reverseBits(n) {
+  let result = 0;
+  let curr = n;
+  for (let i = 0; i < 32; i++) {
+    result = (result << 1) | (curr & 1);
+    curr >>>= 1;
+  }
+  return result >>> 0;
+}
+const result = reverseBits(43261596);
+console.log('Result:', result);`,
+
+  "268": `// Missing Number — XOR Cancellation / Gauss Formula O(n) time, O(1) space
+function missingNumber(nums) {
+  let ans = nums.length;
+  for (let i = 0; i < nums.length; i++) {
+    ans ^= i ^ nums[i];
+  }
+  return ans;
+}
+const result = missingNumber([3, 0, 1]);
+console.log('Result:', result);`,
 };

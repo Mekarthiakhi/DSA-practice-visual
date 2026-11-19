@@ -1,6 +1,7 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
 import { NEETCODE_150_PROBLEMS } from './neetcode150';
+import { SOLUTIONS } from './solutionsData';
 
 export interface LeetCodeProblem {
   id: string;
@@ -590,7 +591,18 @@ console.log('Result:', result);`
 export const LEETCODE_PROBLEMS: LeetCodeProblem[] = [
   ...MANUAL_PROBLEMS,
   ...NEETCODE_150_PROBLEMS.filter(p => !MANUAL_PROBLEMS.find(m => m.id === p.id))
-];
+].map(p => {
+  if (SOLUTIONS[p.id] && !p.solution?.javascript) {
+    return {
+      ...p,
+      solution: {
+        ...p.solution,
+        javascript: SOLUTIONS[p.id]
+      }
+    };
+  }
+  return p;
+});
 
 // Provide categories
 export const LEETCODE_CATEGORIES = Array.from(new Set(LEETCODE_PROBLEMS.map(p => p.category))).sort();

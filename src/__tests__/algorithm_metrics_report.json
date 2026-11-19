@@ -41,7 +41,7 @@
       "i"
     ],
     "dsaStateType": "array",
-    "dsaNodesCount": 6,
+    "dsaNodesCount": 1,
     "dsaPointers": [
       "pointer: i",
       "highlights: active, comparing"
@@ -90,10 +90,10 @@
       "i"
     ],
     "dsaStateType": "array",
-    "dsaNodesCount": 9,
+    "dsaNodesCount": 1,
     "dsaPointers": [
       "pointer: 0, i",
-      "highlights: comparing, active"
+      "highlights: active, comparing"
     ],
     "hasHashTable": false
   },
@@ -160,7 +160,7 @@
       "i"
     ],
     "dsaStateType": "array",
-    "dsaNodesCount": 5,
+    "dsaNodesCount": 1,
     "dsaPointers": [
       "pointer: i",
       "highlights: active, comparing"
@@ -213,7 +213,7 @@
       "max_sum"
     ],
     "dsaStateType": "array",
-    "dsaNodesCount": 6,
+    "dsaNodesCount": 1,
     "dsaPointers": [
       "pointer: i",
       "pointer2: i - k",
@@ -267,13 +267,13 @@
       "max_length",
       "right"
     ],
-    "dsaStateType": "string",
-    "dsaNodesCount": 8,
+    "dsaStateType": "array",
+    "dsaNodesCount": 1,
     "dsaPointers": [
       "pointer: left, max_length, right",
       "pointer2: left, right",
       "windowRange: [0..undefined]",
-      "highlights: comparing, found, active"
+      "highlights: active, comparing, found"
     ],
     "hasHashTable": false
   },
@@ -350,7 +350,7 @@
       "mid"
     ],
     "dsaStateType": "array",
-    "dsaNodesCount": 6,
+    "dsaNodesCount": 1,
     "dsaPointers": [
       "pointer: left, mid",
       "pointer2: left",
@@ -378,7 +378,7 @@
       "mid"
     ],
     "dsaStateType": "array",
-    "dsaNodesCount": 6,
+    "dsaNodesCount": 1,
     "dsaPointers": [
       "pointer: left, mid",
       "pointer2: left",
@@ -487,7 +487,7 @@
       "mid"
     ],
     "dsaStateType": "array",
-    "dsaNodesCount": 4,
+    "dsaNodesCount": 1,
     "dsaPointers": [
       "pointer: left, mid",
       "pointer2: left",

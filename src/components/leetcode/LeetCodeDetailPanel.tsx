@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Code, Play } from 'lucide-react';
 import { useIDEStore } from '../../store/ideStore';
 import { LeetCodeProblem } from '../../data/leetcodeProblems';
+import { SOLUTIONS } from '../../data/solutionsData';
 import { createLeetCodeHarness, LeetCodeHarnessLanguage } from '../../utils/leetcodeHarness';
 import { FixtureEditor } from './FixtureEditor';
 import { JudgePanel } from './JudgePanel';
@@ -27,7 +28,7 @@ export const LeetCodeDetailPanel: React.FC = () => {
   }, [activeLeetCodeProblem]);
 
   if (!activeLeetCodeProblem) return null;
-  const hasBundledSolution = !!(activeLeetCodeProblem.solution?.javascript || activeLeetCodeProblem.solution?.python);
+  const hasBundledSolution = !!(activeLeetCodeProblem.solution?.javascript || activeLeetCodeProblem.solution?.python || SOLUTIONS[activeLeetCodeProblem.id]);
 
   const handleClose = () => {
     setActiveLeetCodeProblem(undefined);
@@ -55,7 +56,7 @@ export const LeetCodeDetailPanel: React.FC = () => {
   };
 
   const handleLoadSolution = (problem: LeetCodeProblem, lang: LeetCodeHarnessLanguage) => {
-    const solution = problem.solution?.[lang];
+    const solution = problem.solution?.[lang] || (lang === 'javascript' ? SOLUTIONS[problem.id] : undefined);
     if (solution) {
       const alreadyRunnable = lang === 'javascript'
         ? /console\.log\s*\(/.test(solution)

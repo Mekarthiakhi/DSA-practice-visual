@@ -1724,9 +1724,10 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
   // 1. STACK DETECTOR (primary only when no spatial or linked structures present)
   const stackVar = Object.entries(vars).find(([k, v]) => k.toLowerCase().includes('stack') && Array.isArray(v))
   const strEntriesForStack = Object.entries(vars).filter(([k, v]) => !k.startsWith('__') && typeof v === 'string' && (v as string).length > 0 && k !== 'type')
-  const hasArrayForStack = Object.entries(vars).some(([k, v]) => !k.startsWith('__') && Array.isArray(v) && (v as unknown[]).length > 1 && (typeof (v as unknown[])[0] === 'number' || typeof (v as unknown[])[0] === 'string'))
+  const hasArrayForStack = stackVar ? Object.entries(vars).some(([k, v]) => !k.startsWith('__') && k !== stackVar[0] && !isOffsetArray(k) && Array.isArray(v) && (v as unknown[]).length > 1 && (typeof (v as unknown[])[0] === 'number' || typeof (v as unknown[])[0] === 'string')) : false
+  const isStackLine = stackVar ? new RegExp(`\\b${stackVar[0]}\\b`).test(lineCode) : false
 
-  if (!isGraphPresent && !isMatrixPresent && !isTreePresent && !isLLPresent && stackVar && strEntriesForStack.length === 0 && !hasArrayForStack) {
+  if (!isGraphPresent && !isMatrixPresent && !isTreePresent && !isLLPresent && stackVar && strEntriesForStack.length === 0 && (!hasArrayForStack || isStackLine)) {
     const [name, arr] = stackVar
     const items = arr as (string | number)[]
     return {
@@ -3085,6 +3086,46 @@ export function buildDSAState(vars: Record<string, unknown>, preferredName?: str
       message: `${name}: ${Object.keys(table).length} entries`,
       hashTableName: name,
       hashTableLabel: 'key → value'
+    }
+  }
+
+  // 9. FALLBACK VARIABLES / STATE DETECTOR
+  // Guarantees that when code executes with scalar variables (e.g. DP state, math, intervals),
+  // the visualizer never displays an empty/idle screen.
+  const visibleUserVars = Object.entries(vars).filter(([k, v]) => 
+    !k.startsWith('__') && 
+    typeof v !== 'function' && 
+    v !== undefined &&
+    k !== 'console' &&
+    k !== 'window' &&
+    k !== 'document'
+  )
+
+  if (visibleUserVars.length > 0) {
+    const nodes = visibleUserVars.slice(0, 16).map(([k, v], idx) => {
+      const displayVal = typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)
+      return {
+        id: `var_${k}_${idx}`,
+        value: `${k}: ${displayVal}`,
+        highlight: 'active' as const
+      }
+    })
+
+    const summaryParts = visibleUserVars.slice(0, 5).map(([k, v]) => `${k} = ${String(v)}`)
+
+    return {
+      type: 'array',
+      nodes,
+      message: summaryParts.join(' | '),
+      auxiliaryData: {
+        isVariableState: true,
+        renderAs: 'boxes',
+        trackingVars: Object.fromEntries(
+          visibleUserVars
+            .filter(([, v]) => typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean')
+            .map(([k, v]) => [k, v])
+        )
+      }
     }
   }
 
